@@ -1,0 +1,49 @@
+<h1 class="mb-6 text-2xl font-semibold">Mis pedidos</h1>
+
+@let s = state();
+
+@if (s.status === 'loading') {
+  <div class="flex justify-center py-24"><mat-spinner diameter="48" /></div>
+} @else if (s.status === 'error') {
+  <p class="py-16 text-center text-gray-600">{{ s.error }}</p>
+} @else if (s.status === 'success') {
+  @if (s.data.content.length === 0) {
+    <div class="flex flex-col items-center gap-3 py-20 text-center">
+      <mat-icon fontSet="material-symbols-outlined" class="!text-5xl text-gray-400">receipt_long</mat-icon>
+      <p class="text-gray-600">Aún no tienes pedidos.</p>
+      <a mat-flat-button color="primary" routerLink="/catalog">Explorar catálogo</a>
+    </div>
+  } @else {
+    <div class="flex flex-col gap-3">
+      @for (order of s.data.content; track order.orderId) {
+        <a
+          [routerLink]="['/orders', order.orderId]"
+          class="bp-card bp-card-hover flex items-center gap-4 p-4 no-underline text-inherit"
+        >
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <mat-icon fontSet="material-symbols-outlined">receipt_long</mat-icon>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-semibold text-ink-900">Pedido #{{ order.orderId.slice(0, 8) }}</p>
+            <p class="text-sm text-ink-500">
+              {{ order.createdAt | date: 'medium' }} · {{ order.items.length }} artículos
+            </p>
+          </div>
+          <span class="bp-chip" [class]="statusClass(order.status)">{{ label[order.status] }}</span>
+          <span class="w-28 text-right font-bold text-ink-900">
+            {{ order.total | currency: order.currency }}
+          </span>
+          <button
+            mat-icon-button
+            type="button"
+            matTooltip="Descargar boleta"
+            (click)="downloadReceipt($event, order)"
+          >
+            <mat-icon fontSet="material-symbols-outlined">download</mat-icon>
+          </button>
+          <mat-icon fontSet="material-symbols-outlined" class="text-ink-300">chevron_right</mat-icon>
+        </a>
+      }
+    </div>
+  }
+}

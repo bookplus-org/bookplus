@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+
+  report-postgres:
+    image: postgres:16-alpine
+    container_name: report-postgres
+    environment:
+      POSTGRES_DB:       report_db
+      POSTGRES_USER:     report_user
+      POSTGRES_PASSWORD: report_pass
+    ports:
+      - "5439:5432"
+    volumes:
+      - report-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U report_user -d report_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: report-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    volumes:
+      - report-kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  report-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: report-service
+    environment:
+      SERVER_PORT:                  8088
+      REPORT_DB_URL:                jdbc:postgresql://report-postgres:5432/report_db
+      REPORT_DB_USER:               report_user
+      REPORT_DB_PASS:               report_pass
+      KAFKA_BOOTSTRAP_SERVERS:      kafka:9092
+      REPORT_JWT_PUBLIC_KEY_BASE64: ${REPORT_JWT_PUBLIC_KEY_BASE64}
+    ports:
+      - "8088:8088"
+    depends_on:
+      report-postgres: { condition: service_healthy }
+      kafka:           { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+volumes:
+  report-postgres-data:
+  report-kafka-data:

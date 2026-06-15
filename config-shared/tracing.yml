@@ -1,0 +1,17 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Shared Tracing Configuration — copy/merge into each service's application.yml
+#  Replace ${spring.application.name} with the actual service name.
+# ════════════════════════════════════════════════════════════════════════════
+
+management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:1.0}   # 1.0 = 100% in dev; lower in prod
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL:http://localhost:9411}/api/v2/spans
+
+logging:
+  pattern:
+    # Include traceId and spanId in every log line for Kibana correlation
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId:-},%X{spanId:-}] %-5level %logger{36} - %msg%n"

@@ -1,0 +1,579 @@
+# ============================================================================
+# docker-compose.deploy.yml — GENERADO desde docker-compose.full.yml.
+# Usa imágenes del registro (ghcr) en vez de construir localmente.
+# En el servidor define en .env:  REGISTRY=ghcr.io/<tu-usuario>   y   TAG=<sha o latest>
+# Uso:  docker compose -f docker-compose.deploy.yml pull && docker compose -f docker-compose.deploy.yml up -d
+# ============================================================================
+version: "3.9"
+
+# ════════════════════════════════════════════════════════════════════════════
+#  BookPlus — Full Stack Docker Compose
+#  Starts ALL microservices + shared infrastructure in a single network.
+#  Usage:
+#    export BOOKPLUS_JWT_PUBLIC_KEY_BASE64=<your-rsa-public-key-base64>
+#    docker compose -f docker-compose.full.yml up --build
+# ════════════════════════════════════════════════════════════════════════════
+
+x-jwt-env: &jwt-env
+  JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+
+networks:
+  bookplus-net:
+    driver: bridge
+
+# ── Shared infrastructure ─────────────────────────────────────────────────
+
+services:
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: bookplus-kafka
+    networks: [bookplus-net]
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: bookplus-mailhog
+    networks: [bookplus-net]
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: bookplus-zipkin
+    networks: [bookplus-net]
+    ports:
+      - "9411:9411"   # Zipkin UI → http://localhost:9411
+    environment:
+      STORAGE_TYPE: mem   # in-memory for dev; swap to elasticsearch in prod
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9411/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  gateway-redis:
+    image: redis:7.2-alpine
+    container_name: bookplus-gateway-redis
+    networks: [bookplus-net]
+    command: redis-server --save "" --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── auth-service ────────────────────────────────────────────────────────
+
+  auth-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-auth-postgres
+    networks: [bookplus-net]
+    ports:
+      - "5433:5432"   # pgAdmin: host 5433 → auth_db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_pass
+    volumes:
+      - auth-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-auth-service:${TAG:-latest}
+    container_name: bookplus-auth-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8081
+      DB_HOST: auth-postgres
+      DB_PORT: 5432
+      DB_NAME: auth_db
+      DB_USER: auth_user
+      DB_PASS: auth_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: gateway-redis
+      REDIS_PORT: 6379
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      APP_SECURITY_JWT_PRIVATE_KEY: ${BOOKPLUS_JWT_PRIVATE_KEY_BASE64}
+      APP_SECURITY_JWT_PUBLIC_KEY: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      FRONTEND_URL: http://localhost:4200
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      # La V2 fue editada (hash admin); el esquema en BD ya está correcto → omitir validación de checksum.
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      ZIPKIN_URL: http://zipkin:9411
+      TRACING_SAMPLE_RATE: ${TRACING_SAMPLE_RATE:-1.0}
+    depends_on:
+      auth-postgres: { condition: service_healthy }
+      gateway-redis: { condition: service_healthy }
+      kafka:         { condition: service_healthy }
+      zipkin:        { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── catalog-service ─────────────────────────────────────────────────────
+
+  catalog-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-catalog-postgres
+    networks: [bookplus-net]
+    ports:
+      - "5434:5432"   # pgAdmin: host 5434 → catalog_db
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: catalog_user
+      POSTGRES_PASSWORD: catalog_pass
+    volumes:
+      - catalog-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog_user -d catalog_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  catalog-redis:
+    image: redis:7.2-alpine
+    container_name: bookplus-catalog-redis
+    networks: [bookplus-net]
+    command: redis-server --save "" --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0
+    container_name: bookplus-elasticsearch
+    networks: [bookplus-net]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  catalog-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-catalog-service:${TAG:-latest}
+    container_name: bookplus-catalog-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8082
+      CATALOG_DB_URL: jdbc:postgresql://catalog-postgres:5432/catalog_db
+      CATALOG_DB_USER: catalog_user
+      CATALOG_DB_PASS: catalog_pass
+      CATALOG_REDIS_HOST: catalog-redis
+      CATALOG_REDIS_PORT: 6379
+      REDIS_HOST: catalog-redis
+      REDIS_PORT: 6379
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+      ELASTICSEARCH_URIS: http://elasticsearch:9200
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CATALOG_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      ZIPKIN_URL: http://zipkin:9411
+    depends_on:
+      catalog-postgres:  { condition: service_healthy }
+      catalog-redis:     { condition: service_healthy }
+      elasticsearch:     { condition: service_healthy }
+      kafka:             { condition: service_healthy }
+      zipkin:            { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── inventory-service ───────────────────────────────────────────────────
+
+  inventory-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-inventory-postgres
+    networks: [bookplus-net]
+    ports:
+      - "5435:5432"   # pgAdmin: host 5435 → inventory_db
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass
+    volumes:
+      - inventory-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inventory-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-inventory-service:${TAG:-latest}
+    container_name: bookplus-inventory-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8083
+      INVENTORY_DB_URL: jdbc:postgresql://inventory-postgres:5432/inventory_db?stringtype=unspecified
+      INVENTORY_DB_USER: inventory_user
+      INVENTORY_DB_PASS: inventory_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      INVENTORY_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      ZIPKIN_URL: http://zipkin:9411
+    depends_on:
+      inventory-postgres: { condition: service_healthy }
+      kafka:              { condition: service_healthy }
+      zipkin:             { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── cart-service ────────────────────────────────────────────────────────
+
+  cart-redis:
+    image: redis:7.2-alpine
+    container_name: bookplus-cart-redis
+    networks: [bookplus-net]
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cart-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-cart-service:${TAG:-latest}
+    container_name: bookplus-cart-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8084
+      CART_REDIS_HOST: cart-redis
+      CART_REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CART_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      ZIPKIN_URL: http://zipkin:9411
+    depends_on:
+      cart-redis: { condition: service_healthy }
+      kafka:      { condition: service_healthy }
+      zipkin:     { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── order-service ───────────────────────────────────────────────────────
+
+  order-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-order-postgres
+    networks: [bookplus-net]
+    ports:
+      - "5436:5432"   # pgAdmin: host 5436 → order_db
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: order_user
+      POSTGRES_PASSWORD: order_pass
+    volumes:
+      - order-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_user -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-order-service:${TAG:-latest}
+    container_name: bookplus-order-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8085
+      ORDER_DB_URL: jdbc:postgresql://order-postgres:5432/order_db?stringtype=unspecified
+      ORDER_DB_USER: order_user
+      ORDER_DB_PASS: order_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      ORDER_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      ZIPKIN_URL: http://zipkin:9411
+    depends_on:
+      order-postgres: { condition: service_healthy }
+      kafka:          { condition: service_healthy }
+      zipkin:         { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── payment-service ─────────────────────────────────────────────────────
+
+  payment-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-payment-postgres
+    networks: [bookplus-net]
+    ports:
+      - "5437:5432"   # pgAdmin: host 5437 → payment_db
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment_user
+      POSTGRES_PASSWORD: payment_pass
+    volumes:
+      - payment-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment_user -d payment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  payment-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-payment-service:${TAG:-latest}
+    container_name: bookplus-payment-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8086
+      PAYMENT_DB_URL: jdbc:postgresql://payment-postgres:5432/payment_db?stringtype=unspecified
+      PAYMENT_DB_USER: payment_user
+      PAYMENT_DB_PASS: payment_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PAYMENT_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      ZIPKIN_URL: http://zipkin:9411
+    depends_on:
+      payment-postgres: { condition: service_healthy }
+      kafka:            { condition: service_healthy }
+      zipkin:           { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── notification-service ────────────────────────────────────────────────
+
+  notification-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-notification-postgres
+    networks: [bookplus-net]
+    ports:
+      - "5438:5432"   # pgAdmin: host 5438 → notification_db
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_pass
+    volumes:
+      - notification-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notification-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-notification-service:${TAG:-latest}
+    container_name: bookplus-notification-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8087
+      NOTIFICATION_DB_URL: jdbc:postgresql://notification-postgres:5432/notification_db?stringtype=unspecified
+      NOTIFICATION_DB_USER: notification_user
+      NOTIFICATION_DB_PASS: notification_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      NOTIFICATION_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      ZIPKIN_URL: http://zipkin:9411
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      MAIL_FROM: noreply@bookplus.com
+      ADMIN_EMAIL: admin@bookplus.com
+    depends_on:
+      notification-postgres: { condition: service_healthy }
+      kafka:                  { condition: service_healthy }
+      mailhog:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── api-gateway ─────────────────────────────────────────────────────────
+
+  api-gateway:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-api-gateway:${TAG:-latest}
+    container_name: bookplus-api-gateway
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8080
+      GATEWAY_REDIS_HOST: gateway-redis
+      GATEWAY_REDIS_PORT: 6379
+      # Permite peticiones públicas (login, catálogo) que no tienen principal → key vacía.
+      SPRING_CLOUD_GATEWAY_FILTER_REQUEST_RATE_LIMITER_DENY_EMPTY_KEY: "false"
+      GATEWAY_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      CORS_ALLOWED_ORIGINS:     ${CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      AUTH_SERVICE_URL:         http://auth-service:8081
+      CATALOG_SERVICE_URL:      http://catalog-service:8082
+      INVENTORY_SERVICE_URL:    http://inventory-service:8083
+      CART_SERVICE_URL:         http://cart-service:8084
+      ORDER_SERVICE_URL:        http://order-service:8085
+      PAYMENT_SERVICE_URL:      http://payment-service:8086
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+      REPORT_SERVICE_URL:       http://report-service:8088
+      ADMIN_BFF_URL:            http://admin-bff:8089
+    ports:
+      - "8080:8080"
+    depends_on:
+      gateway-redis:       { condition: service_healthy }
+      auth-service:        { condition: service_healthy }
+      catalog-service:     { condition: service_healthy }
+      inventory-service:   { condition: service_healthy }
+      cart-service:        { condition: service_healthy }
+      order-service:       { condition: service_healthy }
+      payment-service:     { condition: service_healthy }
+      notification-service: { condition: service_healthy }
+      report-service:      { condition: service_healthy }
+      admin-bff:           { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── frontend (Angular + Nginx) ──────────────────────────────────────────
+  frontend:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-frontend:${TAG:-latest}
+    container_name: bookplus-frontend
+    networks: [bookplus-net]
+    ports:
+      - "4200:80"
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ── report-service ─────────────────────────────────────────────────────
+
+  report-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-report-postgres
+    networks: [bookplus-net]
+    ports:
+      - "5439:5432"   # pgAdmin: host 5439 → report_db
+    environment:
+      POSTGRES_DB: report_db
+      POSTGRES_USER: report_user
+      POSTGRES_PASSWORD: report_pass
+    volumes:
+      - report-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U report_user -d report_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  report-service:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-report-service:${TAG:-latest}
+    container_name: bookplus-report-service
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8088
+      REPORT_DB_URL: jdbc:postgresql://report-postgres:5432/report_db
+      REPORT_DB_USER: report_user
+      REPORT_DB_PASS: report_pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REPORT_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      ZIPKIN_URL: http://zipkin:9411
+    depends_on:
+      report-postgres: { condition: service_healthy }
+      kafka:           { condition: service_healthy }
+      zipkin:          { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ── admin-bff ───────────────────────────────────────────────────────────
+
+  admin-bff:
+    image: ${REGISTRY:-ghcr.io/OWNER}/bookplus-admin-bff:${TAG:-latest}
+    container_name: bookplus-admin-bff
+    networks: [bookplus-net]
+    environment:
+      SERVER_PORT: 8089
+      ADMIN_BFF_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
+      CATALOG_SERVICE_URL:      http://catalog-service:8082
+      INVENTORY_SERVICE_URL:    http://inventory-service:8083
+      ORDER_SERVICE_URL:        http://order-service:8085
+      PAYMENT_SERVICE_URL:      http://payment-service:8086
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+      REPORT_SERVICE_URL:       http://report-service:8088
+      AUTH_SERVICE_URL:         http://auth-service:8081
+    ports:
+      - "8089:8089"
+    depends_on:
+      catalog-service:      { condition: service_healthy }
+      inventory-service:    { condition: service_healthy }
+      order-service:        { condition: service_healthy }
+      payment-service:      { condition: service_healthy }
+      notification-service: { condition: service_healthy }
+      report-service:       { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8089/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+volumes:
+  kafka-data:
+  auth-postgres-data:
+  catalog-postgres-data:
+  inventory-postgres-data:
+  order-postgres-data:
+  payment-postgres-data:
+  notification-postgres-data:
+  report-postgres-data:
+  elasticsearch-data:

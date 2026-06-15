@@ -1,0 +1,53 @@
+<mat-card class="overflow-hidden">
+  @if (submitting()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <mat-card-header class="!block px-6 pt-6">
+    <mat-card-title class="text-xl font-semibold">Bienvenido de nuevo</mat-card-title>
+    <mat-card-subtitle>Ingresa para continuar con tu compra</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content class="px-6 pb-2 pt-4">
+    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-2">
+      <mat-form-field appearance="outline">
+        <mat-label>Usuario o correo</mat-label>
+        <input matInput formControlName="usernameOrEmail" autocomplete="username" />
+        @if (form.controls.usernameOrEmail.hasError('required') && form.controls.usernameOrEmail.touched) {
+          <mat-error>Este campo es obligatorio</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Contraseña</mat-label>
+        <input matInput type="password" formControlName="password" autocomplete="current-password" />
+        @if (form.controls.password.hasError('required') && form.controls.password.touched) {
+          <mat-error>La contraseña es obligatoria</mat-error>
+        }
+        @if (form.controls.password.hasError('server')) {
+          <mat-error>{{ form.controls.password.getError('server') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <a routerLink="/auth/forgot-password" class="mb-2 self-end text-sm text-brand-600">
+        ¿Olvidaste tu contraseña?
+      </a>
+
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        class="!h-11"
+        [disabled]="submitting()"
+      >
+        Ingresar
+      </button>
+    </form>
+  </mat-card-content>
+
+  <mat-card-actions class="justify-center px-6 pb-6 pt-2">
+    <span class="text-sm text-gray-600">
+      ¿No tienes cuenta?
+      <a routerLink="/auth/register" class="font-medium text-brand-600">Crear una</a>
+    </span>
+  </mat-card-actions>
+</mat-card>

@@ -1,0 +1,138 @@
+@if (loading.isLoading()) {
+  <mat-progress-bar mode="indeterminate" class="!fixed left-0 top-0 z-50 w-full" />
+}
+
+<header class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+  <div class="mx-auto flex h-16 w-full max-w-7xl items-center gap-6 px-4">
+    <a routerLink="/catalog" class="flex items-center gap-2 no-underline">
+      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
+        <mat-icon fontSet="material-symbols-outlined">menu_book</mat-icon>
+      </span>
+      <span class="text-xl font-extrabold tracking-tight text-ink-900">Book<span class="text-brand-600">Plus</span></span>
+    </a>
+
+    <nav class="ml-2 hidden items-center gap-1 md:flex">
+      <a mat-button routerLink="/catalog" routerLinkActive="bp-active">Catálogo</a>
+      @if (auth.isAuthenticated()) {
+        <a mat-button routerLink="/orders" routerLinkActive="bp-active">Mis pedidos</a>
+      }
+      @if (auth.isAdmin()) {
+        <a mat-button routerLink="/admin" routerLinkActive="bp-active">Admin</a>
+      }
+      @if (auth.isCourier()) {
+        <a mat-button routerLink="/courier" routerLinkActive="bp-active">Mis entregas</a>
+      }
+    </nav>
+
+    <span class="flex-1"></span>
+
+    <a
+      mat-icon-button
+      routerLink="/cart"
+      aria-label="Carrito"
+      [matBadge]="cart.count() || null"
+      matBadgeColor="warn"
+      matBadgeSize="small"
+    >
+      <mat-icon fontSet="material-symbols-outlined">shopping_cart</mat-icon>
+    </a>
+
+    @if (auth.isAuthenticated()) {
+      <a mat-icon-button routerLink="/favorites" aria-label="Favoritos">
+        <mat-icon fontSet="material-symbols-outlined">favorite</mat-icon>
+      </a>
+      <a mat-icon-button routerLink="/notifications" aria-label="Notificaciones">
+        <mat-icon fontSet="material-symbols-outlined">notifications</mat-icon>
+      </a>
+      <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Cuenta">
+        <mat-icon fontSet="material-symbols-outlined">account_circle</mat-icon>
+      </button>
+      <mat-menu #userMenu="matMenu">
+        <div class="px-4 py-2 text-sm text-ink-500">{{ auth.user()?.email }}</div>
+        <a mat-menu-item routerLink="/account">
+          <mat-icon fontSet="material-symbols-outlined">person</mat-icon><span>Mi cuenta</span>
+        </a>
+        <a mat-menu-item routerLink="/orders">
+          <mat-icon fontSet="material-symbols-outlined">receipt_long</mat-icon><span>Mis pedidos</span>
+        </a>
+        <a mat-menu-item routerLink="/library">
+          <mat-icon fontSet="material-symbols-outlined">auto_stories</mat-icon><span>Mi biblioteca</span>
+        </a>
+        <a mat-menu-item routerLink="/favorites">
+          <mat-icon fontSet="material-symbols-outlined">favorite</mat-icon><span>Mis favoritos</span>
+        </a>
+        @if (auth.isAdmin()) {
+          <a mat-menu-item routerLink="/admin">
+            <mat-icon fontSet="material-symbols-outlined">admin_panel_settings</mat-icon><span>Administración</span>
+          </a>
+        }
+        <button mat-menu-item (click)="logout()">
+          <mat-icon fontSet="material-symbols-outlined">logout</mat-icon><span>Cerrar sesión</span>
+        </button>
+      </mat-menu>
+    } @else {
+      <a mat-flat-button color="primary" routerLink="/auth/login" class="!ml-1">Ingresar</a>
+    }
+  </div>
+</header>
+
+@if (auth.isAuthenticated() && !auth.emailVerified()) {
+  <div class="border-b border-amber-200 bg-amber-50">
+    <div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-2 px-4 py-2 text-sm text-amber-900">
+      <mat-icon fontSet="material-symbols-outlined" class="!text-base">mark_email_unread</mat-icon>
+      Verifica tu correo para activar tu cuenta.
+      <button mat-button class="!min-w-0 !px-2 !text-amber-900 underline" (click)="resendVerification()">
+        Reenviar correo
+      </button>
+    </div>
+  </div>
+}
+
+<main class="mx-auto w-full max-w-7xl px-4 py-8 min-h-[calc(100vh-16rem)]">
+  <router-outlet />
+</main>
+
+<footer class="mt-12 border-t border-slate-200 bg-ink-900 text-slate-300">
+  <div class="mx-auto grid w-full max-w-7xl gap-8 px-4 py-12 sm:grid-cols-2 md:grid-cols-4">
+    <div class="sm:col-span-2 md:col-span-1">
+      <div class="flex items-center gap-2 text-white">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600">
+          <mat-icon fontSet="material-symbols-outlined">menu_book</mat-icon>
+        </span>
+        <span class="text-lg font-extrabold">BookPlus</span>
+      </div>
+      <p class="mt-3 max-w-xs text-sm text-slate-400">
+        Tu librería online. Miles de títulos, entrega rápida y las mejores recomendaciones.
+      </p>
+    </div>
+    <div>
+      <h4 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Comprar</h4>
+      <ul class="space-y-2 text-sm">
+        <li><a routerLink="/catalog" class="text-slate-300 no-underline hover:text-white">Catálogo</a></li>
+        <li><a routerLink="/cart" class="text-slate-300 no-underline hover:text-white">Carrito</a></li>
+        <li><a routerLink="/orders" class="text-slate-300 no-underline hover:text-white">Mis pedidos</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Cuenta</h4>
+      <ul class="space-y-2 text-sm">
+        <li><a routerLink="/account" class="text-slate-300 no-underline hover:text-white">Mi cuenta</a></li>
+        <li><a routerLink="/auth/login" class="text-slate-300 no-underline hover:text-white">Ingresar</a></li>
+        <li><a routerLink="/auth/register" class="text-slate-300 no-underline hover:text-white">Crear cuenta</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Soporte</h4>
+      <ul class="space-y-2 text-sm text-slate-400">
+        <li>Centro de ayuda</li>
+        <li>Envíos y devoluciones</li>
+        <li>Contacto</li>
+      </ul>
+    </div>
+  </div>
+  <div class="border-t border-white/10">
+    <div class="mx-auto w-full max-w-7xl px-4 py-4 text-center text-xs text-slate-500">
+      © 2026 BookPlus — Plataforma de demostración. Construido con Angular &amp; Spring Boot.
+    </div>
+  </div>
+</footer>

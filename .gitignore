@@ -1,0 +1,35 @@
+# ── Secrets ──────────────────────────────────────────────────────────────
+.env
+keys/
+*.pem
+*.key
+*.p12
+*.jks
+
+# ── Build artifacts ───────────────────────────────────────────────────────
+**/target/
+**/.mvn/
+!**/.mvn/wrapper/maven-wrapper.jar
+!**/.mvn/wrapper/maven-wrapper.properties
+
+# ── Frontend (Node / Angular) ─────────────────────────────────────────────
+**/node_modules/
+book-plus-frontend/dist/
+book-plus-frontend/.angular/
+
+# ── IDE ───────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.class
+
+# ── OS ───────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docker volumes ────────────────────────────────────────────────────────
+docker-volumes/
+
+# ── Logs ─────────────────────────────────────────────────────────────────
+*.log
+logs/

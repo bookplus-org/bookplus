@@ -1,0 +1,220 @@
+@let s = state();
+
+@if (s.status === 'loading') {
+  <div class="flex justify-center py-24"><mat-spinner diameter="48" /></div>
+} @else if (s.status === 'error') {
+  <div class="flex flex-col items-center gap-3 py-24 text-center">
+    <p class="text-gray-600">{{ s.error }}</p>
+    <a mat-stroked-button routerLink="/orders">Volver a mis pedidos</a>
+  </div>
+} @else if (s.status === 'success') {
+  @let order = s.data;
+  <a routerLink="/orders" class="mb-4 inline-flex items-center gap-1 text-sm text-brand-600">
+    <mat-icon fontSet="material-symbols-outlined" class="!text-base">arrow_back</mat-icon>
+    Mis pedidos
+  </a>
+
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold">Pedido #{{ order.orderId.slice(0, 8) | uppercase }}</h1>
+      <p class="text-sm text-gray-500">{{ order.createdAt | date: 'medium' }}</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button mat-stroked-button class="!rounded-full" (click)="downloadReceipt(order)">
+        <mat-icon fontSet="material-symbols-outlined">download</mat-icon>
+        Boleta PDF
+      </button>
+      <span class="rounded-full bg-brand-50 px-4 py-1 text-brand-600">{{ label[order.status] }}</span>
+    </div>
+  </div>
+
+  <!-- Línea de tiempo -->
+  @if (isCancelled(order)) {
+    <div class="mt-5 flex items-center gap-2 rounded-xl2 border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <mat-icon fontSet="material-symbols-outlined" class="!text-base">cancel</mat-icon>
+      Este pedido fue cancelado.
+    </div>
+  } @else if (isRefunded(order)) {
+    <div class="mt-5 flex items-start gap-2 rounded-xl2 border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+      <mat-icon fontSet="material-symbols-outlined" class="!text-base">currency_exchange</mat-icon>
+      <span>
+        Este pedido fue reembolsado.
+        @if (order.claimResolution) { <span class="block text-xs text-orange-700">Motivo: {{ order.claimResolution }}</span> }
+      </span>
+    </div>
+  } @else {
+    <div class="mt-6 rounded-xl2 border border-slate-200 bg-white p-5 shadow-card">
+      <div class="flex items-start justify-between gap-1">
+        @for (step of steps(order); track step.status; let i = $index) {
+          <div class="flex flex-1 flex-col items-center text-center">
+            <div
+              class="flex h-10 w-10 items-center justify-center rounded-full transition-colors"
+              [class]="i <= currentStep(order) ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-400'"
+            >
+              <mat-icon fontSet="material-symbols-outlined" class="!text-xl">{{ step.icon }}</mat-icon>
+            </div>
+            <span
+              class="mt-2 text-xs leading-tight"
+              [class]="i <= currentStep(order) ? 'font-semibold text-ink-900' : 'text-ink-400'"
+            >{{ step.label }}</span>
+            @if (i === currentStep(order)) {
+              <span class="mt-1 text-[10px] text-brand-600">{{ order.updatedAt | date: 'short' }}</span>
+            }
+          </div>
+          @if (i < steps(order).length - 1) {
+            <div class="mt-5 h-0.5 flex-1" [class]="i < currentStep(order) ? 'bg-brand-600' : 'bg-slate-200'"></div>
+          }
+        }
+      </div>
+
+      @if (isDigital(order) && order.status === 'CONFIRMED') {
+        <div class="mt-5 flex items-center justify-between gap-3 rounded-xl2 bg-green-50 px-4 py-3">
+          <span class="flex items-center gap-2 text-sm text-green-800">
+            <mat-icon fontSet="material-symbols-outlined" class="!text-base">check_circle</mat-icon>
+            Tu libro digital está disponible.
+          </span>
+          <a mat-flat-button color="primary" class="!rounded-full" routerLink="/library">
+            <mat-icon fontSet="material-symbols-outlined">auto_stories</mat-icon>
+            Ir a mi biblioteca
+          </a>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Prueba de entrega -->
+  @if (order.deliveryType === 'PHYSICAL' && order.status === 'SHIPPED' && order.deliveryCode) {
+    <div class="mt-5 flex flex-col gap-3 rounded-xl2 border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p class="text-sm font-semibold text-amber-900">Tu código de entrega</p>
+        <p class="mt-1 text-xs text-amber-700">Dáselo al repartidor solo al recibir tu pedido. Es tu prueba de entrega.</p>
+        <p class="mt-2 font-mono text-3xl font-extrabold tracking-widest text-amber-900">{{ order.deliveryCode }}</p>
+      </div>
+      <button mat-flat-button color="primary" class="!rounded-full" (click)="confirmReceipt(order)">
+        <mat-icon fontSet="material-symbols-outlined">check_circle</mat-icon>
+        Confirmar recepción
+      </button>
+    </div>
+  }
+  @if (order.status === 'DELIVERED' && (order.receivedBy || proofPhotoUrl() || proofSignatureUrl())) {
+    <div class="mt-5 rounded-xl2 border border-green-200 bg-green-50 p-5">
+      <div class="flex items-center gap-2 text-sm font-semibold text-green-800">
+        <mat-icon fontSet="material-symbols-outlined" class="!text-base">verified</mat-icon>
+        Prueba de entrega
+      </div>
+      @if (order.receivedBy) {
+        <p class="mt-1 text-sm text-green-800">Recibido por: <b>{{ order.receivedBy }}</b></p>
+      }
+      @if (proofPhotoUrl() || proofSignatureUrl()) {
+        <div class="mt-3 flex flex-wrap gap-4">
+          @if (proofPhotoUrl(); as photo) {
+            <figure>
+              <figcaption class="mb-1 text-xs text-green-700">Foto de la entrega</figcaption>
+              <a [href]="photo" target="_blank" rel="noopener">
+                <img [src]="photo" alt="Foto de entrega"
+                     class="h-32 w-32 rounded-lg object-cover ring-1 ring-green-300" />
+              </a>
+            </figure>
+          }
+          @if (proofSignatureUrl(); as sign) {
+            <figure>
+              <figcaption class="mb-1 text-xs text-green-700">Firma</figcaption>
+              <img [src]="sign" alt="Firma del receptor"
+                   class="h-32 w-48 rounded-lg bg-white object-contain ring-1 ring-green-300" />
+            </figure>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <div class="mt-4 grid gap-4 sm:grid-cols-2">
+    @if (order.deliveryType === 'PHYSICAL' && order.shippingAddress; as addr) {
+      <div class="rounded-lg border p-4 text-sm text-gray-600">
+        <p class="mb-1 font-medium text-gray-800">Envío a</p>
+        <p>{{ addr.recipientName }}</p>
+        <p>{{ addr.street }}, {{ addr.city }}, {{ addr.state }} {{ addr.postalCode }}, {{ addr.country }}</p>
+      </div>
+    }
+    @if (order.carrier) {
+      <div class="rounded-lg border p-4 text-sm text-gray-600">
+        <p class="mb-1 font-medium text-gray-800">Envío</p>
+        <p>{{ order.carrier }}</p>
+        @if (order.trackingNumber) {
+          <p class="font-mono text-xs">{{ order.trackingNumber }}</p>
+        }
+      </div>
+    }
+    @if (order.paymentMethod) {
+      <div class="rounded-lg border p-4 text-sm text-gray-600">
+        <p class="mb-1 font-medium text-gray-800">Método de pago</p>
+        <p>{{ paymentLabel[order.paymentMethod] }}</p>
+        @if (order.paymentId) {
+          <p class="text-xs text-gray-400">Ref. {{ order.paymentId }}</p>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="mt-6 flex flex-col divide-y rounded-lg border">
+    @for (item of order.items; track item.bookId) {
+      <div class="flex items-center justify-between p-4">
+        <div>
+          <p class="font-medium">{{ item.title }}</p>
+          <p class="text-sm text-gray-500">
+            {{ item.quantity }} × {{ item.unitPrice | currency: item.currency }}
+          </p>
+        </div>
+        <span class="font-medium">{{ item.subtotal | currency: item.currency }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="mt-4 flex justify-end">
+    <div class="w-64">
+      <mat-divider class="!mb-3" />
+      @if (order.discountAmount && order.discountAmount > 0) {
+        <div class="flex justify-between text-sm text-green-700">
+          <span>Descuento{{ order.couponCode ? ' (' + order.couponCode + ')' : '' }}</span>
+          <span>-{{ order.discountAmount | currency: order.currency }}</span>
+        </div>
+      }
+      <div class="mt-1 flex justify-between text-lg font-semibold">
+        <span>Total</span><span>{{ order.total | currency: order.currency }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reclamo / disputa -->
+  @if (order.claimStatus === 'OPEN') {
+    <div class="mt-6 rounded-xl2 border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <p class="flex items-center gap-2 font-medium">
+        <mat-icon fontSet="material-symbols-outlined" class="!text-base">report</mat-icon>
+        Reclamo en revisión
+      </p>
+      <p class="mt-1 text-amber-700">Tu reporte: "{{ order.claimReason }}"</p>
+    </div>
+  } @else if (order.claimStatus === 'RESOLVED') {
+    <div class="mt-6 rounded-xl2 border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+      <p class="flex items-center gap-2 font-medium">
+        <mat-icon fontSet="material-symbols-outlined" class="!text-base">task_alt</mat-icon>
+        Reclamo resuelto
+      </p>
+      @if (order.claimResolution) {
+        <p class="mt-1 text-green-700">{{ order.claimResolution }}</p>
+      }
+    </div>
+  }
+
+  <div class="mt-6 flex flex-wrap gap-3">
+    @if (canCancel(order)) {
+      <button mat-stroked-button color="warn" (click)="cancel(order)">Cancelar pedido</button>
+    }
+    @if (canClaim(order)) {
+      <button mat-stroked-button (click)="openClaim(order)">
+        <mat-icon fontSet="material-symbols-outlined">report</mat-icon>
+        Reportar un problema
+      </button>
+    }
+  </div>
+}

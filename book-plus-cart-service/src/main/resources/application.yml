@@ -1,0 +1,57 @@
+server:
+  port: 8084
+  shutdown: graceful
+
+spring:
+  application:
+    name: cart-service
+
+  # ── Redis (primary cart storage — no PostgreSQL) ───────────────────────
+  data:
+    redis:
+      host: ${CART_REDIS_HOST:localhost}
+      port: ${CART_REDIS_PORT:6382}
+      password: ${CART_REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  # ── Kafka ──────────────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # ── Security / OAuth2 Resource Server ─────────────────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Decoded and validated manually via SecurityConfig (RSA public key)
+          issuer-uri: ""   # not used — we validate with local RSA key
+
+# ── Cart-specific settings ─────────────────────────────────────────────
+cart:
+  jwt:
+    public-key-base64: ${CART_JWT_PUBLIC_KEY_BASE64}
+  redis:
+    ttl-days: ${CART_REDIS_TTL_DAYS:30}
+
+# ── Actuator ───────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# ── Logging ────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.bookplus.cart: INFO
+    org.springframework.security: WARN
+    org.springframework.kafka: WARN
+    io.lettuce: WARN

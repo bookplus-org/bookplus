@@ -1,0 +1,111 @@
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold">Pedidos</h1>
+    <p class="text-sm text-gray-500">Gestiona y actualiza el estado de los pedidos.</p>
+  </div>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-56">
+    <mat-label>Filtrar por estado</mat-label>
+    <mat-select [formControl]="statusFilter">
+      <mat-option value="">Todos</mat-option>
+      @for (s of statuses; track s) {
+        <mat-option [value]="s">{{ label[s] }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="overflow-x-auto rounded-xl2 border border-slate-200 bg-white shadow-card">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-ink-500">
+      <tr>
+        <th class="px-4 py-3 font-semibold">Pedido</th>
+        <th class="px-4 py-3 font-semibold">Fecha</th>
+        <th class="px-4 py-3 font-semibold">Pago</th>
+        <th class="px-4 py-3 font-semibold">Total</th>
+        <th class="px-4 py-3 font-semibold">Estado</th>
+        <th class="px-4 py-3 text-right font-semibold">Acciones</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      @for (o of orders(); track o.orderId) {
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3">
+            <div class="font-medium text-ink-900">#{{ o.orderId.slice(0, 8) }}</div>
+            <div class="text-xs text-ink-400">{{ o.items.length }} artículo(s)</div>
+          </td>
+          <td class="px-4 py-3 text-ink-500">{{ o.createdAt | date: 'short' }}</td>
+          <td class="px-4 py-3 text-ink-500">{{ o.paymentMethod || '—' }}</td>
+          <td class="px-4 py-3 font-medium">{{ o.total | currency: o.currency }}</td>
+          <td class="px-4 py-3">
+            <span class="rounded-full px-2.5 py-1 text-xs font-medium" [class]="statusClass(o.status)">
+              {{ label[o.status] }}
+            </span>
+            @if (o.claimStatus === 'OPEN') {
+              <span class="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                <mat-icon fontSet="material-symbols-outlined" class="!text-sm">report</mat-icon>
+                Reclamo
+              </span>
+            }
+          </td>
+          <td class="px-4 py-3 text-right">
+            @if (canShip(o) || canDeliver(o) || canCancel(o) || canRefund(o) || o.claimStatus === 'OPEN') {
+              <button mat-icon-button [matMenuTriggerFor]="menu" [disabled]="busyId() === o.orderId" aria-label="Acciones">
+                <mat-icon fontSet="material-symbols-outlined">more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                @if (canShip(o)) {
+                  <button mat-menu-item (click)="ship(o)">
+                    <mat-icon fontSet="material-symbols-outlined">local_shipping</mat-icon>
+                    <span>Marcar como enviado</span>
+                  </button>
+                }
+                @if (canDeliver(o)) {
+                  <button mat-menu-item (click)="deliver(o)">
+                    <mat-icon fontSet="material-symbols-outlined">done_all</mat-icon>
+                    <span>Marcar como entregado</span>
+                  </button>
+                }
+                @if (canCancel(o)) {
+                  <button mat-menu-item (click)="cancel(o)">
+                    <mat-icon fontSet="material-symbols-outlined">cancel</mat-icon>
+                    <span>Cancelar pedido</span>
+                  </button>
+                }
+                @if (o.claimStatus === 'OPEN') {
+                  <button mat-menu-item (click)="resolveClaim(o)">
+                    <mat-icon fontSet="material-symbols-outlined">gavel</mat-icon>
+                    <span>Resolver reclamo</span>
+                  </button>
+                }
+                @if (canRefund(o)) {
+                  <button mat-menu-item (click)="refund(o)">
+                    <mat-icon fontSet="material-symbols-outlined">currency_exchange</mat-icon>
+                    <span>Emitir reembolso</span>
+                  </button>
+                }
+              </mat-menu>
+            } @else {
+              <span class="text-xs text-ink-300">—</span>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="6" class="px-4 py-10 text-center text-ink-500">No hay pedidos.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<mat-paginator
+  class="mt-2"
+  [length]="total()"
+  [pageSize]="pageSize"
+  [pageIndex]="pageIndex()"
+  [hidePageSize]="true"
+  (page)="onPage($event)"
+/>

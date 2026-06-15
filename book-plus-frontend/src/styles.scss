@@ -1,0 +1,91 @@
+@use '@angular/material' as mat;
+@tailwind components;
+@tailwind utilities;
+
+// ── Angular Material theme (M3) — indigo/violet primary ───────────────────
+html {
+  color-scheme: light;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$violet-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Inter,
+      density: 0,
+    )
+  );
+  --mat-sys-primary: #4f46e5;
+}
+
+// ── Base ──────────────────────────────────────────────────────────────────
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.material-symbols-outlined,
+.mat-symbol {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+// ── Custom scrollbar ──────────────────────────────────────────────────────
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+  border: 2px solid #f8fafc;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+// ── Reusable component classes ────────────────────────────────────────────
+@layer components {
+  .bp-card {
+    @apply rounded-xl2 border border-slate-200 bg-white shadow-card transition-all duration-200;
+  }
+  .bp-card-hover {
+    @apply hover:-translate-y-1 hover:shadow-card-hover;
+  }
+  .bp-chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .bp-section-title {
+    @apply text-2xl font-bold tracking-tight text-ink-900;
+  }
+  .bp-gradient-text {
+    @apply bg-gradient-to-r from-brand-600 to-brand-400 bg-clip-text text-transparent;
+  }
+}
+
+// Material button polish — rounder, no uppercase
+.mdc-button,
+.mat-mdc-button,
+.mat-mdc-raised-button,
+.mat-mdc-unelevated-button,
+.mat-mdc-outlined-button {
+  --mdc-filled-button-container-shape: 10px;
+  --mdc-outlined-button-container-shape: 10px;
+  --mdc-protected-button-container-shape: 10px;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+}

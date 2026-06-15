@@ -1,0 +1,144 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL — Catalog DB ──────────────────────────────────────────────
+  catalog-postgres:
+    image: postgres:16-alpine
+    container_name: catalog-postgres
+    environment:
+      POSTGRES_DB:       catalog_db
+      POSTGRES_USER:     catalog_user
+      POSTGRES_PASSWORD: catalog_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - catalog-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog_user -d catalog_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis — Book Cache ───────────────────────────────────────────────────
+  catalog-redis:
+    image: redis:7-alpine
+    container_name: catalog-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6381:6379"
+    volumes:
+      - catalog-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Elasticsearch ────────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: catalog-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+  # ── Kibana (opcional — para inspeccionar índices) ─────────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: catalog-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  # ── Kafka (KRaft — sin Zookeeper) ────────────────────────────────────────
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: catalog-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ── Kafka UI ─────────────────────────────────────────────────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: catalog-kafka-ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "8090:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # ── Catalog Service ───────────────────────────────────────────────────────
+  catalog-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    environment:
+      SERVER_PORT:                    8082
+      CATALOG_DB_URL:                 jdbc:postgresql://catalog-postgres:5432/catalog_db
+      CATALOG_DB_USER:                catalog_user
+      CATALOG_DB_PASS:                catalog_pass
+      REDIS_HOST:                     catalog-redis
+      REDIS_PORT:                     6379
+      ELASTICSEARCH_URIS:             http://elasticsearch:9200
+      KAFKA_BOOTSTRAP_SERVERS:        kafka:9092
+      CATALOG_JWT_PUBLIC_KEY_BASE64:  ${CATALOG_JWT_PUBLIC_KEY_BASE64}
+    ports:
+      - "8082:8082"
+    depends_on:
+      catalog-postgres:
+        condition: service_healthy
+      catalog-redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+volumes:
+  catalog-postgres-data:
+  catalog-redis-data:
+  elasticsearch-data:
+  kafka-data:

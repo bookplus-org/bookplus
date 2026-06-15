@@ -1,0 +1,50 @@
+version: "3.9"
+
+# ── API Gateway + its dedicated Redis for rate limiting ────────────────────
+# In production all services share a single Kafka cluster.
+# Here each service has its own docker-compose for standalone dev use.
+# The full-stack compose is at the project root: docker-compose.full.yml
+
+services:
+
+  gateway-redis:
+    image: redis:7.2-alpine
+    container_name: gateway-redis
+    command: redis-server --save "" --loglevel warning
+    ports:
+      - "6383:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      SERVER_PORT:                   8080
+      GATEWAY_REDIS_HOST:            gateway-redis
+      GATEWAY_REDIS_PORT:            6379
+      GATEWAY_JWT_PUBLIC_KEY_BASE64: ${GATEWAY_JWT_PUBLIC_KEY_BASE64}
+      # Downstream service URLs (override when running full stack)
+      AUTH_SERVICE_URL:         ${AUTH_SERVICE_URL:-http://host.docker.internal:8081}
+      CATALOG_SERVICE_URL:      ${CATALOG_SERVICE_URL:-http://host.docker.internal:8082}
+      INVENTORY_SERVICE_URL:    ${INVENTORY_SERVICE_URL:-http://host.docker.internal:8083}
+      CART_SERVICE_URL:         ${CART_SERVICE_URL:-http://host.docker.internal:8084}
+      ORDER_SERVICE_URL:        ${ORDER_SERVICE_URL:-http://host.docker.internal:8085}
+      PAYMENT_SERVICE_URL:      ${PAYMENT_SERVICE_URL:-http://host.docker.internal:8086}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://host.docker.internal:8087}
+    ports:
+      - "8080:8080"
+    depends_on:
+      gateway-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 5

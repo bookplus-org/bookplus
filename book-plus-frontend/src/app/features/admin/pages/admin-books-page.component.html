@@ -1,0 +1,75 @@
+<div class="mb-6 flex items-center gap-4">
+  <h1 class="text-2xl font-semibold">Catálogo</h1>
+  <span class="flex-1"></span>
+  <a mat-flat-button color="primary" routerLink="/admin/books/new">
+    <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+    Nuevo libro
+  </a>
+</div>
+
+<mat-form-field appearance="outline" class="w-full max-w-sm" subscriptSizing="dynamic">
+  <mat-label>Buscar</mat-label>
+  <mat-icon matPrefix fontSet="material-symbols-outlined">search</mat-icon>
+  <input matInput [formControl]="search" placeholder="Título, autor, ISBN…" />
+</mat-form-field>
+
+<div class="mt-4 overflow-hidden rounded-lg border bg-white">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <table mat-table [dataSource]="books()" class="w-full">
+    <ng-container matColumnDef="title">
+      <th mat-header-cell *matHeaderCellDef>Título</th>
+      <td mat-cell *matCellDef="let book" class="font-medium">
+        <div class="flex items-center gap-3">
+          <div class="flex h-12 w-9 shrink-0 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+            @if (book.imageUrl) {
+              <img [src]="book.imageUrl" [alt]="book.title" class="h-full w-full object-cover" />
+            } @else {
+              <mat-icon fontSet="material-symbols-outlined" class="!text-lg text-slate-300">menu_book</mat-icon>
+            }
+          </div>
+          <span>{{ book.title }}</span>
+        </div>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="author">
+      <th mat-header-cell *matHeaderCellDef>Autor</th>
+      <td mat-cell *matCellDef="let book">{{ book.author }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="price">
+      <th mat-header-cell *matHeaderCellDef>Precio</th>
+      <td mat-cell *matCellDef="let book">{{ book.price | currency: book.currency }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef class="!text-right">Acciones</th>
+      <td mat-cell *matCellDef="let book" class="!text-right">
+        <a mat-icon-button [routerLink]="['/admin/books', book.id, 'edit']" aria-label="Editar">
+          <mat-icon fontSet="material-symbols-outlined">edit</mat-icon>
+        </a>
+        <button mat-icon-button color="warn" (click)="confirmDelete(book)" aria-label="Eliminar">
+          <mat-icon fontSet="material-symbols-outlined">delete</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="columns"></tr>
+    <tr mat-row *matRowDef="let row; columns: columns"></tr>
+  </table>
+
+  @if (!loading() && books().length === 0) {
+    <p class="p-8 text-center text-gray-500">No hay libros que coincidan.</p>
+  }
+</div>
+
+<mat-paginator
+  class="mt-2"
+  [length]="total()"
+  [pageSize]="pageSize"
+  [pageIndex]="pageIndex()"
+  [hidePageSize]="true"
+  (page)="onPage($event)"
+/>

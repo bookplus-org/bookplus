@@ -1,0 +1,92 @@
+<!-- Hero -->
+<section
+  class="relative mb-6 overflow-hidden rounded-xl2 px-6 py-14 text-white shadow-card sm:px-10 sm:py-20"
+  style="background-image: linear-gradient(135deg, #4338ca 0%, #4f46e5 45%, #6366f1 100%);"
+>
+  <div class="pointer-events-none absolute inset-0 bg-hero-grid [background-size:22px_22px] opacity-30"></div>
+  <div class="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-white/10 blur-2xl"></div>
+  <div class="pointer-events-none absolute -bottom-20 right-32 h-56 w-56 rounded-full bg-indigo-300/20 blur-2xl"></div>
+  <div class="relative max-w-2xl">
+    <span class="bp-chip mb-4 bg-white/20 font-semibold text-white ring-1 ring-white/30">
+      ✨ Nuevos títulos cada semana
+    </span>
+    <h1 class="text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl">
+      Descubre tu<br />próxima lectura
+    </h1>
+    <p class="mt-4 max-w-lg text-base leading-relaxed text-indigo-100">
+      Miles de libros de tecnología, ciencia, negocios y mucho más. Envío rápido, pago seguro y los mejores precios.
+    </p>
+  </div>
+</section>
+
+<!-- Trust strip -->
+<div class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+  @for (t of trust; track t.title) {
+    <div class="flex items-center gap-3 rounded-xl2 border border-slate-200 bg-white px-4 py-3 shadow-card">
+      <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+        <mat-icon fontSet="material-symbols-outlined">{{ t.icon }}</mat-icon>
+      </span>
+      <div>
+        <p class="text-sm font-semibold text-ink-900">{{ t.title }}</p>
+        <p class="text-xs text-ink-500">{{ t.subtitle }}</p>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Filter bar -->
+<div class="mb-6 flex flex-col gap-3 rounded-xl2 border border-slate-200 bg-white p-3 shadow-card sm:flex-row sm:items-center">
+  <mat-form-field appearance="outline" class="w-full sm:flex-1" subscriptSizing="dynamic">
+    <mat-label>Buscar libros</mat-label>
+    <mat-icon matPrefix fontSet="material-symbols-outlined">search</mat-icon>
+    <input matInput [formControl]="search" placeholder="Título, autor, ISBN…" />
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="w-full sm:w-64" subscriptSizing="dynamic">
+    <mat-label>Categoría</mat-label>
+    <mat-select [value]="categoryId()" (valueChange)="onCategoryChange($event)">
+      <mat-option value="">Todas las categorías</mat-option>
+      @for (category of categories(); track category.id) {
+        <mat-option [value]="category.id">{{ category.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+@let s = state();
+
+@if (s.status === 'loading') {
+  <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+    @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+      <bp-book-card-skeleton />
+    }
+  </div>
+} @else if (s.status === 'error') {
+  <div class="flex flex-col items-center gap-2 py-24 text-center">
+    <mat-icon fontSet="material-symbols-outlined" class="!text-5xl text-ink-300">error</mat-icon>
+    <p class="text-ink-500">{{ s.error }}</p>
+  </div>
+} @else if (s.status === 'success') {
+  @if (s.data.content.length === 0) {
+    <div class="flex flex-col items-center gap-2 py-24 text-center">
+      <mat-icon fontSet="material-symbols-outlined" class="!text-5xl text-ink-300">search_off</mat-icon>
+      <p class="text-ink-500">No encontramos libros con esos criterios.</p>
+    </div>
+  } @else {
+    <div class="mb-4 flex items-center justify-between">
+      <p class="text-sm text-ink-500">{{ s.data.totalElements }} resultados</p>
+    </div>
+    <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+      @for (book of s.data.content; track book.id) {
+        <bp-book-card [book]="book" (addToCart)="addToCart($event)" />
+      }
+    </div>
+    <mat-paginator
+      class="mt-8 !rounded-xl2 !bg-transparent"
+      [length]="s.data.totalElements"
+      [pageSize]="pageSize"
+      [pageIndex]="pageIndex()"
+      [hidePageSize]="true"
+      (page)="onPage($event)"
+    />
+  }
+}

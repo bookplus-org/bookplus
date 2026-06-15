@@ -1,0 +1,103 @@
+<h1 class="mb-6 text-2xl font-semibold">Inventario</h1>
+
+<div class="grid gap-6 lg:grid-cols-[360px_1fr]">
+  <mat-card class="h-fit overflow-hidden">
+    <div class="p-4">
+      <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
+        <mat-label>Buscar libro</mat-label>
+        <mat-icon matPrefix fontSet="material-symbols-outlined">search</mat-icon>
+        <input matInput [formControl]="search" placeholder="Título, autor, ISBN…" />
+      </mat-form-field>
+    </div>
+    <mat-nav-list>
+      @for (book of books(); track book.id) {
+        <a mat-list-item (click)="select(book)" [class.bg-brand-50]="selected()?.id === book.id">
+          <span matListItemTitle>{{ book.title }}</span>
+          <span matListItemLine>{{ book.author }}</span>
+        </a>
+      } @empty {
+        <p class="p-4 text-center text-gray-500">Sin resultados.</p>
+      }
+    </mat-nav-list>
+  </mat-card>
+
+  <mat-card class="overflow-hidden">
+    @if (loadingStock()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    @if (!selected()) {
+      <div class="flex flex-col items-center gap-2 py-20 text-center text-gray-500">
+        <mat-icon fontSet="material-symbols-outlined" class="!text-5xl text-gray-300">inventory_2</mat-icon>
+        <p>Selecciona un libro para ver y ajustar su stock.</p>
+      </div>
+    } @else {
+      <mat-card-header class="!block px-6 pt-6">
+        <mat-card-title class="text-lg font-semibold">{{ selected()?.title }}</mat-card-title>
+        <mat-card-subtitle>{{ selected()?.author }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content class="px-6 pb-6 pt-4">
+        @if (stock(); as st) {
+          <div class="mb-4 flex items-center gap-2">
+            @if (!st.inStock) {
+              <span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700">
+                <mat-icon fontSet="material-symbols-outlined" class="!text-sm">error</mat-icon>
+                Agotado
+              </span>
+            } @else if (st.lowStock) {
+              <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                <mat-icon fontSet="material-symbols-outlined" class="!text-sm">warning</mat-icon>
+                Stock bajo (≤ {{ st.lowStockThreshold }})
+              </span>
+            } @else {
+              <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                <mat-icon fontSet="material-symbols-outlined" class="!text-sm">check_circle</mat-icon>
+                Stock OK
+              </span>
+            }
+          </div>
+          <div class="mb-4 grid grid-cols-3 gap-4 text-center">
+            <div class="rounded-lg bg-gray-50 p-3">
+              <p class="text-sm text-gray-500">Disponible</p>
+              <p class="text-xl font-bold" [class.text-red-600]="st.lowStock">{{ st.quantityAvailable }}</p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3">
+              <p class="text-sm text-gray-500">Reservado</p>
+              <p class="text-xl font-bold">{{ st.quantityReserved }}</p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3">
+              <p class="text-sm text-gray-500">Total</p>
+              <p class="text-xl font-bold">{{ st.quantityTotal }}</p>
+            </div>
+          </div>
+        } @else if (!loadingStock()) {
+          <p class="mb-4 text-sm text-amber-600">
+            Este libro aún no tiene stock registrado. Define la cantidad para inicializarlo.
+          </p>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="save()" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <mat-form-field appearance="outline">
+            <mat-label>Nueva cantidad total</mat-label>
+            <input matInput type="number" formControlName="newTotalQuantity" min="0" />
+            @if (form.controls.newTotalQuantity.hasError('required')) {
+              <mat-error>Requerido</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Umbral de stock bajo</mat-label>
+            <input matInput type="number" formControlName="lowStockThreshold" min="0" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="sm:col-span-2">
+            <mat-label>Notas</mat-label>
+            <input matInput formControlName="notes" placeholder="Reposición, inventario físico…" />
+          </mat-form-field>
+          <div class="sm:col-span-2">
+            <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
+              Guardar ajuste
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    }
+  </mat-card>
+</div>

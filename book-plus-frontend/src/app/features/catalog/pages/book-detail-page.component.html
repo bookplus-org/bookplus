@@ -1,0 +1,165 @@
+@let s = state();
+
+@if (s.status === 'loading') {
+  <div class="flex justify-center py-24"><mat-spinner diameter="48" /></div>
+} @else if (s.status === 'error') {
+  <div class="flex flex-col items-center gap-3 py-24 text-center">
+    <mat-icon fontSet="material-symbols-outlined" class="!text-5xl text-ink-300">error</mat-icon>
+    <p class="text-ink-500">{{ s.error }}</p>
+    <a mat-stroked-button routerLink="/catalog">Volver al catálogo</a>
+  </div>
+} @else if (s.status === 'success') {
+  @let book = s.data;
+  <a routerLink="/catalog" class="mb-5 inline-flex items-center gap-1 text-sm font-medium text-brand-600 no-underline hover:text-brand-700">
+    <mat-icon fontSet="material-symbols-outlined" class="!text-base">arrow_back</mat-icon>
+    Catálogo
+  </a>
+
+  <div class="grid gap-10 md:grid-cols-[360px_1fr]">
+    <!-- Cover -->
+    <div class="flex flex-col gap-3">
+      <div class="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-xl2 border border-slate-200 bg-gradient-to-br from-brand-50 to-slate-100 shadow-card">
+        @if (book.imageUrl) {
+          <img [src]="book.imageUrl" [alt]="book.title" class="h-full w-full object-cover" />
+        } @else {
+          <mat-icon fontSet="material-symbols-outlined" class="!text-7xl text-brand-300">menu_book</mat-icon>
+        }
+      </div>
+      <a mat-stroked-button [routerLink]="['/catalog', book.id, 'preview']">
+        <mat-icon fontSet="material-symbols-outlined">visibility</mat-icon>
+        Previsualizar
+      </a>
+    </div>
+
+    <!-- Info -->
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-wrap items-center gap-2">
+        @if (book.hasDiscount) {
+          <span class="bp-chip bg-rose-100 text-rose-700">Oferta</span>
+        }
+        <span class="bp-chip" [class]="book.inStock ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-ink-500'">
+          {{ book.inStock ? 'En stock' : 'Agotado' }}
+        </span>
+      </div>
+
+      <div>
+        <h1 class="text-3xl font-extrabold tracking-tight text-ink-900">{{ book.title }}</h1>
+        <p class="mt-1 text-lg text-ink-500">{{ book.author }}</p>
+      </div>
+
+      @if (book.reviewCount > 0) {
+        <div class="inline-flex items-center gap-1 text-amber-500">
+          <mat-icon fontSet="material-symbols-outlined" class="!text-lg">star</mat-icon>
+          <span class="font-semibold">{{ book.averageRating | number: '1.1-1' }}</span>
+          <span class="text-ink-300">· {{ book.reviewCount }} reseñas</span>
+        </div>
+      }
+
+      <div class="flex items-baseline gap-3">
+        @if (book.hasDiscount && book.discountPrice) {
+          <span class="text-4xl font-extrabold text-ink-900">{{ book.discountPrice | currency: book.currency }}</span>
+          <span class="text-xl text-ink-300 line-through">{{ book.price | currency: book.currency }}</span>
+        } @else {
+          <span class="text-4xl font-extrabold text-ink-900">{{ book.price | currency: book.currency }}</span>
+        }
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          mat-flat-button
+          color="primary"
+          class="!h-12 !rounded-full !px-8 !text-base"
+          [disabled]="!book.inStock"
+          (click)="addToCart(book)"
+        >
+          <mat-icon fontSet="material-symbols-outlined">add_shopping_cart</mat-icon>
+          {{ book.inStock ? 'Añadir al carrito' : 'Sin stock' }}
+        </button>
+        @if (book.inStock) {
+          <span class="text-sm text-ink-500">{{ book.stockSnapshot }} disponibles</span>
+        }
+      </div>
+
+      <p class="mt-1 leading-relaxed text-ink-700">{{ book.description }}</p>
+
+      <dl class="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl2 border border-slate-200 bg-white p-4 text-sm">
+        @if (book.isbn) {
+          <dt class="text-ink-500">ISBN</dt><dd class="font-medium text-ink-900">{{ book.isbn }}</dd>
+        }
+        @if (book.publisher) {
+          <dt class="text-ink-500">Editorial</dt><dd class="font-medium text-ink-900">{{ book.publisher }}</dd>
+        }
+        @if (book.publishedDate) {
+          <dt class="text-ink-500">Publicado</dt><dd class="font-medium text-ink-900">{{ book.publishedDate | date: 'mediumDate' }}</dd>
+        }
+        @if (book.pages) {
+          <dt class="text-ink-500">Páginas</dt><dd class="font-medium text-ink-900">{{ book.pages }}</dd>
+        }
+        @if (book.language) {
+          <dt class="text-ink-500">Idioma</dt><dd class="font-medium text-ink-900">{{ book.language }}</dd>
+        }
+      </dl>
+    </div>
+  </div>
+
+  <!-- Reviews -->
+  <section class="mt-12">
+    <h2 class="bp-section-title mb-5">Reseñas</h2>
+
+    @if (reviews().length) {
+      <div class="grid gap-4 sm:grid-cols-2">
+        @for (review of reviews(); track review.id) {
+          <div class="bp-card p-5">
+            <div class="mb-2 flex items-center justify-between">
+              <span class="font-semibold text-ink-900">
+                {{ review.username || 'Usuario' }}
+                @if (review.verifiedPurchase) {
+                  <span class="bp-chip ml-2 bg-emerald-100 text-emerald-700">✓ Verificado</span>
+                }
+              </span>
+              <span class="inline-flex items-center gap-0.5 text-sm font-semibold text-amber-500">
+                <mat-icon fontSet="material-symbols-outlined" class="!text-base">star</mat-icon>{{ review.rating }}
+              </span>
+            </div>
+            <p class="text-ink-700">{{ review.comment }}</p>
+            <span class="mt-2 block text-xs text-ink-300">{{ review.createdAt | date: 'mediumDate' }}</span>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="text-ink-500">Aún no hay reseñas. ¡Sé el primero!</p>
+    }
+
+    @if (auth.isAuthenticated()) {
+      <form
+        [formGroup]="reviewForm"
+        (ngSubmit)="submitReview()"
+        class="bp-card mt-6 flex max-w-xl flex-col gap-2 p-5"
+      >
+        <h3 class="font-semibold text-ink-900">Escribe una reseña</h3>
+        <mat-form-field appearance="outline" class="w-40">
+          <mat-label>Calificación</mat-label>
+          <mat-select formControlName="rating">
+            @for (n of [5, 4, 3, 2, 1]; track n) {
+              <mat-option [value]="n">{{ n }} ★</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Comentario</mat-label>
+          <textarea matInput rows="3" formControlName="comment"></textarea>
+          @if (reviewForm.controls.comment.hasError('minlength')) {
+            <mat-error>Mínimo 5 caracteres</mat-error>
+          }
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="submit" class="w-fit !rounded-full" [disabled]="submittingReview()">
+          Publicar reseña
+        </button>
+      </form>
+    } @else {
+      <a routerLink="/auth/login" class="mt-4 inline-block text-sm font-medium text-brand-600">
+        Inicia sesión para dejar una reseña
+      </a>
+    }
+  </section>
+}

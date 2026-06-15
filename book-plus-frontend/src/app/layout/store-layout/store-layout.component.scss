@@ -1,0 +1,10 @@
+.bp-active {
+  color: var(--mat-sys-primary, #4f46e5);
+  font-weight: 700;
+}
+
+:host {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}

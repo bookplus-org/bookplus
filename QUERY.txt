@@ -1,0 +1,146 @@
+-- Categories
+CREATE TABLE category (
+    id_category SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);
+
+-- Books
+CREATE TABLE book (
+    id_book SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    stock INT NOT NULL,
+    image_url VARCHAR(500),
+    id_category INT REFERENCES category(id_category)
+);
+
+-- Orders
+CREATE TABLE orders (
+    id_order SERIAL PRIMARY KEY,
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'pending',
+    total DECIMAL(10,2) NOT NULL,
+    customer_name VARCHAR(255) NOT NULL,
+    customer_email VARCHAR(255) NOT NULL,
+    customer_address TEXT,
+    customer_phone VARCHAR(20)
+);
+ALTER TABLE orders ADD COLUMN id_user INT REFERENCES users(id_user);
+
+INSERT INTO orders (
+    date,
+    status,
+    total,
+    customer_name,
+    customer_email,
+    customer_address,
+    customer_phone,
+    id_user
+) VALUES (
+    NOW(),
+    'PENDING_PAYMENT',
+    120.50,
+    'Juan Pérez',
+    'juan.perez@test.com',
+    'Av. Los Olivos 123, Lima',
+    '999888777',
+    6
+);
+
+select * from orders ;
+
+INSERT INTO order_detail (id_order, id_book, quantity, unit_price)
+VALUES (2, 1, 2, 60.25);
+
+-- Order Details
+CREATE TABLE order_detail (
+    id_detail SERIAL PRIMARY KEY,
+    id_order INT REFERENCES orders(id_order) ON DELETE CASCADE,
+    id_book INT REFERENCES book(id_book),
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL
+);
+
+-- Reviews --reseña
+CREATE TABLE review (
+    id_review SERIAL PRIMARY KEY,
+    id_book INT REFERENCES book(id_book),
+    customer_name VARCHAR(255),
+    comment TEXT,
+    rating INT CHECK (rating BETWEEN 1 AND 5),
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Roles
+CREATE TABLE role (
+    id_role SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL -- ADMIN, USER
+);
+
+-- Users
+CREATE TABLE users (
+    id_user SERIAL PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    enabled BOOLEAN DEFAULT TRUE,
+    id_role INT REFERENCES role(id_role)
+);
+
+-- cart Esta tabla representará el carrito de compras de cada usuario. Cada usuario tiene un carrito activo donde puede agregar o eliminar libros.
+CREATE TABLE cart (
+    id_cart SERIAL PRIMARY KEY,
+    id_user INT REFERENCES users(id_user) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- cart_item Esta tabla almacenará los libros que están dentro del carrito. Cada fila representa un libro agregado, con su cantidad y precio actual.
+CREATE TABLE cart_item (
+    id_item SERIAL PRIMARY KEY,
+    id_cart INT REFERENCES cart(id_cart) ON DELETE CASCADE,
+    id_book INT REFERENCES book(id_book),
+    quantity INT NOT NULL CHECK (quantity > 0),
+    unit_price DECIMAL(10,2) NOT NULL
+);
+
+--Relaciones
+--cart → users: relación 1 a 1 (cada usuario tiene un carrito).
+--cart_item → cart: relación 1 a muchos (un carrito puede tener varios items).
+--cart_item → book: relación muchos a uno (cada ítem pertenece a un libro específico).
+
+CREATE TABLE payments (
+    id_payment BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_order BIGINT NOT NULL,
+    amount DECIMAL(19,2) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'PENDING',
+    CONSTRAINT fk_payment_order FOREIGN KEY (id_order) REFERENCES orders (id_order)
+);
+
+CREATE INDEX idx_payment_order ON payments (id_order);
+
+
+SELECT * FROM orders;
+SELECT * FROM order_detail;
+SELECT * FROM users;
+SELECT * FROM payments;
+
+select * from role;
+
+-- Usuario administrador (password: admin123 en BCrypt)
+INSERT INTO users (username, password_hash, email, enabled, id_role)
+SELECT 'admin',
+       '$2a$10$MaXjRSCz3TOvgu0ouYFCPuffWiGyM5qUH5MWaHgOXUuTvQHhxgs46',
+       'admin@bookstore.com',
+       true,
+       id_role
+FROM role
+WHERE name = 'ADMIN'
+ON CONFLICT (username) DO NOTHING;
+
+select * from users;
+
+SELECT id_role FROM role WHERE name = 'ADMIN'

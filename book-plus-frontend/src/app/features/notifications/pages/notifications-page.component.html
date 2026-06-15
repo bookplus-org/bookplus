@@ -1,0 +1,31 @@
+<h1 class="mb-6 text-2xl font-semibold">Notificaciones</h1>
+
+@let s = state();
+
+@if (s.status === 'loading') {
+  <div class="flex justify-center py-24"><mat-spinner diameter="48" /></div>
+} @else if (s.status === 'error') {
+  <p class="py-16 text-center text-gray-600">{{ s.error }}</p>
+} @else if (s.status === 'success') {
+  @if (s.data.content.length === 0) {
+    <div class="flex flex-col items-center gap-3 py-20 text-center">
+      <mat-icon fontSet="material-symbols-outlined" class="!text-5xl text-gray-400">notifications_off</mat-icon>
+      <p class="text-gray-600">No tienes notificaciones.</p>
+    </div>
+  } @else {
+    <div class="flex flex-col divide-y rounded-lg border">
+      @for (n of s.data.content; track n.id) {
+        <div class="flex items-start gap-4 p-4">
+          <mat-icon fontSet="material-symbols-outlined" class="mt-1 text-brand-500">{{ icon(n.type) }}</mat-icon>
+          <div class="flex-1">
+            <p class="font-medium">{{ n.subject }}</p>
+            <p class="text-xs text-gray-400">
+              {{ n.createdAt | date: 'medium' }} · {{ n.channel }}
+            </p>
+          </div>
+          <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ n.status }}</span>
+        </div>
+      }
+    </div>
+  }
+}

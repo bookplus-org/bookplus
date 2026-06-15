@@ -1,0 +1,93 @@
+<h1 class="mb-6 text-2xl font-semibold">Mi cuenta</h1>
+
+@let user = auth.user();
+@if (user) {
+  <div class="grid gap-6 md:grid-cols-2">
+    <mat-card class="p-6">
+      <div class="flex items-center gap-4">
+        <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+          <mat-icon fontSet="material-symbols-outlined" class="!text-4xl text-brand-500">
+            account_circle
+          </mat-icon>
+        </div>
+        <div>
+          <p class="text-lg font-medium">{{ user.username }}</p>
+          <p class="text-gray-500">{{ user.email }}</p>
+        </div>
+      </div>
+      <mat-divider class="!my-4" />
+      <dl class="grid grid-cols-2 gap-y-2 text-sm">
+        <dt class="text-gray-500">ID de usuario</dt>
+        <dd class="font-mono text-xs">{{ user.id }}</dd>
+        <dt class="text-gray-500">Roles</dt>
+        <dd>{{ user.roles.join(', ') || 'USER' }}</dd>
+      </dl>
+    </mat-card>
+
+    <mat-card class="p-6">
+      <h2 class="mb-3 text-lg font-semibold">Accesos rápidos</h2>
+      <div class="flex flex-col gap-2">
+        <a mat-stroked-button routerLink="/orders" class="!justify-start">
+          <mat-icon fontSet="material-symbols-outlined">receipt_long</mat-icon>
+          Mis pedidos
+        </a>
+        <a mat-stroked-button routerLink="/library" class="!justify-start">
+          <mat-icon fontSet="material-symbols-outlined">auto_stories</mat-icon>
+          Mi biblioteca
+        </a>
+        <a mat-stroked-button routerLink="/cart" class="!justify-start">
+          <mat-icon fontSet="material-symbols-outlined">shopping_cart</mat-icon>
+          Mi carrito
+        </a>
+        @if (auth.isAdmin()) {
+          <a mat-stroked-button routerLink="/admin" class="!justify-start">
+            <mat-icon fontSet="material-symbols-outlined">admin_panel_settings</mat-icon>
+            Panel de administración
+          </a>
+        }
+        <mat-divider class="!my-2" />
+        <button mat-stroked-button color="warn" class="!justify-start" (click)="logout()">
+          <mat-icon fontSet="material-symbols-outlined">logout</mat-icon>
+          Cerrar sesión
+        </button>
+      </div>
+    </mat-card>
+
+    <!-- Editar perfil -->
+    <mat-card class="p-6">
+      <h2 class="mb-3 text-lg font-semibold">Editar perfil</h2>
+      <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="flex flex-col gap-1">
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre de usuario</mat-label>
+          <input matInput formControlName="username" autocomplete="username" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Correo</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="submit" [disabled]="savingProfile()">
+          Guardar cambios
+        </button>
+      </form>
+    </mat-card>
+
+    <!-- Cambiar contraseña -->
+    <mat-card class="p-6">
+      <h2 class="mb-3 text-lg font-semibold">Cambiar contraseña</h2>
+      <form [formGroup]="passwordForm" (ngSubmit)="savePassword()" class="flex flex-col gap-1">
+        <mat-form-field appearance="outline">
+          <mat-label>Contraseña actual</mat-label>
+          <input matInput type="password" formControlName="currentPassword" autocomplete="current-password" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Nueva contraseña</mat-label>
+          <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
+          <mat-hint>Mínimo 8 caracteres</mat-hint>
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="submit" [disabled]="savingPassword()">
+          Actualizar contraseña
+        </button>
+      </form>
+    </mat-card>
+  </div>
+}

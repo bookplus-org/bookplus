@@ -1,0 +1,116 @@
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold">Usuarios</h1>
+    <p class="text-sm text-gray-500">Gestiona cuentas, roles y acceso.</p>
+  </div>
+  <div class="flex gap-2">
+    <button mat-stroked-button (click)="reload()" [disabled]="loading()">
+      <mat-icon fontSet="material-symbols-outlined">refresh</mat-icon>
+      Actualizar
+    </button>
+    <button mat-flat-button color="primary" (click)="openCreate()">
+      <mat-icon fontSet="material-symbols-outlined">person_add</mat-icon>
+      Nuevo usuario
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<div class="overflow-x-auto rounded-xl2 border border-slate-200 bg-white shadow-card">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-ink-500">
+      <tr>
+        <th class="px-4 py-3 font-semibold">Usuario</th>
+        <th class="px-4 py-3 font-semibold">Roles</th>
+        <th class="px-4 py-3 font-semibold">Estado</th>
+        <th class="px-4 py-3 font-semibold">Registro</th>
+        <th class="px-4 py-3 text-right font-semibold">Acciones</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      @for (user of users(); track user.id) {
+        <tr class="hover:bg-slate-50" [class.opacity-60]="!user.enabled">
+          <td class="px-4 py-3">
+            <div class="font-medium text-ink-900">{{ user.username }}</div>
+            <div class="text-xs text-ink-500">{{ user.email }}</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex flex-wrap gap-1">
+              @for (role of user.roles; track role) {
+                <span
+                  class="rounded-full px-2 py-0.5 text-xs font-medium"
+                  [class]="role === 'ROLE_USER'
+                    ? 'bg-slate-100 text-ink-600'
+                    : 'bg-brand-50 text-brand-700'"
+                >{{ roleLabel(role) }}</span>
+              }
+            </div>
+          </td>
+          <td class="px-4 py-3">
+            @if (user.enabled) {
+              <span class="inline-flex items-center gap-1 text-green-700">
+                <mat-icon fontSet="material-symbols-outlined" class="!text-base">check_circle</mat-icon>
+                Activa
+              </span>
+            } @else {
+              <span class="inline-flex items-center gap-1 text-red-600">
+                <mat-icon fontSet="material-symbols-outlined" class="!text-base">block</mat-icon>
+                Inactiva
+              </span>
+            }
+          </td>
+          <td class="px-4 py-3 text-ink-500">{{ user.createdAt | date: 'mediumDate' }}</td>
+          <td class="px-4 py-3 text-right">
+            @if (user.id === currentUserId()) {
+              <span class="text-xs italic text-ink-400">Tú</span>
+            } @else {
+              <button
+                mat-icon-button
+                [matMenuTriggerFor]="menu"
+                [disabled]="busyId() === user.id"
+                aria-label="Acciones"
+              >
+                <mat-icon fontSet="material-symbols-outlined">more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item (click)="openEdit(user)">
+                  <mat-icon fontSet="material-symbols-outlined">edit</mat-icon>
+                  <span>Editar usuario</span>
+                </button>
+                <button mat-menu-item (click)="openReset(user)">
+                  <mat-icon fontSet="material-symbols-outlined">password</mat-icon>
+                  <span>Restablecer contraseña</span>
+                </button>
+                <button mat-menu-item (click)="toggleStatus(user)">
+                  <mat-icon fontSet="material-symbols-outlined">
+                    {{ user.enabled ? 'person_off' : 'person' }}
+                  </mat-icon>
+                  <span>{{ user.enabled ? 'Desactivar cuenta' : 'Activar cuenta' }}</span>
+                </button>
+                @for (role of manageableRoles; track role) {
+                  <button mat-menu-item (click)="toggleRole(user, role)">
+                    <mat-icon fontSet="material-symbols-outlined">
+                      {{ hasRole(user, role) ? 'remove_moderator' : 'add_moderator' }}
+                    </mat-icon>
+                    <span>
+                      {{ hasRole(user, role) ? 'Quitar' : 'Dar' }} {{ roleLabel(role) }}
+                    </span>
+                  </button>
+                }
+              </mat-menu>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="5" class="px-4 py-10 text-center text-ink-500">
+            No hay usuarios para mostrar.
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

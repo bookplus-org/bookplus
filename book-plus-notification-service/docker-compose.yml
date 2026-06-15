@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+
+  notification-postgres:
+    image: postgres:16-alpine
+    container_name: notification-postgres
+    environment:
+      POSTGRES_DB:       notification_db
+      POSTGRES_USER:     notification_user
+      POSTGRES_PASSWORD: notification_pass
+    ports:
+      - "5438:5432"
+    volumes:
+      - notification-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: notification-mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI — open http://localhost:8025 to see emails
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8025 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: notification-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    volumes:
+      - notification-kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notification-service
+    environment:
+      SERVER_PORT:                          8087
+      NOTIFICATION_DB_URL:                  jdbc:postgresql://notification-postgres:5432/notification_db
+      NOTIFICATION_DB_USER:                 notification_user
+      NOTIFICATION_DB_PASS:                 notification_pass
+      KAFKA_BOOTSTRAP_SERVERS:              kafka:9092
+      NOTIFICATION_JWT_PUBLIC_KEY_BASE64:   ${NOTIFICATION_JWT_PUBLIC_KEY_BASE64}
+      MAIL_HOST:                            mailhog
+      MAIL_PORT:                            1025
+      MAIL_FROM:                            noreply@bookplus.com
+      ADMIN_EMAIL:                          admin@bookplus.com
+    ports:
+      - "8087:8087"
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+volumes:
+  notification-postgres-data:
+  notification-kafka-data:

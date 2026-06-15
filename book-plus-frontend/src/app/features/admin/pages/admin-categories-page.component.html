@@ -1,0 +1,42 @@
+<h1 class="mb-6 text-2xl font-semibold">Categorías</h1>
+
+<div class="grid gap-6 lg:grid-cols-[1fr_360px]">
+  <mat-card class="overflow-hidden">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <mat-nav-list>
+      @for (category of categories(); track category.id) {
+        <mat-list-item>
+          <mat-icon matListItemIcon fontSet="material-symbols-outlined">label</mat-icon>
+          <span matListItemTitle>{{ category.name }}</span>
+          <button mat-icon-button matListItemMeta color="warn" (click)="remove(category)" aria-label="Eliminar">
+            <mat-icon fontSet="material-symbols-outlined">delete</mat-icon>
+          </button>
+        </mat-list-item>
+      } @empty {
+        <p class="p-6 text-center text-gray-500">Aún no hay categorías.</p>
+      }
+    </mat-nav-list>
+  </mat-card>
+
+  <mat-card class="h-fit p-6">
+    <h2 class="mb-3 text-lg font-semibold">Nueva categoría</h2>
+    <form (ngSubmit)="add()" class="flex flex-col gap-2">
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput [formControl]="name" />
+        @if (name.hasError('required') && name.touched) {
+          <mat-error>El nombre es obligatorio</mat-error>
+        }
+        @if (name.hasError('minlength')) {
+          <mat-error>Mínimo 2 caracteres</mat-error>
+        }
+      </mat-form-field>
+      <button mat-flat-button color="primary" type="submit">
+        <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+        Agregar
+      </button>
+    </form>
+  </mat-card>
+</div>

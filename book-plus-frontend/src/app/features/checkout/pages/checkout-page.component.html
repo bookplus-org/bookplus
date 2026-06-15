@@ -1,0 +1,260 @@
+<h1 class="bp-section-title mb-6">Finalizar compra</h1>
+
+@if (cart.isEmpty()) {
+  <div class="flex flex-col items-center gap-3 py-20 text-center">
+    <p class="text-ink-500">Tu carrito está vacío.</p>
+    <a mat-flat-button color="primary" routerLink="/catalog">Explorar catálogo</a>
+  </div>
+} @else {
+  <div class="grid gap-8 lg:grid-cols-[1fr_360px]">
+    <div class="flex flex-col gap-6">
+      <!-- Tipo de entrega -->
+      <section class="bp-card overflow-hidden">
+        <div class="border-b border-slate-200 px-6 py-4">
+          <h2 class="flex items-center gap-2 font-semibold text-ink-900">
+            <mat-icon fontSet="material-symbols-outlined" class="text-brand-600">redeem</mat-icon>
+            Tipo de entrega
+          </h2>
+        </div>
+        <div class="grid grid-cols-1 gap-3 p-6 sm:grid-cols-2">
+          <button
+            type="button"
+            (click)="setDelivery('DIGITAL')"
+            class="flex items-start gap-3 rounded-xl2 border-2 p-4 text-left transition-all"
+            [class]="delivery() === 'DIGITAL' ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:border-brand-300'"
+          >
+            <mat-icon fontSet="material-symbols-outlined" class="text-brand-600">cloud_download</mat-icon>
+            <span>
+              <span class="block font-semibold text-ink-900">Digital</span>
+              <span class="block text-xs text-ink-500">Descarga y lee al instante. Sin envío.</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            (click)="setDelivery('PHYSICAL')"
+            class="flex items-start gap-3 rounded-xl2 border-2 p-4 text-left transition-all"
+            [class]="delivery() === 'PHYSICAL' ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:border-brand-300'"
+          >
+            <mat-icon fontSet="material-symbols-outlined" class="text-brand-600">local_shipping</mat-icon>
+            <span>
+              <span class="block font-semibold text-ink-900">Físico</span>
+              <span class="block text-xs text-ink-500">Libro impreso enviado a tu dirección.</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Shipping (solo entrega física) -->
+      @if (isPhysical()) {
+      <section class="bp-card overflow-hidden">
+        @if (submitting()) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+        <div class="border-b border-slate-200 px-6 py-4">
+          <h2 class="flex items-center gap-2 font-semibold text-ink-900">
+            <mat-icon fontSet="material-symbols-outlined" class="text-brand-600">local_shipping</mat-icon>
+            Dirección de envío
+          </h2>
+        </div>
+        <form [formGroup]="address" class="grid grid-cols-1 gap-x-4 gap-y-1 p-6 sm:grid-cols-2">
+          <mat-form-field appearance="outline" class="sm:col-span-2">
+            <mat-label>Nombre del destinatario</mat-label>
+            <input matInput formControlName="recipientName" autocomplete="name" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="sm:col-span-2">
+            <mat-label>Dirección</mat-label>
+            <input matInput formControlName="street" autocomplete="street-address" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Ciudad</mat-label>
+            <input matInput formControlName="city" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Región / Estado</mat-label>
+            <input matInput formControlName="state" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Código postal</mat-label>
+            <input matInput formControlName="postalCode" autocomplete="postal-code" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>País</mat-label>
+            <input matInput formControlName="country" autocomplete="country-name" />
+          </mat-form-field>
+        </form>
+      </section>
+      }
+
+      <!-- Payment method -->
+      <section class="bp-card overflow-hidden">
+        <div class="border-b border-slate-200 px-6 py-4">
+          <h2 class="flex items-center gap-2 font-semibold text-ink-900">
+            <mat-icon fontSet="material-symbols-outlined" class="text-brand-600">credit_card</mat-icon>
+            Método de pago
+          </h2>
+        </div>
+        <div class="p-6">
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            @for (m of methods; track m.id) {
+              <button
+                type="button"
+                (click)="select(m.id)"
+                class="flex flex-col items-center gap-1 rounded-xl2 border-2 p-4 text-center transition-all"
+                [class]="method() === m.id
+                  ? 'border-brand-600 bg-brand-50 text-brand-700'
+                  : 'border-slate-200 bg-white text-ink-500 hover:border-brand-300'"
+              >
+                <mat-icon fontSet="material-symbols-outlined" class="!text-3xl">{{ m.icon }}</mat-icon>
+                <span class="text-sm font-semibold">{{ m.label }}</span>
+              </button>
+            }
+          </div>
+
+          <!-- Per-method panel -->
+          <div class="mt-6">
+            @if (isWallet()) {
+              <div class="flex flex-col items-center gap-4 rounded-xl2 bg-slate-50 p-6 sm:flex-row sm:items-start">
+                <div class="flex h-40 w-40 shrink-0 items-center justify-center rounded-xl2 border-2 border-dashed border-brand-300 bg-white">
+                  <div class="text-center">
+                    <mat-icon fontSet="material-symbols-outlined" class="!text-6xl text-brand-600">qr_code_2</mat-icon>
+                    <p class="text-xs text-ink-500">QR {{ method() }}</p>
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p class="font-semibold text-ink-900">Paga con {{ method() === 'YAPE' ? 'Yape' : 'Plin' }}</p>
+                  <p class="mt-1 text-sm text-ink-500">
+                    Escanea el QR con tu app, paga <b>{{ cart.subtotal() | currency: cart.cart().currency }}</b>
+                    e ingresa el número de operación para confirmar.
+                  </p>
+                  <mat-form-field appearance="outline" class="mt-3 w-full max-w-xs">
+                    <mat-label>Número de operación (opcional)</mat-label>
+                    <input matInput [formControl]="operation" placeholder="Ej. 00123456" />
+                  </mat-form-field>
+                </div>
+              </div>
+            } @else if (method() === 'CARD') {
+              <form [formGroup]="card" class="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                <mat-form-field appearance="outline" class="sm:col-span-2">
+                  <mat-label>Número de tarjeta</mat-label>
+                  <input matInput formControlName="number" placeholder="4111 1111 1111 1111" maxlength="19" />
+                  @if (card.controls.number.invalid && card.controls.number.touched) {
+                    <mat-error>Número de tarjeta inválido</mat-error>
+                  }
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="sm:col-span-2">
+                  <mat-label>Titular</mat-label>
+                  <input matInput formControlName="holder" autocomplete="cc-name" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Vencimiento (MM/AA)</mat-label>
+                  <input matInput formControlName="expiry" placeholder="08/27" maxlength="5" />
+                  @if (card.controls.expiry.invalid && card.controls.expiry.touched) {
+                    <mat-error>Formato MM/AA</mat-error>
+                  }
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>CVV</mat-label>
+                  <input matInput formControlName="cvv" type="password" maxlength="4" />
+                </mat-form-field>
+              </form>
+            } @else if (method() === 'PAYPAL') {
+              <div class="flex flex-col gap-4 rounded-xl2 bg-[#f5faff] p-6 sm:flex-row sm:items-center">
+                <div class="flex h-16 w-28 shrink-0 items-center justify-center rounded-xl2 border border-[#cce3ff] bg-white">
+                  <span class="text-lg font-bold italic"><span class="text-[#003087]">Pay</span><span class="text-[#009cde]">Pal</span></span>
+                </div>
+                <div class="flex-1">
+                  <p class="font-semibold text-ink-900">Paga con PayPal</p>
+                  <p class="mt-1 text-sm text-ink-500">
+                    Serás redirigido a PayPal para autorizar el pago de
+                    <b>{{ cart.subtotal() | currency: cart.cart().currency }}</b> (simulado).
+                  </p>
+                  <mat-form-field appearance="outline" class="mt-3 w-full max-w-xs">
+                    <mat-label>Correo de PayPal</mat-label>
+                    <input matInput type="email" [formControl]="paypalEmail" placeholder="tucorreo@ejemplo.com" />
+                    @if (paypalEmail.invalid && paypalEmail.touched) {
+                      <mat-error>Correo inválido</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+              </div>
+            } @else {
+              <div class="flex items-center gap-3 rounded-xl2 bg-amber-50 p-5 text-amber-800">
+                <mat-icon fontSet="material-symbols-outlined">local_shipping</mat-icon>
+                <p class="text-sm">Pagarás <b>{{ cart.subtotal() | currency: cart.cart().currency }}</b> en efectivo al recibir tu pedido.</p>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Summary -->
+    <aside class="bp-card sticky top-20 h-fit p-6">
+      <h2 class="mb-4 text-lg font-semibold text-ink-900">Resumen</h2>
+      <div class="flex flex-col gap-2">
+        @for (item of cart.items(); track item.bookId) {
+          <div class="flex justify-between text-sm">
+            <span class="line-clamp-1 text-ink-700">{{ item.quantity }}× {{ item.title }}</span>
+            <span class="shrink-0 font-medium">{{ item.subtotal | currency: item.currency }}</span>
+          </div>
+        }
+      </div>
+      <mat-divider class="!my-4" />
+
+      <!-- Cupón -->
+      @if (appliedCoupon(); as code) {
+        <div class="mb-3 flex items-center justify-between rounded-xl2 bg-green-50 px-3 py-2 text-sm">
+          <span class="flex items-center gap-1 text-green-700">
+            <mat-icon fontSet="material-symbols-outlined" class="!text-base">sell</mat-icon>
+            Cupón {{ code }}
+          </span>
+          <button mat-icon-button class="!h-7 !w-7" (click)="removeCoupon()" aria-label="Quitar cupón">
+            <mat-icon fontSet="material-symbols-outlined" class="!text-base">close</mat-icon>
+          </button>
+        </div>
+      } @else {
+        <div class="mb-1 flex gap-2">
+          <mat-form-field appearance="outline" class="flex-1" subscriptSizing="dynamic">
+            <mat-label>Cupón de descuento</mat-label>
+            <input matInput [formControl]="coupon" placeholder="Ej. BIENVENIDO10" />
+          </mat-form-field>
+          <button mat-stroked-button class="!h-14 !rounded-xl2" [disabled]="applyingCoupon()" (click)="applyCoupon()">
+            Aplicar
+          </button>
+        </div>
+        @if (couponMsg(); as msg) {
+          <p class="mb-2 text-xs text-red-600">{{ msg }}</p>
+        }
+      }
+
+      <div class="flex justify-between text-sm text-ink-600">
+        <span>Subtotal</span>
+        <span>{{ cart.subtotal() | currency: cart.cart().currency }}</span>
+      </div>
+      @if (discount() > 0) {
+        <div class="flex justify-between text-sm text-green-700">
+          <span>Descuento</span>
+          <span>-{{ discount() | currency: cart.cart().currency }}</span>
+        </div>
+      }
+      <div class="mt-2 flex justify-between text-xl font-extrabold text-ink-900">
+        <span>Total</span>
+        <span>{{ finalTotal() | currency: cart.cart().currency }}</span>
+      </div>
+      <button
+        mat-flat-button
+        color="primary"
+        class="!mt-6 !h-12 w-full !rounded-full !text-base"
+        [disabled]="submitting()"
+        (click)="confirm()"
+      >
+        <mat-icon fontSet="material-symbols-outlined">lock</mat-icon>
+        Pagar {{ finalTotal() | currency: cart.cart().currency }}
+      </button>
+      <p class="mt-3 flex items-center justify-center gap-1 text-center text-xs text-ink-400">
+        <mat-icon fontSet="material-symbols-outlined" class="!text-sm">verified_user</mat-icon>
+        Pago seguro · Tus datos están protegidos
+      </p>
+    </aside>
+  </div>
+}
