@@ -23,7 +23,7 @@
         <testcontainers.version>1.20.2</testcontainers.version>
     
         <!-- SonarQube / cobertura -->
-        <sonar.projectKey>bookplus-cart-service</sonar.projectKey>
+        <sonar.projectKey>dhuarocc_bookplus-cart-service</sonar.projectKey>
         <sonar.projectName>BookPlus — Cart Service</sonar.projectName>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.exclusions>**/dto/**,**/config/**,**/*Application.java</sonar.exclusions>

@@ -25,7 +25,7 @@
         <lombok.version>1.18.34</lombok.version>
     
         <!-- SonarQube / cobertura -->
-        <sonar.projectKey>bookplus-inventory-service</sonar.projectKey>
+        <sonar.projectKey>dhuarocc_bookplus-inventory-service</sonar.projectKey>
         <sonar.projectName>BookPlus — Inventory Service</sonar.projectName>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.exclusions>**/dto/**,**/config/**,**/*Application.java</sonar.exclusions>

@@ -23,7 +23,7 @@
         <lombok.version>1.18.34</lombok.version>
 
         <!-- SonarQube / cobertura -->
-        <sonar.projectKey>bookplus-order-service</sonar.projectKey>
+        <sonar.projectKey>dhuarocc_bookplus-order-service</sonar.projectKey>
         <sonar.projectName>BookPlus — Order Service</sonar.projectName>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <!-- Generado (Lombok/DTOs) y arranque: fuera de la cobertura para no distorsionar. -->
