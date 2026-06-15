@@ -19,7 +19,7 @@ public class EmailTemplateService {
               © %s %s. All rights reserved.<br/>
               You're receiving this email because you have an account with us.
             </p>
-            """.formatted(java.time.Year.now(), BRAND);
+            """.formatted(java.time.Year.now(java.time.ZoneId.systemDefault()), BRAND);
 
     public String orderCreated(String orderId, String total, String currency) {
         return wrap("Order Received — Thank you!", """

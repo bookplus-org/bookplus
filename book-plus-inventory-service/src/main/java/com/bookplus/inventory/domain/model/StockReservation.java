@@ -46,7 +46,7 @@ public class StockReservation {
                 ReservationId.generate(), bookId, orderId, userId, quantity,
                 ReservationStatus.PENDING,
                 now,
-                now.plusSeconds(30 * 60),  // TTL: 30 min
+                now.plusSeconds(30L * 60),  // TTL: 30 min
                 null
         );
     }

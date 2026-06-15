@@ -23,7 +23,7 @@ public record Slug(String value) {
                 .trim()
                 .replaceAll("[^a-z0-9\\s-]", "")
                 .replaceAll("[\\s_-]+", "-")
-                .replaceAll("^-|-$", "");
+                .replaceAll("(?:^-)|(?:-$)", "");
         return new Slug(normalized);
     }
 
