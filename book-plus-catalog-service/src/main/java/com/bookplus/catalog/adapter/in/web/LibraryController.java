@@ -102,6 +102,25 @@ public class LibraryController {
         return ResponseEntity.ok(ApiResponse.ok(purchase.getReadProgress()));
     }
 
+    @GetMapping("/admin/consumption")
+    @Operation(summary = "[ADMIN] Read a user's consumption facts for a book (refund policy input)")
+    public ResponseEntity<ApiResponse<ConsumptionResponse>> consumption(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam String userId,
+            @RequestParam UUID bookId) {
+
+        if (!hasAdminRole(jwt)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo administración");
+        }
+        ConsumptionResponse facts = purchaseRepo.findByUserIdAndBookId(userId, bookId)
+                .map(p -> new ConsumptionResponse(p.isDownloaded(), p.getReadProgress(), p.isActive()))
+                .orElseGet(() -> new ConsumptionResponse(false, 0, false));
+        return ResponseEntity.ok(ApiResponse.ok(facts));
+    }
+
+    /** Hechos de consumo de un libro por un usuario, para la política de reembolsos. */
+    public record ConsumptionResponse(boolean downloaded, int readProgress, boolean active) {}
+
     @SuppressWarnings("unchecked")
     private boolean hasAdminRole(Jwt jwt) {
         Object roles = jwt.getClaim("roles");

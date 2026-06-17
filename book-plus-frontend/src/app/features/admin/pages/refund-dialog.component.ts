@@ -11,11 +11,17 @@ export interface RefundDialogData {
   orderId: string;
   /** true si el pedido es físico, para mostrar/ofrecer reposición de stock. */
   physical: boolean;
+  /** Hechos de consumo del libro digital (entrada de la política de reembolsos). */
+  downloaded?: boolean;
+  readProgress?: number;
 }
 
 export interface RefundDialogResult {
   reason: string;
   restock: boolean;
+  downloaded: boolean;
+  readProgress: number;
+  adminOverride: boolean;
 }
 
 @Component({
@@ -51,6 +57,25 @@ export interface RefundDialogResult {
           <p class="ml-9 -mt-1 text-xs text-ink-400">
             Actívalo solo si el producto vuelve en buen estado y es revendible.
           </p>
+        } @else {
+          <div class="rounded-md bg-ink-50 p-3 text-xs text-ink-500">
+            <p class="font-medium text-ink-600">Libro digital — política de reembolso</p>
+            <p class="mt-1">
+              Descargado: <b>{{ data.downloaded ? 'sí' : 'no' }}</b> ·
+              Leído: <b>{{ data.readProgress ?? 0 }}%</b>
+            </p>
+            <p class="mt-1">
+              Si no se ha consumido y está dentro de la ventana, se reembolsa en efectivo y se
+              revoca el acceso. Si ya se consumió, se ofrece crédito en tienda. Fuera de la
+              ventana se deniega (salvo override).
+            </p>
+          </div>
+          <mat-checkbox formControlName="adminOverride" color="warn">
+            Forzar reembolso en efectivo (override de administración)
+          </mat-checkbox>
+          <p class="ml-9 -mt-1 text-xs text-ink-400">
+            Para excepciones: cobro doble, compra duplicada o archivo defectuoso.
+          </p>
         }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
@@ -71,11 +96,19 @@ export class RefundDialogComponent {
   protected readonly form = this.fb.nonNullable.group({
     reason: ['', [Validators.required, Validators.maxLength(500)]],
     restock: [false],
+    adminOverride: [false],
   });
 
   submit(): void {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
-    this.ref.close({ reason: v.reason.trim(), restock: this.data.physical && v.restock });
+    const result: RefundDialogResult = {
+      reason: v.reason.trim(),
+      restock: this.data.physical && v.restock,
+      downloaded: this.data.downloaded ?? false,
+      readProgress: this.data.readProgress ?? 0,
+      adminOverride: !this.data.physical && v.adminOverride,
+    };
+    this.ref.close(result);
   }
 }

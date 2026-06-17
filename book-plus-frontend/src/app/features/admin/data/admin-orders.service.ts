@@ -59,7 +59,35 @@ export class AdminOrdersService {
     return this.http.patch<Order>(`${this.base}/${orderId}/claim/resolve`, { resolution });
   }
 
-  refund(orderId: string, payload: { reason: string; restock: boolean }): Observable<Order> {
-    return this.http.patch<Order>(`${this.base}/${orderId}/refund`, payload);
+  refund(orderId: string, payload: RefundPayload): Observable<RefundOutcome> {
+    return this.http.patch<RefundOutcome>(`${this.base}/${orderId}/refund`, payload);
   }
+
+  /** Hechos de consumo de un libro digital (entrada para la política de reembolsos). */
+  consumption(userId: string, bookId: string): Observable<PurchaseConsumption> {
+    const params = new HttpParams().set('userId', userId).set('bookId', bookId);
+    return this.http.get<PurchaseConsumption>(
+      `${environment.apiBaseUrl}/library/admin/consumption`, { params });
+  }
+}
+
+export interface RefundPayload {
+  reason: string;
+  restock: boolean;
+  downloaded?: boolean;
+  readProgress?: number;
+  adminOverride?: boolean;
+}
+
+export interface RefundOutcome {
+  order: Order;
+  outcome: 'CASH' | 'STORE_CREDIT' | 'DENY';
+  storeCreditCode: string | null;
+  policyReason: string;
+}
+
+export interface PurchaseConsumption {
+  downloaded: boolean;
+  readProgress: number;
+  active: boolean;
 }

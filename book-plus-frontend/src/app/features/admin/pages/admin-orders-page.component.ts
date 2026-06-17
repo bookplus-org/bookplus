@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { startAutoRefresh } from '@core/util/auto-refresh';
 import { OrderEventsService } from '@features/orders/data/order-events.service';
@@ -12,7 +14,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDialog } from '@angular/material/dialog';
-import { AdminOrdersService } from '../data/admin-orders.service';
+import { AdminOrdersService, PurchaseConsumption } from '../data/admin-orders.service';
 import {
   CANCELLABLE_STATUSES,
   REFUNDABLE_STATUSES,
@@ -158,15 +160,52 @@ export class AdminOrdersPageComponent implements OnInit {
   }
 
   refund(o: Order): void {
-    const data: RefundDialogData = {
-      orderId: o.orderId,
-      physical: o.deliveryType !== 'DIGITAL',
-    };
-    this.dialog.open(RefundDialogComponent, { data, width: '440px' }).afterClosed()
+    const physical = o.deliveryType !== 'DIGITAL';
+    if (physical) {
+      this.openRefundDialog(o, { orderId: o.orderId, physical });
+      return;
+    }
+    // Digital: traer los hechos de consumo de catalog y agregarlos (descargado = alguno,
+    // progreso = máximo) para que la política decida con datos reales.
+    const items = o.items ?? [];
+    if (!items.length) {
+      this.openRefundDialog(o, { orderId: o.orderId, physical: false, downloaded: false, readProgress: 0 });
+      return;
+    }
+    this.busyId.set(o.orderId);
+    const facts$ = items.map((it) =>
+      this.service.consumption(o.userId, it.bookId).pipe(
+        catchError(() => of<PurchaseConsumption>({ downloaded: false, readProgress: 0, active: true })),
+      ),
+    );
+    forkJoin(facts$).subscribe((list) => {
+      this.busyId.set(null);
+      const downloaded = list.some((f) => f.downloaded);
+      const readProgress = list.reduce((max, f) => Math.max(max, f.readProgress), 0);
+      this.openRefundDialog(o, { orderId: o.orderId, physical: false, downloaded, readProgress });
+    });
+  }
+
+  private openRefundDialog(o: Order, data: RefundDialogData): void {
+    this.dialog.open(RefundDialogComponent, { data, width: '460px' }).afterClosed()
       .subscribe((res: RefundDialogResult | undefined) => {
-        if (res) {
-          this.run(this.service.refund(o.orderId, res), o.orderId, 'Reembolso emitido.');
-        }
+        if (!res) return;
+        this.busyId.set(o.orderId);
+        this.service.refund(o.orderId, res).subscribe({
+          next: (r) => {
+            this.orders.update((arr) => arr.map((x) => (x.orderId === o.orderId ? r.order : x)));
+            this.busyId.set(null);
+            if (r.outcome === 'STORE_CREDIT') {
+              this.notifier.success(`Crédito en tienda emitido: ${r.storeCreditCode}`);
+            } else {
+              this.notifier.success('Reembolso en efectivo emitido.');
+            }
+          },
+          error: (p: ProblemDetail) => {
+            this.busyId.set(null);
+            this.notifier.error(p.detail ?? 'No se pudo emitir el reembolso.');
+          },
+        });
       });
   }
 

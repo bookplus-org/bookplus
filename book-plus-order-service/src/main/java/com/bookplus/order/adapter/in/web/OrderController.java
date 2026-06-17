@@ -1,8 +1,10 @@
 package com.bookplus.order.adapter.in.web;
 
 import com.bookplus.order.adapter.in.web.dto.*;
+import com.bookplus.order.application.refund.RefundDecisionService;
 import com.bookplus.order.domain.model.Order;
 import com.bookplus.order.domain.model.OrderStatus;
+import com.bookplus.order.domain.policy.RefundContext;
 import com.bookplus.order.domain.port.in.*;
 import com.bookplus.order.shared.annotation.WebAdapter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,12 +12,15 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 
 @WebAdapter
@@ -29,6 +34,7 @@ public class OrderController {
     private final GetOrderUseCase           getOrderUseCase;
     private final CancelOrderUseCase        cancelOrderUseCase;
     private final UpdateOrderStatusUseCase  updateStatusUseCase;
+    private final RefundDecisionService     refundDecisionService;
 
     // ── GET /api/v1/orders — list current user's orders ───────────────────
 
@@ -143,16 +149,55 @@ public class OrderController {
 
     @PatchMapping("/{orderId}/refund")
     @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN')")
-    @Operation(summary = "[ADMIN] Issue a refund (devolución) on a paid order")
-    public ResponseEntity<OrderResponse> refund(
+    @Operation(summary = "[ADMIN] Issue a refund (devolución) on a paid order, applying the refund policy")
+    public ResponseEntity<RefundResponse> refund(
             @PathVariable String orderId,
             @RequestBody RefundRequest req
     ) {
-        return ResponseEntity.ok(OrderResponse.from(
-                updateStatusUseCase.refund(orderId, req.reason(), req.restock())));
+        Order order = getOrderUseCase.getById(orderId);
+
+        // La política decide CASH / STORE_CREDIT / DENY a partir de hechos autoritativos
+        // del pedido (tipo de entrega, fecha) + hechos de consumo que aporta el admin/UI.
+        RefundContext ctx = new RefundContext(
+                order.getDeliveryType(),
+                order.getCreatedAt(),
+                Instant.now(),
+                Boolean.TRUE.equals(req.downloaded()),
+                req.readProgress() == null ? 0 : req.readProgress(),
+                req.adminOverride());
+
+        var resolution = refundDecisionService.resolve(ctx, order.getTotal().amount());
+        if (resolution.isDenied()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, resolution.decision().reason());
+        }
+
+        String note = resolution.isStoreCredit()
+                ? appendCredit(req.reason(), resolution.storeCreditCode())
+                : req.reason();
+        Order updated = updateStatusUseCase.refund(orderId, note, req.restock());
+
+        return ResponseEntity.ok(new RefundResponse(
+                OrderResponse.from(updated),
+                resolution.decision().outcome().name(),
+                resolution.storeCreditCode(),
+                resolution.decision().reason()));
     }
 
-    public record RefundRequest(String reason, boolean restock) {}
+    private static String appendCredit(String reason, String code) {
+        String base = (reason == null || reason.isBlank()) ? "Reembolso" : reason;
+        return base + " — crédito en tienda emitido: " + code;
+    }
+
+    /**
+     * @param downloaded    si el cliente descargó/abrió el libro (digital)
+     * @param readProgress  progreso de lectura 0-100 (digital)
+     * @param adminOverride fuerza el reembolso en efectivo saltándose ventana y consumo
+     */
+    public record RefundRequest(String reason, boolean restock, Boolean downloaded,
+                                Integer readProgress, boolean adminOverride) {}
+
+    public record RefundResponse(OrderResponse order, String outcome,
+                                 String storeCreditCode, String policyReason) {}
 
     @GetMapping("/admin/shipments")
     @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN','REPARTIDOR')")
