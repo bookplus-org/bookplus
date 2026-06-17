@@ -1,7 +1,7 @@
 package com.bookplus.order.application.coupon;
 
-import com.bookplus.order.adapter.out.persistence.entity.CouponEntity;
-import com.bookplus.order.adapter.out.persistence.repository.CouponJpaRepository;
+import com.bookplus.order.domain.model.Coupon;
+import com.bookplus.order.domain.port.out.CouponPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-/** Valida cupones y calcula el descuento sobre un importe. */
+/** Valida cupones y calcula el descuento sobre un importe. Depende del puerto, no de JPA. */
 @Service
 @RequiredArgsConstructor
 public class CouponService {
@@ -19,7 +19,7 @@ public class CouponService {
     /** Validez por defecto del crédito en tienda emitido como alternativa al reembolso. */
     private static final long STORE_CREDIT_VALID_DAYS = 365;
 
-    private final CouponJpaRepository repository;
+    private final CouponPort couponPort;
 
     /**
      * Emite un crédito en tienda como alternativa al reembolso en efectivo: crea un cupón
@@ -32,14 +32,8 @@ public class CouponService {
             throw new IllegalArgumentException("El importe del crédito debe ser positivo");
         }
         String code = "CREDIT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        repository.save(CouponEntity.builder()
-                .code(code)
-                .discountType("FIXED")
-                .discountValue(value)
-                .active(true)
-                .expiresAt(Instant.now().plus(STORE_CREDIT_VALID_DAYS, ChronoUnit.DAYS))
-                .createdAt(Instant.now())
-                .build());
+        couponPort.save(new Coupon(code, "FIXED", value, null, true,
+                Instant.now().plus(STORE_CREDIT_VALID_DAYS, ChronoUnit.DAYS)));
         return code;
     }
 
@@ -47,25 +41,25 @@ public class CouponService {
         if (code == null || code.isBlank()) {
             return new CouponResult(false, null, BigDecimal.ZERO, scale(amount), null);
         }
-        CouponEntity c = repository.findById(code.trim().toUpperCase()).orElse(null);
-        if (c == null || !c.isActive()) {
+        Coupon c = couponPort.findByCode(code.trim().toUpperCase()).orElse(null);
+        if (c == null || !c.active()) {
             return invalid("Cupón no válido", amount);
         }
-        if (c.getExpiresAt() != null && c.getExpiresAt().isBefore(Instant.now())) {
+        if (c.isExpired(Instant.now())) {
             return invalid("El cupón ha expirado", amount);
         }
-        if (c.getMinAmount() != null && amount.compareTo(c.getMinAmount()) < 0) {
-            return invalid("Requiere una compra mínima de " + c.getMinAmount(), amount);
+        if (c.minAmount() != null && amount.compareTo(c.minAmount()) < 0) {
+            return invalid("Requiere una compra mínima de " + c.minAmount(), amount);
         }
 
-        BigDecimal discount = "PERCENT".equalsIgnoreCase(c.getDiscountType())
-                ? amount.multiply(c.getDiscountValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
-                : c.getDiscountValue();
+        BigDecimal discount = c.isPercent()
+                ? amount.multiply(c.discountValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                : c.discountValue();
         if (discount.compareTo(amount) > 0) {
             discount = amount;
         }
         discount = scale(discount);
-        return new CouponResult(true, c.getCode(), discount, scale(amount.subtract(discount)), "Cupón aplicado");
+        return new CouponResult(true, c.code(), discount, scale(amount.subtract(discount)), "Cupón aplicado");
     }
 
     private CouponResult invalid(String message, BigDecimal amount) {
