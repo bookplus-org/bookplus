@@ -57,6 +57,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ── Resilience4j (circuit breaker + retry) ───────── -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
 
         <!-- ── Elasticsearch ────────────────────────────────── -->
         <dependency>
@@ -171,6 +187,15 @@
 
     <build>
         <plugins>
+            <!-- Excluye los tests @Tag("integration") del `mvn test` normal.
+                 Se ejecutan aparte con: mvn test -Dgroups=integration (requiere Docker). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>integration</excludedGroups>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -179,11 +204,11 @@
                         <exclude>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                        </exclude>
+                           </exclude>
                     </excludes>
                 </configuration>
             </plugin>
-        
+
             <!-- Cobertura de pruebas (JaCoCo) -> target/site/jacoco/jacoco.xml (lo consume SonarQube). -->
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -203,5 +228,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

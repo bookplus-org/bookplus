@@ -1,0 +1,15 @@
+# Copia este archivo a terraform.tfvars y rellena tus valores.
+# NO subas terraform.tfvars al repositorio (contiene credenciales).
+
+tenancy_ocid        = "ocid1.tenancy.oc1..xxxxx"
+user_ocid           = "ocid1.user.oc1..xxxxx"
+fingerprint         = "aa:bb:cc:dd:ee:ff:..."
+private_key_path    = "~/.oci/oci_api_key.pem"
+region              = "sa-saopaulo-1"
+compartment_ocid    = "ocid1.compartment.oc1..xxxxx"
+availability_domain = "xxxx:SA-SAOPAULO-1-AD-1"
+image_ocid          = "ocid1.image.oc1.sa-saopaulo-1.xxxxx"   # Ubuntu 22.04 aarch64
+
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+ocpus               = 2
+memory_in_gbs       = 12

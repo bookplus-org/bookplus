@@ -27,6 +27,14 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  # Spring Batch: crea sus tablas de metadatos y NO ejecuta los jobs al arrancar
+  # (el job de expiración lo dispara el scheduler, no el boot).
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
@@ -41,18 +49,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: when-authorized
-
-logging:
-  level:
-    root: INFO
-    com.bookplus.inventory: DEBUG
-
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
+        include: health,i,prometheus

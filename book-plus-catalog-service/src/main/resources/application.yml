@@ -111,3 +111,20 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
+
+# ── Resilience4j ──────────────────────────────────────────────────────────────
+# Protege la búsqueda en Elasticsearch: reintenta y, si el circuito se abre, usa el
+# fallback (resultado vacío) para que el catálogo siga respondiendo aunque ES caiga.
+resilience4j:
+  circuitbreaker:
+    instances:
+      bookSearch:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+  retry:
+    instances:
+      bookSearch:
+        max-attempts: 3
+        wait-duration: 200ms

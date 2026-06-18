@@ -1,0 +1,49 @@
+{
+  "realm": "bookplus",
+  "enabled": true,
+  "displayName": "BookPlus",
+  "accessTokenLifespan": 900,
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "ROLE_USER",       "description": "Cliente de la tienda" },
+      { "name": "ROLE_REPARTIDOR", "description": "Repartidor de pedidos físicos" },
+      { "name": "ROLE_EDITOR",     "description": "Editor de catálogo" },
+      { "name": "ROLE_ADMIN",      "description": "Administrador" },
+      { "name": "ROLE_SUPERADMIN", "description": "Super administrador" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "bookplus-frontend",
+      "name": "BookPlus SPA (Angular)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:4200/*", "http://localhost/*"],
+      "webOrigins": ["+"],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "bookplus-gateway",
+      "name": "BookPlus API Gateway",
+      "enabled": true,
+      "bearerOnly": true,
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@bookplus.dev",
+      "email": "admin@bookplus.dev",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "BookPlus",
+      "credentials": [{ "type": "password", "value": "admin123", "temporary": false }],
+      "realmRoles": ["ROLE_ADMIN", "ROLE_USER"]
+    }
+  ]
+}

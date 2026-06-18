@@ -6,6 +6,8 @@ import com.bookplus.catalog.domain.port.in.SearchBooksUseCase.SearchQuery;
 import com.bookplus.catalog.domain.port.out.IndexBookPort;
 import com.bookplus.catalog.domain.port.out.SearchBooksPort;
 import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -32,6 +34,8 @@ public class ElasticsearchBookAdapter implements SearchBooksPort, IndexBookPort 
     // ── SearchBooksPort ───────────────────────────────────────────────────
 
     @Override
+    @CircuitBreaker(name = "bookSearch", fallbackMethod = "searchFallback")
+    @Retry(name = "bookSearch")
     public PagedResult<Book> search(SearchQuery query) {
         log.debug("ES search: q='{}' page={} size={}", query.query(), query.page(), query.size());
 
@@ -57,6 +61,16 @@ public class ElasticsearchBookAdapter implements SearchBooksPort, IndexBookPort 
 
         return new PagedResult<>(books, page, query.size(), total, totalPages,
                 page == 0, page >= totalPages - 1);
+    }
+
+    /**
+     * Fallback de búsqueda: si Elasticsearch está caído (circuito abierto o reintentos
+     * agotados), devolvemos un resultado vacío en lugar de propagar el error, para que la
+     * página de catálogo siga respondiendo. La firma replica search() + un Throwable.
+     */
+    PagedResult<Book> searchFallback(SearchQuery query, Throwable t) {
+        log.warn("ES no disponible, devolviendo búsqueda vacía: {}", t.getMessage());
+        return new PagedResult<>(List.of(), query.page(), query.size(), 0, 0, true, true);
     }
 
     // ── IndexBookPort ─────────────────────────────────────────────────────

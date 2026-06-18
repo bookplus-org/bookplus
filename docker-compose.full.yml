@@ -563,6 +563,53 @@ services:
       start_period: 60s
       retries: 5
 
+  # ── Identidad: Keycloak (OAuth2 / OIDC) ───────────────────────────────────
+  # Proveedor de identidad estándar. Importa el realm "bookplus" al arrancar.
+  # Modo dev (H2 en memoria) — para producción usar una base externa.
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: bookplus-keycloak
+    networks: [bookplus-net]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/bookplus-realm.json:/opt/keycloak/data/import/bookplus-realm.json:ro
+    ports:
+      - "8180:8080"
+    restart: unless-stopped
+
+  # ── Observabilidad: métricas ──────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: bookplus-prometheus
+    networks: [bookplus-net]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: bookplus-grafana
+    networks: [bookplus-net]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   kafka-data:
   auth-postgres-data:
@@ -573,3 +620,5 @@ volumes:
   notification-postgres-data:
   report-postgres-data:
   elasticsearch-data:
+  prometheus-data:
+  grafana-data:
