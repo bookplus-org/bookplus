@@ -58,12 +58,23 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
+    // ── Dead Letter Queue: reintenta y, si falla, publica en "<topic>.DLT" ──
+    @Bean
+    public org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
+        var recoverer = new org.springframework.kafka.listener.DeadLetterPublishingRecoverer(
+                kafkaTemplate,
+                (record, ex) -> new org.apache.kafka.common.TopicPartition(record.topic() + ".DLT", -1));
+        return new org.springframework.kafka.listener.DefaultErrorHandler(recoverer,
+                new org.springframework.util.backoff.FixedBackOff(1000L, 3L));
+    }
+
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Map<String, Object>>
-            kafkaListenerContainerFactory() {
+            kafkaListenerContainerFactory(org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler) {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Map<String, Object>>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(3);
+        factory.setCommonErrorHandler(kafkaErrorHandler);
         return factory;
     }
 

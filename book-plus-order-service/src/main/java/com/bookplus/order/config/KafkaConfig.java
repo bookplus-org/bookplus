@@ -2,13 +2,18 @@ package com.bookplus.order.config;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.Map;
 
@@ -17,6 +22,10 @@ public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
+
+    // Reintentos antes de mandar a la DLQ, y espera entre intentos (ms).
+    private static final long DLQ_RETRY_INTERVAL_MS = 1000L;
+    private static final long DLQ_MAX_RETRIES       = 3L;
 
     // ── Producer ──────────────────────────────────────────────────────────
 
@@ -54,13 +63,40 @@ public class KafkaConfig {
         ));
     }
 
+    // ── Dead Letter Queue ───────────────────────────────────────────────────
+
+    /** Template (value = JSON) usado para republicar el mensaje fallido en la DLQ. */
+    @Bean
+    public KafkaTemplate<String, Object> dltKafkaTemplate() {
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(Map.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,      bootstrapServers,
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,   StringSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class
+        )));
+    }
+
+    /**
+     * Manejador de errores: reintenta el procesamiento y, si sigue fallando, publica el
+     * mensaje en el topic "&lt;topic&gt;.DLT" en lugar de bloquear el consumidor o perder el
+     * evento. Un "mensaje veneno" no detiene el resto.
+     */
+    @Bean
+    public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> dltKafkaTemplate) {
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+                dltKafkaTemplate,
+                (record, ex) -> new TopicPartition(record.topic() + ".DLT", -1));
+        return new DefaultErrorHandler(recoverer,
+                new FixedBackOff(DLQ_RETRY_INTERVAL_MS, DLQ_MAX_RETRIES));
+    }
+
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Map<String, Object>>
-    kafkaListenerContainerFactory() {
+    kafkaListenerContainerFactory(DefaultErrorHandler kafkaErrorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, Map<String, Object>> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(3);
+        factory.setCommonErrorHandler(kafkaErrorHandler);   // aplica el DLQ a todos los consumidores
         return factory;
     }
 }
