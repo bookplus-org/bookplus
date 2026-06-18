@@ -195,6 +195,38 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Mutation testing (PIT): mide la calidad real de los tests.
+                 Ejecutar con: mvn -q test-compile org.pitest:pitest-maven:mutationCoverage
+                 No corre en el `mvn test` normal. -->
+            <plugin>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <version>1.16.3</version>
+                <configuration>
+                    <targetClasses>
+                        <param>com.bookplus.order.domain.policy.*</param>
+                        <param>com.bookplus.order.application.coupon.*</param>
+                        <param>com.bookplus.order.application.refund.*</param>
+                    </targetClasses>
+                    <targetTests>
+                        <param>com.bookplus.order.domain.policy.*</param>
+                        <param>com.bookplus.order.application.coupon.*</param>
+                        <param>com.bookplus.order.application.refund.*</param>
+                    </targetTests>
+                    <outputFormats>
+                        <param>HTML</param>
+                        <param>XML</param>
+                    </outputFormats>
+                    <timestampedReports>false</timestampedReports>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-junit5-plugin</artifactId>
+                        <version>1.2.1</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
         </plugins>
     </build>
 </project>
