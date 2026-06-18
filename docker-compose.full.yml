@@ -645,6 +645,19 @@ services:
       - prometheus
     restart: unless-stopped
 
+  # ── Pruebas de carga: k6 (solo con --profile perf) ────────────────────────
+  # Ejecutar: docker compose -f docker-compose.full.yml --profile perf run --rm k6
+  k6:
+    image: grafana/k6:latest
+    container_name: bookplus-k6
+    profiles: ["perf"]
+    networks: [bookplus-net]
+    environment:
+      BASE_URL: http://api-gateway:8080/api/v1
+    volumes:
+      - ./perf/k6:/scripts:ro
+    command: ["run", "/scripts/load-test.js"]
+
 volumes:
   kafka-data:
   auth-postgres-data:
