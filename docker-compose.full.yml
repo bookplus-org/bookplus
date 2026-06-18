@@ -329,6 +329,7 @@ services:
 
   order-postgres:
     image: postgres:16-alpine
+    command: ["postgres", "-c", "wal_level=logical"]
     container_name: bookplus-order-postgres
     networks: [bookplus-net]
     ports:
@@ -643,6 +644,30 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
+    restart: unless-stopped
+
+  # ── CDC: Kafka Connect + Debezium ─────────────────────────────────────────
+  # Captura cambios de la tabla outbox_events de order y los publica a Kafka (CDC).
+  kafka-connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: bookplus-kafka-connect
+    networks: [bookplus-net]
+    depends_on:
+      - kafka
+      - order-postgres
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: bookplus-connect
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+    ports:
+      - "8083:8083"   # Kafka Connect REST API
     restart: unless-stopped
 
   # ── Pruebas de carga: k6 (solo con --profile perf) ────────────────────────
