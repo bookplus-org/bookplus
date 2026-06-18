@@ -1,0 +1,58 @@
+{
+  "type": "record",
+  "name": "CartCheckedOut",
+  "namespace": "com.bookplus.events",
+  "doc": "Evento publicado por cart-service al hacer checkout; lo consume order-service.",
+  "fields": [
+    { "name": "cartId",         "type": "string" },
+    { "name": "userId",         "type": "string" },
+    { "name": "recipientEmail", "type": "string" },
+    { "name": "paymentMethod",  "type": "string" },
+    { "name": "deliveryType",   "type": "string" },
+    { "name": "couponCode",     "type": ["null", "string"], "default": null },
+    {
+      "name": "total",
+      "type": {
+        "type": "record",
+        "name": "Money",
+        "fields": [
+          { "name": "amount",   "type": { "type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2 } },
+          { "name": "currency", "type": "string" }
+        ]
+      }
+    },
+    {
+      "name": "shippingAddress",
+      "type": {
+        "type": "record",
+        "name": "ShippingAddress",
+        "fields": [
+          { "name": "recipientName", "type": "string" },
+          { "name": "street",        "type": "string" },
+          { "name": "city",          "type": "string" },
+          { "name": "state",         "type": ["null", "string"], "default": null },
+          { "name": "postalCode",    "type": "string" },
+          { "name": "country",       "type": "string" }
+        ]
+      }
+    },
+    {
+      "name": "items",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Item",
+          "fields": [
+            { "name": "bookId",    "type": "string" },
+            { "name": "isbn",      "type": "string" },
+            { "name": "title",     "type": "string" },
+            { "name": "imageUrl",  "type": ["null", "string"], "default": null },
+            { "name": "quantity",  "type": "int" },
+            { "name": "unitPrice", "type": "Money" }
+          ]
+        }
+      }
+    }
+  ]
+}

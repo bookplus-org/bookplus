@@ -646,6 +646,17 @@ services:
       - prometheus
     restart: unless-stopped
 
+  # ── Gobierno de eventos: Schema Registry (Apicurio) ───────────────────────
+  schema-registry:
+    image: apicurio/apicurio-registry-mem:2.6.5.Final
+    container_name: bookplus-schema-registry
+    networks: [bookplus-net]
+    environment:
+      QUARKUS_PROFILE: prod
+    ports:
+      - "8090:8080"   # Apicurio UI/API → http://localhost:8090
+    restart: unless-stopped
+
   # ── Contract testing: Pact Broker ─────────────────────────────────────────
   pact-broker-postgres:
     image: postgres:16-alpine
