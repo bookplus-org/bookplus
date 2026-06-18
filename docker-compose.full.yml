@@ -646,6 +646,40 @@ services:
       - prometheus
     restart: unless-stopped
 
+  # ── Contract testing: Pact Broker ─────────────────────────────────────────
+  pact-broker-postgres:
+    image: postgres:16-alpine
+    container_name: bookplus-pactbroker-postgres
+    networks: [bookplus-net]
+    environment:
+      POSTGRES_DB: pactbroker
+      POSTGRES_USER: pactbroker
+      POSTGRES_PASSWORD: pactbroker
+    volumes:
+      - pactbroker-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pactbroker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pact-broker:
+    image: pactfoundation/pact-broker:latest
+    container_name: bookplus-pact-broker
+    networks: [bookplus-net]
+    depends_on:
+      pact-broker-postgres: { condition: service_healthy }
+    environment:
+      PACT_BROKER_DATABASE_ADAPTER: postgres
+      PACT_BROKER_DATABASE_HOST: pact-broker-postgres
+      PACT_BROKER_DATABASE_NAME: pactbroker
+      PACT_BROKER_DATABASE_USERNAME: pactbroker
+      PACT_BROKER_DATABASE_PASSWORD: pactbroker
+      PACT_BROKER_PORT: "9292"
+    ports:
+      - "9292:9292"   # Pact Broker UI → http://localhost:9292
+    restart: unless-stopped
+
   # ── CDC: Kafka Connect + Debezium ─────────────────────────────────────────
   # Captura cambios de la tabla outbox_events de order y los publica a Kafka (CDC).
   kafka-connect:
@@ -695,3 +729,4 @@ volumes:
   elasticsearch-data:
   prometheus-data:
   grafana-data:
+  pactbroker-postgres-data:

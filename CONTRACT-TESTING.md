@@ -67,3 +67,33 @@ la forma del evento, la verificación fallaría.
 El paso de copiar el JSON a mano lo automatiza un **Pact Broker** (o PactFlow): el consumidor
 publica el contrato y el productor lo descarga y verifica en su pipeline de CI. Es el patrón
 estándar en empresas con muchos microservicios.
+
+## Pact Broker (automatiza el intercambio del contrato)
+
+En lugar de copiar el JSON del contrato a mano entre servicios, un **Pact Broker** lo
+centraliza: el consumidor lo publica y el productor lo descarga y verifica. Ya está incluido
+en el stack.
+
+```bash
+# 1) Levantar el broker (UI en http://localhost:9292)
+docker compose -f docker-compose.full.yml up -d pact-broker
+
+# 2) Generar el contrato (consumidor) y publicarlo en el broker
+cd book-plus-order-service && mvn -q test     # genera target/pacts/*.json
+docker run --rm -v "$(pwd)/target/pacts:/pacts" \
+  pactfoundation/pact-cli:latest \
+  publish /pacts --broker-base-url http://host.docker.internal:9292 \
+  --consumer-app-version 1.0.0
+```
+
+En la UI del broker se ve la matriz de compatibilidad consumidor/productor. El test de
+verificación del productor (cart) apunta al broker en vez de a una carpeta local:
+
+```java
+@Provider("cart-service")
+@PactBroker(url = "http://localhost:9292")
+class CartCheckedOutProviderTest { /* ... igual que antes ... */ }
+```
+
+Así, el "can-i-deploy" del broker permite saber, antes de desplegar, si un cambio rompe a
+algún consumidor — el patrón estándar en empresas con muchos microservicios.
