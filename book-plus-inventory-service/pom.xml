@@ -29,6 +29,7 @@
         <sonar.projectName>BookPlus — Inventory Service</sonar.projectName>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.exclusions>**/dto/**,**/config/**,**/*Application.java</sonar.exclusions>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
     </properties>
 
     <dependencies>
@@ -133,7 +134,24 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Secretos desde HashiCorp Vault (activo solo con el perfil "vault"). -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-vault-config</artifactId>
+        </dependency>
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>
@@ -174,4 +192,10 @@
                     <execution>
                         <id>report</id>
                         <phase>test</phase>
-                        <
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

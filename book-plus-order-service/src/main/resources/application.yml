@@ -80,3 +80,14 @@ logging:
     org.springframework.security: WARN
     org.springframework.kafka: WARN
     org.hibernate.SQL: WARN
+
+# ── Camunda 7 (motor de procesos BPMN) ────────────────────────────────────────
+# Despliega el proceso purchase-saga.bpmn y crea sus tablas de metadatos.
+# La ejecución de jobs en background va desactivada (el proceso de demo es síncrono).
+camunda:
+  bpm:
+    auto-deployment-enabled: true
+    database:
+      schema-update: true
+    job-execution:
+      enabled: false

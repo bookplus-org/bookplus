@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_PurchaseSaga"
+                  targetNamespace="http://bookplus/saga">
+  <bpmn:process id="purchaseSaga" name="Saga de compra" isExecutable="true">
+
+    <bpmn:startEvent id="Start_PaymentResult" name="Resultado de pago recibido">
+      <bpmn:outgoing>Flow_ToGateway</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Start_PaymentResult" targetRef="Gateway_PaymentApproved"/>
+
+    <bpmn:exclusiveGateway id="Gateway_PaymentApproved" name="¿Pago aprobado?">
+      <bpmn:incoming>Flow_ToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sequenceFlow id="Flow_Approved" name="Sí" sourceRef="Gateway_PaymentApproved" targetRef="Task_ConfirmPayment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:serviceTask id="Task_ConfirmPayment" name="Confirmar pago del pedido"
+                      camunda:delegateExpression="${confirmPaymentDelegate}">
+      <bpmn:incoming>Flow_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToConfirmed</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:sequenceFlow id="Flow_ToConfirmed" sourceRef="Task_ConfirmPayment" targetRef="End_Confirmed"/>
+
+    <bpmn:endEvent id="End_Confirmed" name="Pedido confirmado">
+      <bpmn:incoming>Flow_ToConfirmed</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Rejected" name="No" sourceRef="Gateway_PaymentApproved" targetRef="Task_CancelOrder"/>
+
+    <bpmn:serviceTask id="Task_CancelOrder" name="Cancelar pedido (compensación)"
+                      camunda:delegateExpression="${cancelOrderDelegate}">
+      <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCancelled</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:sequenceFlow id="Flow_ToCancelled" sourceRef="Task_CancelOrder" targetRef="End_Cancelled"/>
+
+    <bpmn:endEvent id="End_Cancelled" name="Pedido cancelado">
+      <bpmn:incoming>Flow_ToCancelled</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_PurchaseSaga">
+    <bpmndi:BPMNPlane id="Plane_PurchaseSaga" bpmnElement="purchaseSaga">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start_PaymentResult">
+        <dc:Bounds x="150" y="120" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway" bpmnElement="Gateway_PaymentApproved" isMarkerVisible="true">
+        <dc:Bounds x="250" y="113" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Confirm" bpmnElement="Task_ConfirmPayment">
+        <dc:Bounds x="360" y="98" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndConfirmed" bpmnElement="End_Confirmed">
+        <dc:Bounds x="540" y="120" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Cancel" bpmnElement="Task_CancelOrder">
+        <dc:Bounds x="360" y="240" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndCancelled" bpmnElement="End_Cancelled">
+        <dc:Bounds x="540" y="262" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_ToGateway" bpmnElement="Flow_ToGateway">
+        <di:waypoint x="186" y="138"/><di:waypoint x="250" y="138"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Approved" bpmnElement="Flow_Approved">
+        <di:waypoint x="300" y="138"/><di:waypoint x="360" y="138"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ToConfirmed" bpmnElement="Flow_ToConfirmed">
+        <di:waypoint x="480" y="138"/><di:waypoint x="540" y="138"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Rejected" bpmnElement="Flow_Rejected">
+        <di:waypoint x="275" y="163"/><di:waypoint x="275" y="280"/><di:waypoint x="360" y="280"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ToCancelled" bpmnElement="Flow_ToCancelled">
+        <di:waypoint x="480" y="280"/><di:waypoint x="540" y="280"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

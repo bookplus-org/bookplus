@@ -1,0 +1,13 @@
+# Perfil "vault" — lee los secretos desde HashiCorp Vault (SPRING_PROFILES_ACTIVE=vault).
+spring:
+  config:
+    import: "vault://"
+  cloud:
+    vault:
+      uri: ${VAULT_URI:http://vault:8200}
+      token: ${VAULT_TOKEN:bookplus-root}
+      fail-fast: true
+      kv:
+        enabled: true
+        backend: secret
+        default-context: bookplus/inventory
