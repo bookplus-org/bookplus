@@ -1,0 +1,17 @@
+# Perfil "vault" — lee los secretos desde HashiCorp Vault en lugar de variables de entorno.
+# Solo se activa al arrancar con SPRING_PROFILES_ACTIVE=vault; el arranque normal no cambia.
+#
+# Vault sirve aquí, por ejemplo, spring.datasource.username y spring.datasource.password
+# desde la ruta KV  secret/bookplus/auth, que sobreescriben los valores por defecto.
+spring:
+  config:
+    import: "vault://"
+  cloud:
+    vault:
+      uri: ${VAULT_URI:http://vault:8200}
+      token: ${VAULT_TOKEN:bookplus-root}
+      fail-fast: true
+      kv:
+        enabled: true
+        backend: secret
+        default-context: bookplus/auth
