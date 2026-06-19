@@ -6,6 +6,7 @@ import com.bookplus.catalog.domain.port.in.SearchBooksUseCase.SearchQuery;
 import com.bookplus.catalog.domain.port.out.IndexBookPort;
 import com.bookplus.catalog.domain.port.out.SearchBooksPort;
 import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class ElasticsearchBookAdapter implements SearchBooksPort, IndexBookPort 
 
     @Override
     @CircuitBreaker(name = "bookSearch", fallbackMethod = "searchFallback")
+    @Bulkhead(name = "bookSearch")   // limita las llamadas concurrentes a ES (aísla fallos en cascada)
     @Retry(name = "bookSearch")
     public PagedResult<Book> search(SearchQuery query) {
         log.debug("ES search: q='{}' page={} size={}", query.query(), query.page(), query.size());

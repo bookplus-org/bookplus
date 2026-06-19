@@ -189,6 +189,12 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-vault-config</artifactId>
         </dependency>
+        <!-- Chaos Monkey — inyecta fallos/latencia (solo con el perfil "chaos") para validar resiliencia. -->
+        <dependency>
+            <groupId>de.codecentric</groupId>
+            <artifactId>chaos-monkey-spring-boot-starter</artifactId>
+            <version>3.1.0</version>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>

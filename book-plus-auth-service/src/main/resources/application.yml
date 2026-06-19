@@ -86,6 +86,14 @@ application:
 
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
 
+# ── Rate limiting (Bucket4j) ───────────────────────────────────────────────
+# Protege login / registro / recuperación de contraseña frente a fuerza bruta.
+# Límite por IP+ruta: 'capacity' peticiones cada 'period-seconds'.
+security:
+  rate-limit:
+    capacity: ${RATE_LIMIT_CAPACITY:10}
+    period-seconds: ${RATE_LIMIT_PERIOD_SECONDS:60}
+
 # ── Actuator ─────────────────────────────────────────────────────────────
 management:
   endpoints:

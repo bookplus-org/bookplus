@@ -131,3 +131,14 @@ resilience4j:
       bookSearch:
         max-attempts: 3
         wait-duration: 200ms
+  bulkhead:
+    instances:
+      bookSearch:
+        max-concurrent-calls: 20
+        max-wait-duration: 50ms
+
+# ── Chaos Monkey ──────────────────────────────────────────────────────────────
+# Desactivado por defecto. Se activa con el perfil "chaos" (application-chaos.yml).
+chaos:
+  monkey:
+    enabled: false

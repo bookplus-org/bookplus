@@ -1,6 +1,7 @@
 package com.bookplus.auth.config;
 
 import com.bookplus.auth.shared.security.JwtAuthFilter;
+import com.bookplus.auth.shared.security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,7 @@ import java.util.List;
  * - Stateless (JWT)
  * - CORS configurado para Angular dev
  * - Endpoints públicos y protegidos por rol
+ * - Rate limiting en los endpoints de autenticación sensibles
  */
 @Configuration
 @EnableWebSecurity
@@ -33,6 +35,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -62,6 +65,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Rate limiting antes del JWT: corta el abuso lo antes posible.
+                .addFilterBefore(rateLimitFilter, JwtAuthFilter.class)
                 .build();
     }
 

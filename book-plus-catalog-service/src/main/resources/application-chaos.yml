@@ -1,0 +1,30 @@
+# ── Perfil "chaos" — Chaos Engineering ────────────────────────────────────────
+# Activa Chaos Monkey for Spring Boot: inyecta latencia y excepciones de forma
+# controlada en los beans de la aplicación (servicios y adaptadores REST/repos),
+# para verificar que la resiliencia (circuit breaker, retry, bulkhead, fallbacks)
+# realmente funciona bajo fallos. NUNCA se activa en producción.
+#
+#   Arranque:  -Dspring.profiles.active=chaos
+#   Control en caliente vía Actuator:  POST /actuator/chaosmonkey/enable
+chaos:
+  monkey:
+    enabled: true
+    watcher:
+      service: true        # @Service
+      component: true      # @Component (incluye nuestros adapters)
+      repository: true     # repos JPA / Elasticsearch
+      rest-controller: true
+    assaults:
+      level: 5                      # 1 de cada 5 llamadas vigiladas sufre un ataque
+      latency-active: true
+      latency-range-start: 1000     # ms
+      latency-range-end: 3000       # ms
+      exceptions-active: true
+      kill-application-active: false # nunca matamos el proceso
+
+# Exponemos el endpoint de control de Chaos Monkey solo bajo este perfil.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,chaosmonkey
