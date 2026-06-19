@@ -142,3 +142,12 @@ resilience4j:
 chaos:
   monkey:
     enabled: false
+
+# ── Togglz (feature flags) ─────────────────────────────────────────────────
+# Activa/desactiva funciones en caliente. Consola admin en /togglz-console.
+togglz:
+  feature-enums: com.bookplus.catalog.shared.featureflags.FeatureFlags
+  console:
+    enabled: true
+    path: /togglz-console
+    secured: false   # DEV: en producción, proteger por red/autenticación
