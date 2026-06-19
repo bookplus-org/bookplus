@@ -30,19 +30,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifica que Hibernate Envers registra el historial de cambios del pedido.
- *
- * Arranca un Postgres real (Testcontainers) y deja que Flyway cree el esquema (incluida
- * V16 con revinfo y orders_aud). Persiste un pedido y luego cambia su estado en una
- * transacción aparte: deben quedar 2 revisiones (ADD y MOD), y el estado almacenado en
- * cada revisión debe ser el correcto.
- *
- * El método va @Transactional(NOT_SUPPORTED) para anular la transacción de rollback que
- * @DataJpaTest pone por defecto: así cada cambio va en su propia transacción real y Envers
- * crea una revisión por cada una.
- *
- * Etiquetado @Tag("integration") — excluido del `mvn test` normal; se corre con:
- *   mvn test -Dgroups=integration   (requiere Docker)
+ * Verifica el audit trail (Hibernate Envers) y el cifrado de PII en reposo contra un
+ * Postgres real (Testcontainers). Etiquetado @Tag("integration") — excluido del mvn test
+ * normal; se corre con: mvn test -Dgroups=integration -Dexcluded.groups= (requiere Docker).
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -74,7 +64,7 @@ class OrderAuditTrailIntegrationTest {
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void registra_el_historial_de_cambios_del_pedido() {
+    void registra_el_historial_y_cifra_la_pii() {
         TransactionTemplate tx = new TransactionTemplate(txManager);
         UUID id = UUID.randomUUID();
 
@@ -109,6 +99,15 @@ class OrderAuditTrailIntegrationTest {
             OrderEntity second = reader.find(OrderEntity.class, id, revisions.get(1));
             assertThat(first.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
             assertThat(second.getStatus()).isEqualTo(OrderStatus.SHIPPED);
+
+            // PII cifrada en reposo: el valor crudo en BD no es el texto plano,
+            // pero la entidad lo devuelve descifrado de forma transparente.
+            String rawStored = (String) em.createNativeQuery(
+                            "select shipping_recipient_name from orders where id = :id")
+                    .setParameter("id", id)
+                    .getSingleResult();
+            assertThat(rawStored).isNotEqualTo("Ada Lovelace");
+            assertThat(second.getShippingRecipientName()).isEqualTo("Ada Lovelace");
         });
     }
 

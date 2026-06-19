@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.envers.Audited;
 import org.hibernate.envers.NotAudited;
+import com.bookplus.order.shared.crypto.CryptoConverter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,9 +48,11 @@ public class OrderEntity {
 
     // Shipping address — embedded
     @Column(name = "shipping_recipient_name", nullable = false)
+    @Convert(converter = CryptoConverter.class)   // PII cifrada en reposo (AES-GCM)
     private String shippingRecipientName;
 
     @Column(name = "shipping_street", nullable = false)
+    @Convert(converter = CryptoConverter.class)   // PII cifrada en reposo (AES-GCM)
     private String shippingStreet;
 
     @Column(name = "shipping_city", nullable = false)
