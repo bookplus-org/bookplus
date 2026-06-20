@@ -1,50 +1,181 @@
+# Dependabot — actualizaciones automáticas de dependencias.
+# Estrategia: minor/patch agrupados y automáticos; los saltos MAYORES del framework se
+# ignoran (se gestionan a mano para no romper la compatibilidad de Spring Boot/Cloud).
 version: 2
 updates:
   # ── Backend (Maven), uno por microservicio ────────────────────────────────
   - package-ecosystem: maven
     directory: "/book-plus-auth-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-catalog-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-inventory-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-cart-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-order-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-payment-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-notification-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-report-service"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: maven
     directory: "/book-plus-api-gateway"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    # Agrupa minor/patch en un solo PR por servicio (menos ruido).
+    groups:
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
+    # No proponer saltos MAYORES del framework: van coordinados con la versión de Spring Boot
+    # y rompen el build (p. ej. Spring Cloud 2023 -> 2025 exige Boot 3.5+). Se harán a mano.
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springframework.cloud:*"
+        update-types: ["version-update:semver-major"]
 
   # ── Frontend (npm) ─────────────────────────────────────────────────────────
   - package-ecosystem: npm
     directory: "/book-plus-frontend"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Las versiones MAYORES de Angular son migraciones grandes; se hacen a mano.
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
 
   # ── GitHub Actions ─────────────────────────────────────────────────────────
   - package-ecosystem: github-actions
     directory: "/"
-    schedule: { interval: weekly }
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
