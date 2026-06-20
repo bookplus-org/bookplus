@@ -4,6 +4,7 @@ import com.bookplus.order.domain.model.*;
 import com.bookplus.order.domain.port.in.CreateOrderUseCase;
 import com.bookplus.order.domain.port.out.*;
 import com.bookplus.order.shared.annotation.UseCase;
+import com.bookplus.order.shared.metrics.OrderMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class CreateOrderUseCaseImpl implements CreateOrderUseCase {
 
     private final SaveOrderPort            saveOrderPort;
     private final OutboxEventPublisherPort outboxPublisher;  // writes to DB, not Kafka directly
+    private final OrderMetrics            orderMetrics;
 
     @Override
     @Transactional
@@ -43,6 +45,9 @@ public class CreateOrderUseCaseImpl implements CreateOrderUseCase {
 
         log.info("Order {} created for user {} — {} items, total {}{}",
                 saved.getId(), cmd.userId(), items.size(), total.amount(), total.currency());
+
+        // Métrica de negocio: pedido creado (por método de pago) e importe.
+        orderMetrics.recordOrderCreated(cmd.paymentMethod(), total.currency(), total.amount().doubleValue());
         return saved;
     }
 }

@@ -22,6 +22,7 @@ class CreateOrderUseCaseImplTest {
 
     @Mock private SaveOrderPort            saveOrderPort;
     @Mock private OutboxEventPublisherPort outboxPublisher;
+    @Mock private com.bookplus.order.shared.metrics.OrderMetrics orderMetrics;
 
     @InjectMocks
     private CreateOrderUseCaseImpl useCase;
