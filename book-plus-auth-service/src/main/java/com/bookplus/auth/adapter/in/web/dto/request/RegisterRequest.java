@@ -1,5 +1,6 @@
 package com.bookplus.auth.adapter.in.web.dto.request;
 
+import com.bookplus.auth.shared.validation.StrongPassword;
 import jakarta.validation.constraints.*;
 
 public record RegisterRequest(
@@ -13,6 +14,7 @@ public record RegisterRequest(
         String email,
 
         @NotBlank(message = "Password is required")
-        @Size(min = 8, max = 100, message = "Password must be at least 8 characters")
+        @Size(max = 100, message = "Password must be at most 100 characters")
+        @StrongPassword
         String password
 ) {}
