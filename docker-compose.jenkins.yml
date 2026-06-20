@@ -1,0 +1,20 @@
+# Levanta un Jenkins local para probar el Jenkinsfile.
+#   docker compose -f docker-compose.jenkins.yml up -d --build
+#   # contraseña inicial:
+#   docker exec bookplus-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+# Jenkins en http://localhost:8080
+services:
+  jenkins:
+    build: ./jenkins
+    container_name: bookplus-jenkins
+    user: root                         # para usar el socket de Docker del host
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
