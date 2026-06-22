@@ -1,0 +1,20 @@
+# Dockerfile de RUNTIME para el pipeline CI (build-once).
+# No compila: solo empaqueta el JAR ya construido en la etapa Package.
+# El contexto de build es el directorio del servicio (ahí está target/*.jar).
+#   docker build -f Dockerfile.runtime -t ghcr.io/<org>/<servicio>:<tag> <servicio>
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+# Usuario no-root por seguridad
+RUN addgroup -S bookplus && adduser -S bookplus -G bookplus
+USER bookplus
+
+# Copiar el JAR ya construido (un único *.jar por servicio)
+COPY target/*.jar app.jar
+
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+               -XX:MaxRAMPercentage=75.0 \
+               -XX:+UseG1GC \
+               -Djava.security.egd=file:/dev/./urandom"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
