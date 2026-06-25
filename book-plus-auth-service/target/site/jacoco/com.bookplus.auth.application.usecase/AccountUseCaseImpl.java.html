@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AccountUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.application.usecase</a> &gt; <span class="el_source">AccountUseCaseImpl.java</span></div><h1>AccountUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.application.usecase;
+
+import com.bookplus.auth.domain.exception.DomainException;
+import com.bookplus.auth.domain.exception.UserAlreadyExistsException;
+import com.bookplus.auth.domain.exception.UserNotFoundException;
+import com.bookplus.auth.domain.model.Email;
+import com.bookplus.auth.domain.model.User;
+import com.bookplus.auth.domain.model.UserId;
+import com.bookplus.auth.domain.port.in.AccountUseCase;
+import com.bookplus.auth.domain.port.out.LoadUserPort;
+import com.bookplus.auth.domain.port.out.SaveUserPort;
+import com.bookplus.auth.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+
+@UseCase
+@RequiredArgsConstructor
+<span class="nc" id="L20">@Slf4j</span>
+public class AccountUseCaseImpl implements AccountUseCase {
+
+    private final LoadUserPort    loadUserPort;
+    private final SaveUserPort    saveUserPort;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    @Transactional
+    public User updateMyProfile(UserId id, String username, String email) {
+<span class="nc" id="L30">        User user = loadUserPort.findById(id)</span>
+<span class="nc" id="L31">                .orElseThrow(() -&gt; new UserNotFoundException(id.toString()));</span>
+
+<span class="nc" id="L33">        Email emailVo = Email.of(email);</span>
+<span class="nc bnc" id="L34" title="All 4 branches missed.">        if (!emailVo.equals(user.getEmail()) &amp;&amp; loadUserPort.existsByEmail(emailVo)) {</span>
+<span class="nc" id="L35">            throw new UserAlreadyExistsException(&quot;email&quot;, email);</span>
+        }
+<span class="nc bnc" id="L37" title="All 4 branches missed.">        if (!username.equals(user.getUsername()) &amp;&amp; loadUserPort.existsByUsername(username)) {</span>
+<span class="nc" id="L38">            throw new UserAlreadyExistsException(&quot;username&quot;, username);</span>
+        }
+
+<span class="nc" id="L41">        user.changeProfile(username, emailVo);</span>
+<span class="nc" id="L42">        return saveUserPort.save(user);</span>
+    }
+
+    @Override
+    @Transactional
+    public void changeMyPassword(UserId id, String currentPassword, String newPassword) {
+<span class="nc" id="L48">        User user = loadUserPort.findById(id)</span>
+<span class="nc" id="L49">                .orElseThrow(() -&gt; new UserNotFoundException(id.toString()));</span>
+
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {</span>
+<span class="nc" id="L52">            throw new DomainException(&quot;La contraseña actual no es correcta&quot;);</span>
+        }
+<span class="nc" id="L54">        user.changePassword(passwordEncoder.encode(newPassword));</span>
+<span class="nc" id="L55">        saveUserPort.save(user);</span>
+<span class="nc" id="L56">        log.info(&quot;User {} changed own password&quot;, id);</span>
+<span class="nc" id="L57">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

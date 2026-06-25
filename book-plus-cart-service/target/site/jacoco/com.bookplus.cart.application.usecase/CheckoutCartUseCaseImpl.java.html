@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CheckoutCartUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.application.usecase</a> &gt; <span class="el_source">CheckoutCartUseCaseImpl.java</span></div><h1>CheckoutCartUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.application.usecase;
+
+import com.bookplus.cart.domain.event.CartCheckedOutEvent.ShippingAddressDto;
+import com.bookplus.cart.domain.exception.CartNotFoundException;
+import com.bookplus.cart.domain.model.Cart;
+import com.bookplus.cart.domain.port.in.CheckoutCartUseCase;
+import com.bookplus.cart.domain.port.out.*;
+import com.bookplus.cart.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Checkout flow:
+ *  1. Load cart (must exist and be non-empty — enforced by Cart.checkout())
+ *  2. Call Cart.checkout() → emits CartCheckedOutEvent with full item snapshot + total
+ *  3. Persist the now-empty cart (items cleared inside aggregate)
+ *  4. Publish CartCheckedOutEvent → consumed by order-service to create the order
+ *
+ * Note: price synchronisation (syncItemPrice) is the responsibility of the caller
+ * (CartController) before invoking checkout, so the event carries up-to-date prices.
+ */
+<span class="fc" id="L22">@UseCase @RequiredArgsConstructor @Slf4j</span>
+public class CheckoutCartUseCaseImpl implements CheckoutCartUseCase {
+
+    private final LoadCartPort             loadCartPort;
+    private final SaveCartPort             saveCartPort;
+    private final DomainEventPublisherPort eventPublisher;
+
+    @Override
+    public void checkout(String userId, String recipientEmail, ShippingAddressDto shippingAddress,
+                         String paymentMethod, String deliveryType, String couponCode) {
+<span class="fc" id="L32">        Cart cart = loadCartPort.findByUserId(userId)</span>
+<span class="fc" id="L33">                .orElseThrow(() -&gt; new CartNotFoundException(userId));</span>
+
+<span class="fc" id="L35">        cart.checkout(recipientEmail, shippingAddress, paymentMethod, deliveryType, couponCode); // emits event; clears items</span>
+<span class="fc" id="L36">        saveCartPort.save(cart);    // persist the cleared cart</span>
+
+        // Events MUST be published — order-service depends on CartCheckedOutEvent
+        try {
+<span class="fc" id="L40">            eventPublisher.publishAll(cart.pullDomainEvents());</span>
+<span class="fc" id="L41">        } catch (Exception ex) {</span>
+            // Log and rethrow: a failed publish means the order will never be created
+<span class="fc" id="L43">            log.error(&quot;CRITICAL — failed to publish CartCheckedOutEvent for user {}: {}&quot;, userId, ex.getMessage());</span>
+<span class="fc" id="L44">            throw new RuntimeException(&quot;Checkout event publication failed&quot;, ex);</span>
+<span class="fc" id="L45">        }</span>
+<span class="fc" id="L46">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

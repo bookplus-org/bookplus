@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Notification.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-notification-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.notification.domain.model</a> &gt; <span class="el_source">Notification.java</span></div><h1>Notification.java</h1><pre class="source lang-java linenums">package com.bookplus.notification.domain.model;
+
+import lombok.Getter;
+
+import java.time.Instant;
+
+/**
+ * Notification entity — not a full Aggregate Root (no complex invariants).
+ * Treated as an audit record of every notification sent.
+ *
+ * Lifecycle: PENDING → SENT | FAILED
+ */
+@Getter
+public class Notification {
+
+    private final NotificationId      id;
+    private final String              userId;         // recipient user ID
+    private final String              recipientEmail;
+    private final NotificationType    type;
+    private final NotificationChannel channel;
+    private final String              subject;
+    private final String              body;           // plain-text or HTML
+    private       NotificationStatus  status;
+    private       String              failureReason;
+    private final String              referenceId;   // orderId / paymentId / etc.
+    private final Instant             createdAt;
+    private       Instant             sentAt;
+
+    private Notification(NotificationId id, String userId, String recipientEmail,
+                         NotificationType type, NotificationChannel channel,
+<span class="fc" id="L31">                         String subject, String body, String referenceId) {</span>
+<span class="fc" id="L32">        this.id             = id;</span>
+<span class="fc" id="L33">        this.userId         = userId;</span>
+<span class="fc" id="L34">        this.recipientEmail = recipientEmail;</span>
+<span class="fc" id="L35">        this.type           = type;</span>
+<span class="fc" id="L36">        this.channel        = channel;</span>
+<span class="fc" id="L37">        this.subject        = subject;</span>
+<span class="fc" id="L38">        this.body           = body;</span>
+<span class="fc" id="L39">        this.referenceId    = referenceId;</span>
+<span class="fc" id="L40">        this.status         = NotificationStatus.PENDING;</span>
+<span class="fc" id="L41">        this.createdAt      = Instant.now();</span>
+<span class="fc" id="L42">    }</span>
+
+    public static Notification create(String userId, String recipientEmail,
+                                      NotificationType type, NotificationChannel channel,
+                                      String subject, String body, String referenceId) {
+<span class="fc" id="L47">        return new Notification(NotificationId.generate(), userId, recipientEmail,</span>
+                type, channel, subject, body, referenceId);
+    }
+
+    public static Notification reconstitute(NotificationId id, String userId, String recipientEmail,
+                                             NotificationType type, NotificationChannel channel,
+                                             String subject, String body, String referenceId,
+                                             NotificationStatus status, String failureReason,
+                                             Instant createdAt, Instant sentAt) {
+<span class="nc" id="L56">        Notification n = new Notification(id, userId, recipientEmail, type, channel, subject, body, referenceId);</span>
+<span class="nc" id="L57">        n.status        = status;</span>
+<span class="nc" id="L58">        n.failureReason = failureReason;</span>
+<span class="nc" id="L59">        n.sentAt        = sentAt;</span>
+<span class="nc" id="L60">        return n;</span>
+    }
+
+    public void markSent() {
+<span class="fc" id="L64">        this.status = NotificationStatus.SENT;</span>
+<span class="fc" id="L65">        this.sentAt = Instant.now();</span>
+<span class="fc" id="L66">    }</span>
+
+    public void markFailed(String reason) {
+<span class="fc" id="L69">        this.status        = NotificationStatus.FAILED;</span>
+<span class="fc" id="L70">        this.failureReason = reason;</span>
+<span class="fc" id="L71">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

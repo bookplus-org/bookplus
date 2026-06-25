@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReservationExpiryBatchConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.config</a> &gt; <span class="el_source">ReservationExpiryBatchConfig.java</span></div><h1>ReservationExpiryBatchConfig.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.config;
+
+import com.bookplus.inventory.application.batch.ReservationExpiryService;
+import com.bookplus.inventory.domain.model.StockReservation;
+import com.bookplus.inventory.domain.port.out.LoadReservationPort;
+import lombok.RequiredArgsConstructor;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.support.IteratorItemReader;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
+
+import java.time.Instant;
+
+/**
+ * Job de Spring Batch &quot;expireReservationsJob&quot;: libera las reservas de stock vencidas.
+ *
+ * Procesa por chunks (lotes) de 50, es tolerante a fallos (salta y registra errores
+ * sin abortar todo el job) y reiniciable, ya que Spring Batch persiste el estado de
+ * cada ejecución en sus tablas de metadatos. Lo dispara {@code ReservationExpiryJobLauncher}.
+ */
+@Configuration
+@RequiredArgsConstructor
+public class ReservationExpiryBatchConfig {
+
+    private static final int CHUNK = 50;
+
+    private final LoadReservationPort       loadReservationPort;
+    private final ReservationExpiryService  expiryService;
+
+    /** Lee las reservas PENDING vencidas en el momento de arrancar el step. */
+    @Bean
+    @StepScope
+    public ItemReader&lt;StockReservation&gt; expiredReservationReader() {
+<span class="nc" id="L43">        return new IteratorItemReader&lt;&gt;(loadReservationPort.findExpiredPending(Instant.now()));</span>
+    }
+
+    /** Defensa: solo procesa las que siguen PENDING (descarta las ya resueltas). */
+    @Bean
+    public ItemProcessor&lt;StockReservation, StockReservation&gt; pendingOnlyProcessor() {
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        return reservation -&gt; reservation.isPending() ? reservation : null;</span>
+    }
+
+    /** Persiste la liberación delegando en el servicio de dominio. */
+    @Bean
+    public ItemWriter&lt;StockReservation&gt; reservationExpiryWriter() {
+<span class="nc" id="L55">        return chunk -&gt; chunk.forEach(expiryService::expire);</span>
+    }
+
+    @Bean
+    public Step expireReservationsStep(JobRepository jobRepository,
+                                       PlatformTransactionManager txManager,
+                                       ItemReader&lt;StockReservation&gt; expiredReservationReader,
+                                       ItemProcessor&lt;StockReservation, StockReservation&gt; pendingOnlyProcessor,
+                                       ItemWriter&lt;StockReservation&gt; reservationExpiryWriter) {
+<span class="nc" id="L64">        return new StepBuilder(&quot;expireReservationsStep&quot;, jobRepository)</span>
+<span class="nc" id="L65">                .&lt;StockReservation, StockReservation&gt;chunk(CHUNK, txManager)</span>
+<span class="nc" id="L66">                .reader(expiredReservationReader)</span>
+<span class="nc" id="L67">                .processor(pendingOnlyProcessor)</span>
+<span class="nc" id="L68">                .writer(reservationExpiryWriter)</span>
+<span class="nc" id="L69">                .faultTolerant()</span>
+<span class="nc" id="L70">                .skip(Exception.class)</span>
+<span class="nc" id="L71">                .skipLimit(100)</span>
+<span class="nc" id="L72">                .build();</span>
+    }
+
+    @Bean
+    public Job expireReservationsJob(JobRepository jobRepository, Step expireReservationsStep) {
+<span class="nc" id="L77">        return new JobBuilder(&quot;expireReservationsJob&quot;, jobRepository)</span>
+<span class="nc" id="L78">                .start(expireReservationsStep)</span>
+<span class="nc" id="L79">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

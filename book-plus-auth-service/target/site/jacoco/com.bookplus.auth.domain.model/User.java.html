@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>User.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.domain.model</a> &gt; <span class="el_source">User.java</span></div><h1>User.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.domain.model;
+
+import com.bookplus.auth.domain.event.DomainEvent;
+import com.bookplus.auth.domain.event.UserDeactivatedEvent;
+import com.bookplus.auth.domain.event.UserRegisteredEvent;
+import com.bookplus.auth.domain.exception.DomainException;
+
+import java.time.Instant;
+import java.util.*;
+
+/**
+ * Aggregate Root — User.
+ *
+ * Encapsula toda la lógica de negocio relacionada con el usuario.
+ * Sin anotaciones de frameworks. Puramente Java.
+ *
+ * Patrón: los domain events se acumulan y luego se publican
+ * desde la capa de aplicación (use case) mediante el puerto DomainEventPublisherPort.
+ */
+public class User {
+
+    private final UserId id;
+    private String username;
+    private Email email;
+    private String passwordHash;
+    private Set&lt;UserRole&gt; roles;
+    private boolean enabled;
+    private boolean emailVerified;
+    private final Instant createdAt;
+    private Instant updatedAt;
+
+    // Domain events acumulados (no persistidos, solo para publicar)
+<span class="fc" id="L33">    private final List&lt;DomainEvent&gt; domainEvents = new ArrayList&lt;&gt;();</span>
+
+    // ── Constructor privado para factory methods ──────────────────────────
+
+    private User(UserId id,
+                 String username,
+                 Email email,
+                 String passwordHash,
+                 Set&lt;UserRole&gt; roles,
+                 boolean enabled,
+                 boolean emailVerified,
+                 Instant createdAt,
+<span class="fc" id="L45">                 Instant updatedAt) {</span>
+<span class="fc" id="L46">        this.id            = Objects.requireNonNull(id, &quot;id must not be null&quot;);</span>
+<span class="fc" id="L47">        this.username      = Objects.requireNonNull(username, &quot;username must not be null&quot;);</span>
+<span class="fc" id="L48">        this.email         = Objects.requireNonNull(email, &quot;email must not be null&quot;);</span>
+<span class="fc" id="L49">        this.passwordHash  = Objects.requireNonNull(passwordHash, &quot;passwordHash must not be null&quot;);</span>
+<span class="fc" id="L50">        this.roles         = new HashSet&lt;&gt;(Objects.requireNonNull(roles, &quot;roles must not be null&quot;));</span>
+<span class="fc" id="L51">        this.enabled       = enabled;</span>
+<span class="fc" id="L52">        this.emailVerified = emailVerified;</span>
+<span class="fc" id="L53">        this.createdAt     = Objects.requireNonNull(createdAt, &quot;createdAt must not be null&quot;);</span>
+<span class="fc" id="L54">        this.updatedAt     = Objects.requireNonNull(updatedAt, &quot;updatedAt must not be null&quot;);</span>
+<span class="fc" id="L55">    }</span>
+
+    // ── Factory Methods ───────────────────────────────────────────────────
+
+    /**
+     * Crea un nuevo usuario y registra el evento UserRegisteredEvent.
+     */
+    public static User create(String username, Email email, String passwordHash) {
+<span class="fc" id="L63">        validateUsername(username);</span>
+
+<span class="fc" id="L65">        User user = new User(</span>
+<span class="fc" id="L66">                UserId.generate(),</span>
+<span class="fc" id="L67">                username.trim(),</span>
+                email,
+                passwordHash,
+<span class="fc" id="L70">                Set.of(UserRole.ROLE_USER),</span>
+                true,
+                false,
+<span class="fc" id="L73">                Instant.now(),</span>
+<span class="fc" id="L74">                Instant.now()</span>
+        );
+
+<span class="fc" id="L77">        user.registerEvent(new UserRegisteredEvent(user.id, user.email, user.username));</span>
+<span class="fc" id="L78">        return user;</span>
+    }
+
+    /**
+     * Reconstituye un usuario existente desde la persistencia.
+     * No genera eventos de dominio.
+     */
+    public static User reconstitute(UserId id,
+                                    String username,
+                                    Email email,
+                                    String passwordHash,
+                                    Set&lt;UserRole&gt; roles,
+                                    boolean enabled,
+                                    boolean emailVerified,
+                                    Instant createdAt,
+                                    Instant updatedAt) {
+<span class="nc" id="L94">        return new User(id, username, email, passwordHash, roles,</span>
+                enabled, emailVerified, createdAt, updatedAt);
+    }
+
+    // ── Comportamientos de Dominio ────────────────────────────────────────
+
+    public void verifyEmail() {
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (this.emailVerified) {</span>
+<span class="nc" id="L102">            throw new DomainException(&quot;Email is already verified for user: &quot; + username);</span>
+        }
+<span class="nc" id="L104">        this.emailVerified = true;</span>
+<span class="nc" id="L105">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L106">    }</span>
+
+    public void changePassword(String newPasswordHash) {
+<span class="nc" id="L109">        Objects.requireNonNull(newPasswordHash, &quot;newPasswordHash must not be null&quot;);</span>
+<span class="nc" id="L110">        this.passwordHash = newPasswordHash;</span>
+<span class="nc" id="L111">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L112">    }</span>
+
+    /** Actualiza el perfil básico (nombre de usuario y correo). */
+    public void changeProfile(String username, Email email) {
+<span class="nc" id="L116">        validateUsername(username);</span>
+<span class="nc" id="L117">        this.username  = username.trim();</span>
+<span class="nc" id="L118">        this.email     = Objects.requireNonNull(email, &quot;email must not be null&quot;);</span>
+<span class="nc" id="L119">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L120">    }</span>
+
+    public void deactivate(String reason) {
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        if (!this.enabled) {</span>
+<span class="fc" id="L124">            throw new DomainException(&quot;User is already deactivated: &quot; + username);</span>
+        }
+<span class="fc" id="L126">        this.enabled = false;</span>
+<span class="fc" id="L127">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L128">        registerEvent(new UserDeactivatedEvent(this.id, this.email, reason));</span>
+<span class="fc" id="L129">    }</span>
+
+    public void activate() {
+<span class="nc" id="L132">        this.enabled = true;</span>
+<span class="nc" id="L133">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L134">    }</span>
+
+    public void assignRole(UserRole role) {
+<span class="nc" id="L137">        Objects.requireNonNull(role, &quot;role must not be null&quot;);</span>
+<span class="nc" id="L138">        this.roles.add(role);</span>
+<span class="nc" id="L139">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L140">    }</span>
+
+    public void removeRole(UserRole role) {
+<span class="nc" id="L143">        Objects.requireNonNull(role, &quot;role must not be null&quot;);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (role == UserRole.ROLE_USER) {</span>
+<span class="nc" id="L145">            throw new DomainException(&quot;Cannot remove base role ROLE_USER from user&quot;);</span>
+        }
+<span class="nc" id="L147">        this.roles.remove(role);</span>
+<span class="nc" id="L148">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L149">    }</span>
+
+    public boolean hasRole(UserRole role) {
+<span class="nc" id="L152">        return roles.contains(role);</span>
+    }
+
+    public boolean hasAtLeastRole(UserRole minRole) {
+<span class="nc" id="L156">        return roles.stream().anyMatch(r -&gt; r.isAtLeast(minRole));</span>
+    }
+
+    // ── Domain Events ─────────────────────────────────────────────────────
+
+    private void registerEvent(DomainEvent event) {
+<span class="fc" id="L162">        domainEvents.add(event);</span>
+<span class="fc" id="L163">    }</span>
+
+    public List&lt;DomainEvent&gt; pullDomainEvents() {
+<span class="fc" id="L166">        List&lt;DomainEvent&gt; events = new ArrayList&lt;&gt;(domainEvents);</span>
+<span class="fc" id="L167">        domainEvents.clear();</span>
+<span class="fc" id="L168">        return Collections.unmodifiableList(events);</span>
+    }
+
+    // ── Validaciones ──────────────────────────────────────────────────────
+
+    private static void validateUsername(String username) {
+<span class="pc bpc" id="L174" title="1 of 4 branches missed.">        if (username == null || username.isBlank()) {</span>
+<span class="fc" id="L175">            throw new DomainException(&quot;Username must not be blank&quot;);</span>
+        }
+<span class="pc bpc" id="L177" title="1 of 4 branches missed.">        if (username.trim().length() &lt; 3 || username.trim().length() &gt; 50) {</span>
+<span class="fc" id="L178">            throw new DomainException(&quot;Username must be between 3 and 50 characters&quot;);</span>
+        }
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        if (!username.trim().matches(&quot;^[a-zA-Z0-9._-]+$&quot;)) {</span>
+<span class="fc" id="L181">            throw new DomainException(&quot;Username can only contain letters, digits, dots, underscores and hyphens&quot;);</span>
+        }
+<span class="fc" id="L183">    }</span>
+
+    // ── Getters (sin setters — inmutabilidad controlada por métodos de dominio) ─
+
+<span class="fc" id="L187">    public UserId getId()           { return id; }</span>
+<span class="fc" id="L188">    public String getUsername()     { return username; }</span>
+<span class="fc" id="L189">    public Email getEmail()         { return email; }</span>
+<span class="fc" id="L190">    public String getPasswordHash() { return passwordHash; }</span>
+<span class="fc" id="L191">    public Set&lt;UserRole&gt; getRoles() { return Collections.unmodifiableSet(roles); }</span>
+<span class="fc" id="L192">    public boolean isEnabled()      { return enabled; }</span>
+<span class="fc" id="L193">    public boolean isEmailVerified(){ return emailVerified; }</span>
+<span class="nc" id="L194">    public Instant getCreatedAt()   { return createdAt; }</span>
+<span class="nc" id="L195">    public Instant getUpdatedAt()   { return updatedAt; }</span>
+
+    @Override
+    public boolean equals(Object o) {
+<span class="nc bnc" id="L199" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (!(o instanceof User u)) return false;</span>
+<span class="nc" id="L201">        return id.equals(u.id);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L206">        return Objects.hash(id);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L211">        return &quot;User{id=%s, username='%s', email='%s', enabled=%s}&quot;</span>
+<span class="nc" id="L212">                .formatted(id, username, email, enabled);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

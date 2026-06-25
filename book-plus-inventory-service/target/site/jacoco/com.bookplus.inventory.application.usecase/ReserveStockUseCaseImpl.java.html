@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReserveStockUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.application.usecase</a> &gt; <span class="el_source">ReserveStockUseCaseImpl.java</span></div><h1>ReserveStockUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.application.usecase;
+
+import com.bookplus.inventory.domain.event.StockReservedEvent;
+import com.bookplus.inventory.domain.exception.StockNotFoundException;
+import com.bookplus.inventory.domain.model.*;
+import com.bookplus.inventory.domain.port.in.ReserveStockUseCase;
+import com.bookplus.inventory.domain.port.out.*;
+import com.bookplus.inventory.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+<span class="fc" id="L12">@UseCase @RequiredArgsConstructor @Slf4j</span>
+public class ReserveStockUseCaseImpl implements ReserveStockUseCase {
+
+    private final LoadStockPort            loadStockPort;
+    private final SaveStockPort            saveStockPort;
+    private final SaveReservationPort      saveReservationPort;
+    private final SaveMovementPort         saveMovementPort;
+    private final DomainEventPublisherPort eventPublisher;
+
+    @Override
+    public StockReservation reserve(ReserveStockCommand command) {
+<span class="fc" id="L23">        log.debug(&quot;Reserving stock: bookId={} orderId={} qty={}&quot;,</span>
+<span class="fc" id="L24">                command.bookId(), command.orderId(), command.quantity());</span>
+
+<span class="fc" id="L26">        BookId bookId = BookId.of(command.bookId());</span>
+
+        // 1. Cargar stock y reservar (lanza InsufficientStockException si no hay)
+<span class="fc" id="L29">        Stock stock = loadStockPort.findByBookId(bookId)</span>
+<span class="fc" id="L30">                .orElseThrow(() -&gt; new StockNotFoundException(command.bookId()));</span>
+
+<span class="fc" id="L32">        StockMovement movement = stock.reserve(command.quantity(), command.orderId());</span>
+
+        // 2. Crear la entidad de reserva
+<span class="fc" id="L35">        StockReservation reservation = StockReservation.create(</span>
+<span class="fc" id="L36">                bookId, command.orderId(), command.userId(), command.quantity());</span>
+
+        // 3. Persistir: stock actualizado, reserva y movimiento
+<span class="fc" id="L39">        saveStockPort.save(stock);</span>
+<span class="fc" id="L40">        StockReservation saved = saveReservationPort.save(reservation);</span>
+<span class="fc" id="L41">        saveMovementPort.save(movement);</span>
+
+        // 4. Publicar eventos (StockUpdated + LowStockAlert si aplica + StockReserved)
+        try {
+<span class="fc" id="L45">            eventPublisher.publishAll(stock.pullDomainEvents());</span>
+<span class="fc" id="L46">            eventPublisher.publish(new StockReservedEvent(</span>
+<span class="fc" id="L47">                    saved.getId(), bookId,</span>
+<span class="fc" id="L48">                    command.orderId(), command.userId(), command.quantity()));</span>
+<span class="nc" id="L49">        } catch (Exception ex) {</span>
+<span class="nc" id="L50">            log.error(&quot;Failed to publish events for reservation {}: {}&quot;, saved.getId(), ex.getMessage());</span>
+<span class="fc" id="L51">        }</span>
+
+<span class="fc" id="L53">        log.info(&quot;Stock reserved: reservationId={} bookId={} orderId={} qty={}&quot;,</span>
+<span class="fc" id="L54">                saved.getId(), command.bookId(), command.orderId(), command.quantity());</span>
+<span class="fc" id="L55">        return saved;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

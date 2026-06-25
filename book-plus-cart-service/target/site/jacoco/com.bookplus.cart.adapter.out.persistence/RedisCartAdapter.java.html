@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedisCartAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.adapter.out.persistence</a> &gt; <span class="el_source">RedisCartAdapter.java</span></div><h1>RedisCartAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.adapter.out.persistence;
+
+import com.bookplus.cart.domain.model.*;
+import com.bookplus.cart.domain.port.out.*;
+import com.bookplus.cart.shared.annotation.PersistenceAdapter;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+
+import java.time.Duration;
+import java.util.*;
+
+/**
+ * Redis adapter — both LoadCartPort and SaveCartPort.
+ *
+ * Storage strategy:
+ *  - Key  : &quot;cart:{userId}&quot;   (human-readable, supports O(1) lookup by userId)
+ *  - Value: JSON-serialized CartRedisDto
+ *  - TTL  : configurable (default 30 days) — extended on every write
+ */
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="nc" id="L26">@Slf4j</span>
+public class RedisCartAdapter implements LoadCartPort, SaveCartPort {
+
+    private final RedisTemplate&lt;String, String&gt; redisTemplate;
+    private final ObjectMapper                  objectMapper;
+
+    @Value(&quot;${cart.redis.ttl-days:30}&quot;)
+    private long ttlDays;
+
+    // ── Key helpers ───────────────────────────────────────────────────────
+
+    private static String userKey(String userId) {
+<span class="nc" id="L38">        return &quot;cart:&quot; + userId;</span>
+    }
+
+    private static String idKey(String cartId) {
+<span class="nc" id="L42">        return &quot;cart:id:&quot; + cartId;</span>
+    }
+
+    // ── LoadCartPort ──────────────────────────────────────────────────────
+
+    @Override
+    public Optional&lt;Cart&gt; findByUserId(String userId) {
+<span class="nc" id="L49">        return load(userKey(userId));</span>
+    }
+
+    @Override
+    public Optional&lt;Cart&gt; findById(CartId cartId) {
+        // Secondary index: id → userId → actual cart
+<span class="nc" id="L55">        String userId = redisTemplate.opsForValue().get(idKey(cartId.toString()));</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (userId == null) return Optional.empty();</span>
+<span class="nc" id="L57">        return load(userKey(userId));</span>
+    }
+
+    // ── SaveCartPort ──────────────────────────────────────────────────────
+
+    @Override
+    public Cart save(Cart cart) {
+        try {
+<span class="nc" id="L65">            CartRedisDto dto  = CartRedisDto.from(cart);</span>
+<span class="nc" id="L66">            String       json = objectMapper.writeValueAsString(dto);</span>
+<span class="nc" id="L67">            Duration     ttl  = Duration.ofDays(ttlDays);</span>
+
+<span class="nc" id="L69">            redisTemplate.opsForValue().set(userKey(cart.getUserId()), json, ttl);</span>
+            // Secondary index so findById also works
+<span class="nc" id="L71">            redisTemplate.opsForValue().set(idKey(cart.getId().toString()), cart.getUserId(), ttl);</span>
+<span class="nc" id="L72">        } catch (JsonProcessingException ex) {</span>
+<span class="nc" id="L73">            throw new RuntimeException(&quot;Failed to serialize cart to Redis&quot;, ex);</span>
+<span class="nc" id="L74">        }</span>
+<span class="nc" id="L75">        return cart;</span>
+    }
+
+    @Override
+    public void delete(String userId) {
+<span class="nc" id="L80">        Optional&lt;Cart&gt; cart = findByUserId(userId);</span>
+<span class="nc" id="L81">        cart.ifPresent(c -&gt; redisTemplate.delete(idKey(c.getId().toString())));</span>
+<span class="nc" id="L82">        redisTemplate.delete(userKey(userId));</span>
+<span class="nc" id="L83">    }</span>
+
+    // ── Internal deserialization ──────────────────────────────────────────
+
+    private Optional&lt;Cart&gt; load(String key) {
+<span class="nc" id="L88">        String json = redisTemplate.opsForValue().get(key);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (json == null) return Optional.empty();</span>
+        try {
+<span class="nc" id="L91">            CartRedisDto dto = objectMapper.readValue(json, CartRedisDto.class);</span>
+<span class="nc" id="L92">            return Optional.of(dto.toDomain());</span>
+<span class="nc" id="L93">        } catch (JsonProcessingException ex) {</span>
+<span class="nc" id="L94">            log.error(&quot;Failed to deserialize cart from Redis key {}: {}&quot;, key, ex.getMessage());</span>
+<span class="nc" id="L95">            return Optional.empty();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

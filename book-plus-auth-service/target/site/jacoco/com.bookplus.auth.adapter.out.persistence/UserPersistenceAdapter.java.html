@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserPersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.adapter.out.persistence</a> &gt; <span class="el_source">UserPersistenceAdapter.java</span></div><h1>UserPersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.adapter.out.persistence;
+
+import com.bookplus.auth.adapter.out.persistence.entity.RoleEntity;
+import com.bookplus.auth.adapter.out.persistence.entity.UserEntity;
+import com.bookplus.auth.adapter.out.persistence.mapper.UserPersistenceMapper;
+import com.bookplus.auth.adapter.out.persistence.repository.RoleJpaRepository;
+import com.bookplus.auth.adapter.out.persistence.repository.UserJpaRepository;
+import com.bookplus.auth.domain.model.Email;
+import com.bookplus.auth.domain.model.User;
+import com.bookplus.auth.domain.model.UserId;
+import com.bookplus.auth.domain.port.out.LoadUserPort;
+import com.bookplus.auth.domain.port.out.SaveUserPort;
+import com.bookplus.auth.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Sort;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * Adaptador de persistencia para User.
+ * Implementa los puertos LoadUserPort y SaveUserPort usando JPA.
+ */
+@PersistenceAdapter
+@RequiredArgsConstructor
+public class UserPersistenceAdapter implements LoadUserPort, SaveUserPort {
+
+    private final UserJpaRepository   userJpaRepository;
+    private final RoleJpaRepository   roleJpaRepository;
+    private final UserPersistenceMapper mapper;
+
+    @Override
+    public Optional&lt;User&gt; findById(UserId id) {
+<span class="nc" id="L37">        return userJpaRepository.findById(id.value()).map(mapper::toDomain);</span>
+    }
+
+    @Override
+    public Optional&lt;User&gt; findByEmail(Email email) {
+<span class="nc" id="L42">        return userJpaRepository.findByEmail(email.value()).map(mapper::toDomain);</span>
+    }
+
+    @Override
+    public Optional&lt;User&gt; findByUsername(String username) {
+<span class="nc" id="L47">        return userJpaRepository.findByUsername(username).map(mapper::toDomain);</span>
+    }
+
+    @Override
+    public Optional&lt;User&gt; findByUsernameOrEmail(String usernameOrEmail) {
+<span class="nc" id="L52">        return userJpaRepository.findByUsernameOrEmail(usernameOrEmail).map(mapper::toDomain);</span>
+    }
+
+    @Override
+    public boolean existsByEmail(Email email) {
+<span class="nc" id="L57">        return userJpaRepository.existsByEmail(email.value());</span>
+    }
+
+    @Override
+    public boolean existsByUsername(String username) {
+<span class="nc" id="L62">        return userJpaRepository.existsByUsername(username);</span>
+    }
+
+    @Override
+    public List&lt;User&gt; findAll() {
+<span class="nc" id="L67">        return userJpaRepository.findAll(Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;))</span>
+<span class="nc" id="L68">                .stream().map(mapper::toDomain).toList();</span>
+    }
+
+    @Override
+    public User save(User domain) {
+<span class="nc" id="L73">        Set&lt;RoleEntity&gt; roleEntities = domain.getRoles().stream()</span>
+<span class="nc" id="L74">                .map(role -&gt; roleJpaRepository.findByName(role)</span>
+<span class="nc" id="L75">                        .orElseGet(() -&gt; roleJpaRepository.save(</span>
+<span class="nc" id="L76">                                RoleEntity.builder().name(role).build())))</span>
+<span class="nc" id="L77">                .collect(Collectors.toSet());</span>
+
+<span class="nc" id="L79">        UserEntity entity = mapper.toEntity(domain, roleEntities);</span>
+<span class="nc" id="L80">        UserEntity saved  = userJpaRepository.save(entity);</span>
+<span class="nc" id="L81">        return mapper.toDomain(saved);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

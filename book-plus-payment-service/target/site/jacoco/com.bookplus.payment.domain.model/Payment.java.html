@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Payment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-payment-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.payment.domain.model</a> &gt; <span class="el_source">Payment.java</span></div><h1>Payment.java</h1><pre class="source lang-java linenums">package com.bookplus.payment.domain.model;
+
+import com.bookplus.payment.domain.event.*;
+import com.bookplus.payment.domain.exception.*;
+import lombok.Getter;
+
+import java.time.Instant;
+import java.util.*;
+
+/**
+ * Payment Aggregate Root.
+ *
+ * Lifecycle:
+ *  initiate()  → PENDING → emits PaymentInitiatedEvent
+ *  process()   → PROCESSING
+ *  complete()  → COMPLETED → emits PaymentCompletedEvent
+ *  fail()      → FAILED    → emits PaymentFailedEvent
+ *  refund()    → REFUNDED  → emits RefundInitiatedEvent  (only from COMPLETED)
+ *
+ * In a real system, the transition PENDING→PROCESSING→COMPLETED would be driven
+ * by webhook callbacks from the payment gateway (Stripe, PayPal, etc.).
+ * Here we model it as explicit domain commands so the flow is testable without
+ * an external gateway.
+ */
+@Getter
+public class Payment {
+
+<span class="fc" id="L28">    private static final Map&lt;PaymentStatus, Set&lt;PaymentStatus&gt;&gt; ALLOWED_TRANSITIONS = Map.of(</span>
+<span class="fc" id="L29">            PaymentStatus.PENDING,    Set.of(PaymentStatus.PROCESSING, PaymentStatus.FAILED),</span>
+<span class="fc" id="L30">            PaymentStatus.PROCESSING, Set.of(PaymentStatus.COMPLETED,  PaymentStatus.FAILED),</span>
+<span class="fc" id="L31">            PaymentStatus.COMPLETED,  Set.of(PaymentStatus.REFUNDED),</span>
+<span class="fc" id="L32">            PaymentStatus.FAILED,     Set.of(),</span>
+<span class="fc" id="L33">            PaymentStatus.REFUNDED,   Set.of()</span>
+    );
+
+    private final PaymentId     id;
+    private final String        orderId;
+    private final String        userId;
+    private       PaymentStatus status;
+    private final Money         amount;
+    private final PaymentMethod paymentMethod;
+    private       String        gatewayTransactionRef;  // returned by payment gateway
+    private       String        failureReason;
+    private final Instant       createdAt;
+    private       Instant       updatedAt;
+    private       Long          version;          // bloqueo optimista (lo gestiona JPA)
+
+<span class="fc" id="L48">    private final List&lt;DomainEvent&gt; domainEvents = new ArrayList&lt;&gt;();</span>
+
+    /** Lo usa el adaptador de persistencia para preservar la versión de bloqueo optimista. */
+<span class="nc" id="L51">    public void assignPersistenceVersion(Long version) { this.version = version; }</span>
+
+    // ── Constructor ───────────────────────────────────────────────────────
+
+    private Payment(PaymentId id, String orderId, String userId,
+<span class="fc" id="L56">                    Money amount, PaymentMethod paymentMethod) {</span>
+<span class="fc" id="L57">        this.id            = id;</span>
+<span class="fc" id="L58">        this.orderId       = orderId;</span>
+<span class="fc" id="L59">        this.userId        = userId;</span>
+<span class="fc" id="L60">        this.status        = PaymentStatus.PENDING;</span>
+<span class="fc" id="L61">        this.amount        = amount;</span>
+<span class="fc" id="L62">        this.paymentMethod = paymentMethod;</span>
+<span class="fc" id="L63">        this.createdAt     = Instant.now();</span>
+<span class="fc" id="L64">        this.updatedAt     = this.createdAt;</span>
+<span class="fc" id="L65">    }</span>
+
+    // ── Factory ───────────────────────────────────────────────────────────
+
+    public static Payment initiate(String orderId, String userId,
+                                   Money amount, PaymentMethod paymentMethod) {
+<span class="fc" id="L71">        Payment p = new Payment(PaymentId.generate(), orderId, userId, amount, paymentMethod);</span>
+<span class="fc" id="L72">        p.registerEvent(new PaymentInitiatedEvent(</span>
+<span class="fc" id="L73">                p.id.toString(), orderId, userId, amount, paymentMethod));</span>
+<span class="fc" id="L74">        return p;</span>
+    }
+
+    public static Payment reconstitute(PaymentId id, String orderId, String userId,
+                                       PaymentStatus status, Money amount,
+                                       PaymentMethod paymentMethod, String gatewayTransactionRef,
+                                       String failureReason, Instant createdAt, Instant updatedAt) {
+<span class="nc" id="L81">        Payment p = new Payment(id, orderId, userId, amount, paymentMethod);</span>
+<span class="nc" id="L82">        p.status               = status;</span>
+<span class="nc" id="L83">        p.gatewayTransactionRef = gatewayTransactionRef;</span>
+<span class="nc" id="L84">        p.failureReason        = failureReason;</span>
+<span class="nc" id="L85">        return p;</span>
+    }
+
+    // ── Commands ──────────────────────────────────────────────────────────
+
+    /** Gateway has acknowledged the payment request — moves to PROCESSING */
+    public void process() {
+<span class="fc" id="L92">        transition(PaymentStatus.PROCESSING);</span>
+<span class="fc" id="L93">    }</span>
+
+    /** Gateway callback: payment successful */
+    public void complete(String transactionRef) {
+<span class="fc" id="L97">        transition(PaymentStatus.COMPLETED);</span>
+<span class="fc" id="L98">        this.gatewayTransactionRef = transactionRef;</span>
+<span class="fc" id="L99">        registerEvent(new PaymentCompletedEvent(</span>
+<span class="fc" id="L100">                id.toString(), orderId, userId, amount, transactionRef));</span>
+<span class="fc" id="L101">    }</span>
+
+    /** Gateway callback: payment failed */
+    public void fail(String reason) {
+<span class="fc" id="L105">        transition(PaymentStatus.FAILED);</span>
+<span class="fc" id="L106">        this.failureReason = reason;</span>
+<span class="fc" id="L107">        registerEvent(new PaymentFailedEvent(id.toString(), orderId, userId, reason));</span>
+<span class="fc" id="L108">    }</span>
+
+    /** Initiate a refund — only allowed from COMPLETED */
+    public void refund(String reason) {
+<span class="fc" id="L112">        transition(PaymentStatus.REFUNDED);</span>
+<span class="fc" id="L113">        registerEvent(new RefundInitiatedEvent(</span>
+<span class="fc" id="L114">                id.toString(), orderId, userId, amount, reason));</span>
+<span class="fc" id="L115">    }</span>
+
+    // ── Internal ──────────────────────────────────────────────────────────
+
+    private void transition(PaymentStatus next) {
+<span class="fc bfc" id="L120" title="All 2 branches covered.">        if (!ALLOWED_TRANSITIONS.getOrDefault(status, Set.of()).contains(next))</span>
+<span class="fc" id="L121">            throw new InvalidPaymentTransitionException(status, next);</span>
+<span class="fc" id="L122">        this.status    = next;</span>
+<span class="fc" id="L123">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L124">    }</span>
+
+<span class="fc" id="L126">    private void registerEvent(DomainEvent event) { domainEvents.add(event); }</span>
+
+    public List&lt;DomainEvent&gt; pullDomainEvents() {
+<span class="fc" id="L129">        List&lt;DomainEvent&gt; copy = List.copyOf(domainEvents);</span>
+<span class="fc" id="L130">        domainEvents.clear();</span>
+<span class="fc" id="L131">        return copy;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

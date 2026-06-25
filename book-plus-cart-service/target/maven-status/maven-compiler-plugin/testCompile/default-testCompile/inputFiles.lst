@@ -1,0 +1,7 @@
+/app/src/test/java/com/bookplus/cart/application/usecase/AddItemToCartUseCaseImplTest.java
+/app/src/test/java/com/bookplus/cart/application/usecase/CheckoutCartUseCaseImplTest.java
+/app/src/test/java/com/bookplus/cart/architecture/HexagonalArchitectureTest.java
+/app/src/test/java/com/bookplus/cart/domain/model/CartItemTest.java
+/app/src/test/java/com/bookplus/cart/domain/model/CartTest.java
+/app/src/test/java/com/bookplus/cart/domain/model/MoneyTest.java
+/app/src/test/java/com/bookplus/cart/shared/idempotency/IdempotencyServiceTest.java

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderMetrics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.shared.metrics</a> &gt; <span class="el_source">OrderMetrics.java</span></div><h1>OrderMetrics.java</h1><pre class="source lang-java linenums">package com.bookplus.order.shared.metrics;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.stereotype.Component;
+
+/**
+ * Métricas de negocio del pedido (Micrometer → Prometheus → Grafana).
+ *
+ * A diferencia de las métricas técnicas (CPU, latencia), estas miden el negocio: cuántos
+ * pedidos se crean y por qué método de pago, y el importe acumulado. Permiten paneles y
+ * alertas de negocio (p. ej. &quot;han caído los pedidos con tarjeta en la última hora&quot;).
+ */
+@Component
+public class OrderMetrics {
+
+    private final MeterRegistry registry;
+
+<span class="fc" id="L20">    public OrderMetrics(MeterRegistry registry) {</span>
+<span class="fc" id="L21">        this.registry = registry;</span>
+<span class="fc" id="L22">    }</span>
+
+    /** Registra un pedido creado: incrementa el contador (por método de pago) y acumula importe. */
+    public void recordOrderCreated(String paymentMethod, String currency, double amount) {
+<span class="fc" id="L26">        Counter.builder(&quot;bookplus.orders.created&quot;)</span>
+<span class="fc" id="L27">                .description(&quot;Número de pedidos creados&quot;)</span>
+<span class="pc bpc" id="L28" title="1 of 2 branches missed.">                .tag(&quot;payment_method&quot;, paymentMethod == null ? &quot;unknown&quot; : paymentMethod)</span>
+<span class="fc" id="L29">                .register(registry)</span>
+<span class="fc" id="L30">                .increment();</span>
+
+<span class="fc" id="L32">        DistributionSummary.builder(&quot;bookplus.orders.amount&quot;)</span>
+<span class="fc" id="L33">                .description(&quot;Importe de los pedidos creados&quot;)</span>
+<span class="fc" id="L34">                .baseUnit(&quot;currency&quot;)</span>
+<span class="pc bpc" id="L35" title="1 of 2 branches missed.">                .tag(&quot;currency&quot;, currency == null ? &quot;unknown&quot; : currency)</span>
+<span class="fc" id="L36">                .register(registry)</span>
+<span class="fc" id="L37">                .record(amount);</span>
+<span class="fc" id="L38">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

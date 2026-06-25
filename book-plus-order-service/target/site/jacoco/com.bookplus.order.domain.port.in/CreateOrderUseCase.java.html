@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CreateOrderUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.port.in</a> &gt; <span class="el_source">CreateOrderUseCase.java</span></div><h1>CreateOrderUseCase.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.port.in;
+
+import com.bookplus.order.domain.model.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+public interface CreateOrderUseCase {
+
+    Order createOrder(@Valid CreateOrderCommand command);
+
+<span class="fc" id="L14">    record CreateOrderCommand(</span>
+            @NotBlank(message = &quot;userId is required&quot;)
+            String userId,
+
+            String userEmail,
+
+            @NotBlank(message = &quot;cartId is required&quot;)
+            String cartId,
+
+            @NotEmpty(message = &quot;Order must have at least one item&quot;)
+            @Valid
+            List&lt;ItemDto&gt; items,
+
+            @NotNull(message = &quot;total is required&quot;)
+            @DecimalMin(value = &quot;0.01&quot;, message = &quot;total must be positive&quot;)
+            BigDecimal total,
+
+            @NotBlank(message = &quot;currency is required&quot;)
+            @Size(min = 3, max = 3, message = &quot;currency must be a 3-letter ISO code&quot;)
+            String currency,
+
+            @NotNull(message = &quot;shippingAddress is required&quot;)
+            ShippingAddress shippingAddress,
+
+            @NotBlank(message = &quot;paymentMethod is required&quot;)
+            String paymentMethod,
+
+            @NotBlank(message = &quot;deliveryType is required&quot;)
+            String deliveryType,
+
+            String couponCode,
+            java.math.BigDecimal discountAmount
+    ) {
+<span class="fc" id="L47">        public record ItemDto(</span>
+                @NotBlank(message = &quot;bookId is required&quot;)
+                String bookId,
+
+                @NotBlank(message = &quot;isbn is required&quot;)
+                String isbn,
+
+                @NotBlank(message = &quot;title is required&quot;)
+                String title,
+
+                String imageUrl,
+
+                @NotNull(message = &quot;unitPrice is required&quot;)
+                @DecimalMin(value = &quot;0.01&quot;, message = &quot;unitPrice must be positive&quot;)
+                BigDecimal unitPrice,
+
+                @NotBlank(message = &quot;currency is required&quot;)
+                String currency,
+
+                @Min(value = 1, message = &quot;quantity must be at least 1&quot;)
+                @Max(value = 999, message = &quot;quantity cannot exceed 999&quot;)
+                int quantity
+        ) {}
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

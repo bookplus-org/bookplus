@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ElasticsearchBookAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.search</a> &gt; <span class="el_source">ElasticsearchBookAdapter.java</span></div><h1>ElasticsearchBookAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.search;
+
+import com.bookplus.catalog.domain.model.*;
+import com.bookplus.catalog.domain.port.in.PagedResult;
+import com.bookplus.catalog.domain.port.in.SearchBooksUseCase.SearchQuery;
+import com.bookplus.catalog.domain.port.out.IndexBookPort;
+import com.bookplus.catalog.domain.port.out.SearchBooksPort;
+import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.query.Criteria;
+import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
+
+import java.util.List;
+
+/**
+ * Adapter OUT — Elasticsearch.
+ * Implementa SearchBooksPort (full-text) e IndexBookPort (index/remove).
+ */
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="fc" id="L29">@Slf4j</span>
+public class ElasticsearchBookAdapter implements SearchBooksPort, IndexBookPort {
+
+    private final BookSearchRepository    bookSearchRepository;
+    private final ElasticsearchOperations elasticsearchOperations;
+
+    // ── SearchBooksPort ───────────────────────────────────────────────────
+
+    @Override
+    @CircuitBreaker(name = &quot;bookSearch&quot;, fallbackMethod = &quot;searchFallback&quot;)
+    @Bulkhead(name = &quot;bookSearch&quot;)   // limita las llamadas concurrentes a ES (aísla fallos en cascada)
+    @Retry(name = &quot;bookSearch&quot;)
+    public PagedResult&lt;Book&gt; search(SearchQuery query) {
+<span class="nc" id="L42">        log.debug(&quot;ES search: q='{}' page={} size={}&quot;, query.query(), query.page(), query.size());</span>
+
+        // Multi-field criteria: title, author, isbn, description
+<span class="nc" id="L45">        Criteria criteria = new Criteria(&quot;title&quot;).matches(query.query())</span>
+<span class="nc" id="L46">                .or(new Criteria(&quot;author&quot;).matches(query.query()))</span>
+<span class="nc" id="L47">                .or(new Criteria(&quot;isbn&quot;).is(query.query()))</span>
+<span class="nc" id="L48">                .or(new Criteria(&quot;description&quot;).matches(query.query()));</span>
+
+<span class="nc" id="L50">        CriteriaQuery cq = new CriteriaQuery(criteria,</span>
+<span class="nc" id="L51">                PageRequest.of(query.page(), query.size()));</span>
+
+<span class="nc" id="L53">        SearchHits&lt;BookDocument&gt; hits = elasticsearchOperations.search(cq, BookDocument.class);</span>
+
+<span class="nc" id="L55">        List&lt;Book&gt; books = hits.getSearchHits().stream()</span>
+<span class="nc" id="L56">                .map(SearchHit::getContent)</span>
+<span class="nc" id="L57">                .map(this::toDomain)</span>
+<span class="nc" id="L58">                .toList();</span>
+
+<span class="nc" id="L60">        long total = hits.getTotalHits();</span>
+<span class="nc" id="L61">        int totalPages = (int) Math.ceil((double) total / query.size());</span>
+<span class="nc" id="L62">        int page = query.page();</span>
+
+<span class="nc bnc" id="L64" title="All 4 branches missed.">        return new PagedResult&lt;&gt;(books, page, query.size(), total, totalPages,</span>
+                page == 0, page &gt;= totalPages - 1);
+    }
+
+    /**
+     * Fallback de búsqueda: si Elasticsearch está caído (circuito abierto o reintentos
+     * agotados), devolvemos un resultado vacío en lugar de propagar el error, para que la
+     * página de catálogo siga respondiendo. La firma replica search() + un Throwable.
+     */
+    PagedResult&lt;Book&gt; searchFallback(SearchQuery query, Throwable t) {
+<span class="fc" id="L74">        log.warn(&quot;ES no disponible, devolviendo búsqueda vacía: {}&quot;, t.getMessage());</span>
+<span class="fc" id="L75">        return new PagedResult&lt;&gt;(List.of(), query.page(), query.size(), 0, 0, true, true);</span>
+    }
+
+    // ── IndexBookPort ─────────────────────────────────────────────────────
+
+    @Override
+    public void index(Book book) {
+<span class="nc" id="L82">        log.debug(&quot;Indexing book in ES: id={}&quot;, book.getId().value());</span>
+<span class="nc" id="L83">        bookSearchRepository.save(BookDocument.from(book));</span>
+<span class="nc" id="L84">    }</span>
+
+    @Override
+    public void remove(BookId bookId) {
+<span class="nc" id="L88">        log.debug(&quot;Removing book from ES index: id={}&quot;, bookId.value());</span>
+<span class="nc" id="L89">        bookSearchRepository.deleteById(bookId.value().toString());</span>
+<span class="nc" id="L90">    }</span>
+
+    // ── Private helpers ───────────────────────────────────────────────────
+
+    private Book toDomain(BookDocument doc) {
+<span class="nc" id="L95">        return Book.reconstitute(</span>
+<span class="nc" id="L96">                BookId.of(doc.id()),</span>
+<span class="nc" id="L97">                ISBN.of(doc.isbn()),</span>
+<span class="nc" id="L98">                doc.title(),</span>
+<span class="nc" id="L99">                Slug.of(doc.slug()),</span>
+<span class="nc" id="L100">                doc.author(),</span>
+<span class="nc" id="L101">                doc.description(),</span>
+<span class="nc" id="L102">                Money.of(doc.price(), doc.currency()),</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">                doc.discountPrice() != null ? Money.of(doc.discountPrice(), doc.currency()) : null,</span>
+<span class="nc" id="L104">                doc.imageUrl(),</span>
+                null,                 // previewUrl not stored in the search index
+<span class="nc" id="L106">                doc.publisher(),</span>
+<span class="nc" id="L107">                doc.publishedDate(),</span>
+<span class="nc" id="L108">                doc.language(),</span>
+<span class="nc" id="L109">                doc.pages(),</span>
+<span class="nc" id="L110">                CategoryId.of(doc.categoryId()),</span>
+<span class="nc" id="L111">                doc.active(),</span>
+<span class="nc" id="L112">                doc.stockSnapshot(),</span>
+<span class="nc" id="L113">                doc.averageRating(),</span>
+<span class="nc" id="L114">                doc.reviewCount(),</span>
+<span class="nc" id="L115">                doc.createdAt(),</span>
+<span class="nc" id="L116">                doc.createdAt()   // updatedAt not stored — use createdAt as fallback</span>
+        );
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

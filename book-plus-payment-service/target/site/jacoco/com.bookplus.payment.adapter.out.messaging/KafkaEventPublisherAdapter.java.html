@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KafkaEventPublisherAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-payment-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.payment.adapter.out.messaging</a> &gt; <span class="el_source">KafkaEventPublisherAdapter.java</span></div><h1>KafkaEventPublisherAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.payment.adapter.out.messaging;
+
+import com.bookplus.payment.domain.event.*;
+import com.bookplus.payment.domain.model.DomainEvent;
+import com.bookplus.payment.domain.port.out.DomainEventPublisherPort;
+import com.bookplus.payment.shared.annotation.PersistenceAdapter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
+
+import java.util.List;
+import java.util.Map;
+
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="nc" id="L17">@Slf4j</span>
+public class KafkaEventPublisherAdapter implements DomainEventPublisherPort {
+
+    private final KafkaTemplate&lt;String, String&gt; kafkaTemplate;
+    private final ObjectMapper                  objectMapper;
+
+<span class="nc" id="L23">    private static final Map&lt;Class&lt;?&gt;, String&gt; TOPICS = Map.of(</span>
+            PaymentInitiatedEvent.class,  &quot;payment.initiated&quot;,
+            PaymentCompletedEvent.class,  &quot;payment.confirmed&quot;,
+            PaymentFailedEvent.class,     &quot;payment.failed&quot;,
+            RefundInitiatedEvent.class,   &quot;payment.refunded&quot;
+    );
+
+    @Override
+    public void publishAll(List&lt;DomainEvent&gt; events) {
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        for (DomainEvent event : events) {</span>
+<span class="nc" id="L33">            String topic = TOPICS.get(event.getClass());</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">            if (topic == null) {</span>
+<span class="nc" id="L35">                log.warn(&quot;No topic mapping for {}&quot;, event.getClass().getSimpleName());</span>
+<span class="nc" id="L36">                continue;</span>
+            }
+            try {
+<span class="nc" id="L39">                String payload = objectMapper.writeValueAsString(event);</span>
+<span class="nc" id="L40">                kafkaTemplate.send(topic, event.aggregateId(), payload)</span>
+<span class="nc" id="L41">                        .whenComplete((r, ex) -&gt; {</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">                            if (ex != null)</span>
+<span class="nc" id="L43">                                log.error(&quot;Failed sending {} to {}: {}&quot;,</span>
+<span class="nc" id="L44">                                        event.getClass().getSimpleName(), topic, ex.getMessage());</span>
+                            else
+<span class="nc" id="L46">                                log.debug(&quot;Published {} to {} offset {}&quot;,</span>
+<span class="nc" id="L47">                                        event.getClass().getSimpleName(), topic,</span>
+<span class="nc" id="L48">                                        r.getRecordMetadata().offset());</span>
+<span class="nc" id="L49">                        });</span>
+<span class="nc" id="L50">            } catch (Exception ex) {</span>
+<span class="nc" id="L51">                throw new RuntimeException(&quot;Failed to publish &quot; + event.getClass().getSimpleName(), ex);</span>
+<span class="nc" id="L52">            }</span>
+<span class="nc" id="L53">        }</span>
+<span class="nc" id="L54">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

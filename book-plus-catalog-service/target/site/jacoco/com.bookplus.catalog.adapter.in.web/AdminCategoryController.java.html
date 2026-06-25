@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminCategoryController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web</a> &gt; <span class="el_source">AdminCategoryController.java</span></div><h1>AdminCategoryController.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web;
+
+import com.bookplus.catalog.adapter.in.web.dto.*;
+import com.bookplus.catalog.domain.model.Category;
+import com.bookplus.catalog.domain.port.in.*;
+import com.bookplus.catalog.domain.port.in.CreateCategoryUseCase.CreateCategoryCommand;
+import com.bookplus.catalog.domain.port.in.UpdateCategoryUseCase.UpdateCategoryCommand;
+import com.bookplus.catalog.shared.web.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Adapter IN — Endpoints de administración de categorías.
+ * Requiere rol ROLE_ADMIN.
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/admin/categories&quot;)
+@RequiredArgsConstructor
+@PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN')&quot;)
+@Tag(name = &quot;Admin Categories&quot;, description = &quot;Admin category management endpoints&quot;)
+@SecurityRequirement(name = &quot;bearerAuth&quot;)
+public class AdminCategoryController {
+
+    private final CreateCategoryUseCase createCategoryUseCase;
+    private final UpdateCategoryUseCase updateCategoryUseCase;
+    private final DeleteCategoryUseCase deleteCategoryUseCase;
+
+    // ── POST /api/v1/admin/categories ───────────────────────────────────────
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = &quot;Create a new category&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;CategoryResponse&gt;&gt; create(
+            @Valid @RequestBody CreateCategoryRequest request) {
+
+<span class="nc" id="L43">        CreateCategoryCommand command = new CreateCategoryCommand(</span>
+<span class="nc" id="L44">                request.name(),</span>
+<span class="nc" id="L45">                request.description(),</span>
+<span class="nc" id="L46">                request.parentId(),</span>
+<span class="nc" id="L47">                request.imageUrl()</span>
+        );
+
+<span class="nc" id="L50">        Category category = createCategoryUseCase.create(command);</span>
+<span class="nc" id="L51">        return ResponseEntity.status(HttpStatus.CREATED)</span>
+<span class="nc" id="L52">                .body(ApiResponse.ok(CategoryResponse.from(category)));</span>
+    }
+
+    // ── PUT /api/v1/admin/categories/{id} ──────────────────────────────────
+
+    @PutMapping(&quot;/{id}&quot;)
+    @Operation(summary = &quot;Update a category&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;CategoryResponse&gt;&gt; update(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateCategoryRequest request) {
+
+<span class="nc" id="L63">        UpdateCategoryCommand command = new UpdateCategoryCommand(</span>
+<span class="nc" id="L64">                request.name(),</span>
+<span class="nc" id="L65">                request.description(),</span>
+<span class="nc" id="L66">                request.imageUrl()</span>
+        );
+
+<span class="nc" id="L69">        Category category = updateCategoryUseCase.update(id, command);</span>
+<span class="nc" id="L70">        return ResponseEntity.ok(ApiResponse.ok(CategoryResponse.from(category)));</span>
+    }
+
+    // ── DELETE /api/v1/admin/categories/{id} ────────────────────────────────
+
+    @DeleteMapping(&quot;/{id}&quot;)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = &quot;Deactivate (soft-delete) a category&quot;)
+    public ResponseEntity&lt;Void&gt; delete(@PathVariable String id) {
+<span class="nc" id="L79">        deleteCategoryUseCase.delete(id);</span>
+<span class="nc" id="L80">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

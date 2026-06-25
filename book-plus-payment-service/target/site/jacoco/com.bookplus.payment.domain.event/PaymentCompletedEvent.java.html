@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PaymentCompletedEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-payment-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.payment.domain.event</a> &gt; <span class="el_source">PaymentCompletedEvent.java</span></div><h1>PaymentCompletedEvent.java</h1><pre class="source lang-java linenums">package com.bookplus.payment.domain.event;
+
+import com.bookplus.payment.domain.model.*;
+import lombok.Getter;
+
+import java.time.Instant;
+
+/** Consumed by order-service → transitions order to CONFIRMED; notification-service → success email */
+@Getter
+public class PaymentCompletedEvent implements DomainEvent {
+
+    private final String  paymentId;
+    private final String  orderId;
+    private final String  userId;
+    private final Money   amount;
+    private final String  transactionRef;  // external gateway reference
+    private final Instant occurredOn;
+
+    public PaymentCompletedEvent(String paymentId, String orderId, String userId,
+<span class="fc" id="L20">                                 Money amount, String transactionRef) {</span>
+<span class="fc" id="L21">        this.paymentId      = paymentId;</span>
+<span class="fc" id="L22">        this.orderId        = orderId;</span>
+<span class="fc" id="L23">        this.userId         = userId;</span>
+<span class="fc" id="L24">        this.amount         = amount;</span>
+<span class="fc" id="L25">        this.transactionRef = transactionRef;</span>
+<span class="fc" id="L26">        this.occurredOn     = Instant.now();</span>
+<span class="fc" id="L27">    }</span>
+
+<span class="nc" id="L29">    @Override public String  aggregateId() { return paymentId; }</span>
+<span class="nc" id="L30">    @Override public Instant occurredOn()  { return occurredOn; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

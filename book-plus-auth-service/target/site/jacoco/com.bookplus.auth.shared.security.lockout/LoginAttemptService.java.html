@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LoginAttemptService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.shared.security.lockout</a> &gt; <span class="el_source">LoginAttemptService.java</span></div><h1>LoginAttemptService.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.shared.security.lockout;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+
+/**
+ * Bloqueo de cuenta tras varios intentos de login fallidos.
+ *
+ * Complementa al rate limiting por IP con un control por CUENTA: aunque un atacante use miles
+ * de IPs distintas (fuerza bruta distribuida), tras N fallos sobre la misma cuenta esta se
+ * bloquea temporalmente. Los contadores viven en Redis con TTL, así que la ventana y el
+ * bloqueo caducan solos.
+ */
+@Component
+public class LoginAttemptService {
+
+    private final LoginAttemptStore store;
+    private final int maxAttempts;
+    private final Duration attemptWindow;
+    private final Duration lockDuration;
+
+    public LoginAttemptService(
+            LoginAttemptStore store,
+            @Value(&quot;${security.lockout.max-attempts:5}&quot;) int maxAttempts,
+            @Value(&quot;${security.lockout.window-seconds:900}&quot;) long windowSeconds,
+<span class="fc" id="L28">            @Value(&quot;${security.lockout.lock-seconds:900}&quot;) long lockSeconds) {</span>
+<span class="fc" id="L29">        this.store = store;</span>
+<span class="fc" id="L30">        this.maxAttempts = maxAttempts;</span>
+<span class="fc" id="L31">        this.attemptWindow = Duration.ofSeconds(windowSeconds);</span>
+<span class="fc" id="L32">        this.lockDuration = Duration.ofSeconds(lockSeconds);</span>
+<span class="fc" id="L33">    }</span>
+
+    public boolean isLocked(String usernameOrEmail) {
+<span class="fc" id="L36">        return store.exists(lockKey(usernameOrEmail));</span>
+    }
+
+    /** Registra un intento fallido; al alcanzar el máximo, bloquea la cuenta. */
+    public void recordFailure(String usernameOrEmail) {
+<span class="fc" id="L41">        long attempts = store.incrementAndGet(attemptsKey(usernameOrEmail), attemptWindow);</span>
+<span class="fc bfc" id="L42" title="All 2 branches covered.">        if (attempts &gt;= maxAttempts) {</span>
+<span class="fc" id="L43">            store.put(lockKey(usernameOrEmail), &quot;1&quot;, lockDuration);</span>
+<span class="fc" id="L44">            store.evict(attemptsKey(usernameOrEmail));</span>
+        }
+<span class="fc" id="L46">    }</span>
+
+    /** Login correcto: limpia contadores y cualquier bloqueo. */
+    public void recordSuccess(String usernameOrEmail) {
+<span class="fc" id="L50">        store.evict(attemptsKey(usernameOrEmail), lockKey(usernameOrEmail));</span>
+<span class="fc" id="L51">    }</span>
+
+<span class="fc" id="L53">    private String attemptsKey(String id) { return &quot;login:attempts:&quot; + norm(id); }</span>
+<span class="fc" id="L54">    private String lockKey(String id)     { return &quot;login:locked:&quot;   + norm(id); }</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">    private String norm(String id)        { return id == null ? &quot;&quot; : id.trim().toLowerCase(); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

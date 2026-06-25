@@ -1,0 +1,13 @@
+com/bookplus/auth/application/usecase/RegisterUserUseCaseImplTest.class
+com/bookplus/auth/domain/model/UserTest$CreateTests.class
+com/bookplus/auth/domain/model/EmailTest.class
+com/bookplus/auth/shared/security/lockout/LoginAttemptServiceTest$InMemoryStore.class
+com/bookplus/auth/domain/model/UserRoleTest.class
+com/bookplus/auth/config/PasswordEncoderArgon2Test.class
+com/bookplus/auth/shared/security/AuthRateLimiterTest.class
+com/bookplus/auth/shared/validation/StrongPasswordValidatorTest.class
+com/bookplus/auth/domain/model/UserTest$DeactivateTests.class
+com/bookplus/auth/architecture/HexagonalArchitectureTest.class
+com/bookplus/auth/shared/security/lockout/LoginAttemptServiceTest.class
+com/bookplus/auth/domain/model/UserTest.class
+com/bookplus/auth/domain/model/UserTest$EmailTests.class

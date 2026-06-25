@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KafkaConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.config</a> &gt; <span class="el_source">KafkaConfig.java</span></div><h1>KafkaConfig.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.config;
+
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.*;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Configuration
+<span class="nc" id="L21">public class KafkaConfig {</span>
+
+    @Value(&quot;${spring.kafka.bootstrap-servers:localhost:9092}&quot;)
+    private String bootstrapServers;
+
+    // ── Producer ─────────────────────────────────────────────────────────
+
+    @Bean
+    public ProducerFactory&lt;String, Object&gt; producerFactory() {
+<span class="nc" id="L30">        Map&lt;String, Object&gt; props = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L31">        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);</span>
+<span class="nc" id="L32">        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);</span>
+<span class="nc" id="L33">        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);</span>
+<span class="nc" id="L34">        props.put(ProducerConfig.ACKS_CONFIG, &quot;all&quot;);</span>
+<span class="nc" id="L35">        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);</span>
+<span class="nc" id="L36">        props.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);</span>
+<span class="nc" id="L37">        return new DefaultKafkaProducerFactory&lt;&gt;(props);</span>
+    }
+
+    @Bean
+    public KafkaTemplate&lt;String, Object&gt; kafkaTemplate() {
+<span class="nc" id="L42">        return new KafkaTemplate&lt;&gt;(producerFactory());</span>
+    }
+
+    // ── Consumer ─────────────────────────────────────────────────────────
+
+    @Bean
+    public ConsumerFactory&lt;String, Map&lt;String, Object&gt;&gt; consumerFactory() {
+<span class="nc" id="L49">        Map&lt;String, Object&gt; props = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L50">        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);</span>
+<span class="nc" id="L51">        props.put(ConsumerConfig.GROUP_ID_CONFIG, &quot;inventory-service&quot;);</span>
+<span class="nc" id="L52">        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, &quot;earliest&quot;);</span>
+<span class="nc" id="L53">        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);</span>
+<span class="nc" id="L54">        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);</span>
+<span class="nc" id="L55">        props.put(JsonDeserializer.TRUSTED_PACKAGES, &quot;*&quot;);</span>
+<span class="nc" id="L56">        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);</span>
+<span class="nc" id="L57">        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, &quot;java.util.Map&quot;);</span>
+<span class="nc" id="L58">        return new DefaultKafkaConsumerFactory&lt;&gt;(props);</span>
+    }
+
+    // ── Dead Letter Queue: reintenta y, si falla, publica en &quot;&lt;topic&gt;.DLT&quot; ──
+    @Bean
+    public org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler(KafkaTemplate&lt;String, Object&gt; kafkaTemplate) {
+<span class="nc" id="L64">        var recoverer = new org.springframework.kafka.listener.DeadLetterPublishingRecoverer(</span>
+                kafkaTemplate,
+<span class="nc" id="L66">                (record, ex) -&gt; new org.apache.kafka.common.TopicPartition(record.topic() + &quot;.DLT&quot;, -1));</span>
+<span class="nc" id="L67">        return new org.springframework.kafka.listener.DefaultErrorHandler(recoverer,</span>
+                new org.springframework.util.backoff.FixedBackOff(1000L, 3L));
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory&lt;String, Map&lt;String, Object&gt;&gt;
+            kafkaListenerContainerFactory(org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler) {
+<span class="nc" id="L74">        var factory = new ConcurrentKafkaListenerContainerFactory&lt;String, Map&lt;String, Object&gt;&gt;();</span>
+<span class="nc" id="L75">        factory.setConsumerFactory(consumerFactory());</span>
+<span class="nc" id="L76">        factory.setConcurrency(3);</span>
+<span class="nc" id="L77">        factory.setCommonErrorHandler(kafkaErrorHandler);</span>
+<span class="nc" id="L78">        return factory;</span>
+    }
+
+    // ── Topics ────────────────────────────────────────────────────────────
+
+<span class="nc" id="L83">    @Bean public NewTopic topicStockCreated()  { return TopicBuilder.name(&quot;inventory.stock.created&quot;).partitions(3).replicas(1).build(); }</span>
+<span class="nc" id="L84">    @Bean public NewTopic topicStockUpdated()  { return TopicBuilder.name(&quot;inventory.stock.updated&quot;).partitions(3).replicas(1).build(); }</span>
+<span class="nc" id="L85">    @Bean public NewTopic topicLowAlert()      { return TopicBuilder.name(&quot;inventory.stock.low-alert&quot;).partitions(1).replicas(1).build(); }</span>
+<span class="nc" id="L86">    @Bean public NewTopic topicStockReserved() { return TopicBuilder.name(&quot;inventory.stock.reserved&quot;).partitions(3).replicas(1).build(); }</span>
+<span class="nc" id="L87">    @Bean public NewTopic topicStockReleased() { return TopicBuilder.name(&quot;inventory.stock.released&quot;).partitions(3).replicas(1).build(); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

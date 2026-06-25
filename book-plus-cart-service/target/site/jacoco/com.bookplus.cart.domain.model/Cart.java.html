@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Cart.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.domain.model</a> &gt; <span class="el_source">Cart.java</span></div><h1>Cart.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.domain.model;
+
+import com.bookplus.cart.domain.event.*;
+import com.bookplus.cart.domain.exception.DomainException;
+
+import java.time.Instant;
+import java.util.*;
+
+/**
+ * Aggregate Root — Carrito de compras.
+ *
+ * Invariantes:
+ *   - Un usuario tiene exactamente un carrito activo.
+ *   - Máximo MAX_ITEMS líneas distintas.
+ *   - Cada línea tiene entre 1 y 99 unidades.
+ *   - El carrito expirado no puede ser modificado.
+ *
+ * Persistencia: Redis con TTL (carrito como sesión temporal).
+ * No hay base de datos relacional para el carrito.
+ */
+public class Cart {
+
+    private static final int MAX_ITEMS = 50;
+
+    private final CartId          id;
+    private final String          userId;
+    private final Map&lt;BookId, CartItem&gt; items;    // bookId → item (1 línea por libro)
+    private       Instant         createdAt;
+    private       Instant         updatedAt;
+
+<span class="fc" id="L31">    private final List&lt;DomainEvent&gt; domainEvents = new ArrayList&lt;&gt;();</span>
+
+    // ── Constructor ───────────────────────────────────────────────────────
+
+    private Cart(CartId id, String userId, Map&lt;BookId, CartItem&gt; items,
+<span class="fc" id="L36">                 Instant createdAt, Instant updatedAt) {</span>
+<span class="fc" id="L37">        this.id        = Objects.requireNonNull(id);</span>
+<span class="fc" id="L38">        this.userId    = Objects.requireNonNull(userId);</span>
+<span class="fc" id="L39">        this.items     = new LinkedHashMap&lt;&gt;(items);</span>
+<span class="fc" id="L40">        this.createdAt = Objects.requireNonNull(createdAt);</span>
+<span class="fc" id="L41">        this.updatedAt = Objects.requireNonNull(updatedAt);</span>
+<span class="fc" id="L42">    }</span>
+
+    // ── Factory Methods ───────────────────────────────────────────────────
+
+    /** Crea un carrito vacío para el usuario. */
+    public static Cart createFor(String userId) {
+<span class="fc" id="L48">        Instant now = Instant.now();</span>
+<span class="fc" id="L49">        return new Cart(CartId.forUser(userId), userId, new LinkedHashMap&lt;&gt;(), now, now);</span>
+    }
+
+    public static Cart reconstitute(CartId id, String userId, Map&lt;BookId, CartItem&gt; items,
+                                    Instant createdAt, Instant updatedAt) {
+<span class="nc" id="L54">        return new Cart(id, userId, items, createdAt, updatedAt);</span>
+    }
+
+    // ── Comportamientos de Dominio ────────────────────────────────────────
+
+    /**
+     * Añade un libro al carrito.
+     * Si ya existe, incrementa la cantidad.
+     */
+    public void addItem(BookId bookId, String title, String imageUrl, String isbn,
+                        int quantity, Money unitPrice) {
+<span class="fc bfc" id="L65" title="All 2 branches covered.">        if (items.containsKey(bookId)) {</span>
+<span class="fc" id="L66">            CartItem existing = items.get(bookId);</span>
+<span class="fc" id="L67">            existing.increaseQuantity(quantity);</span>
+<span class="fc" id="L68">        } else {</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">            if (items.size() &gt;= MAX_ITEMS) {</span>
+<span class="fc" id="L70">                throw new DomainException(</span>
+                        &quot;Cart cannot have more than &quot; + MAX_ITEMS + &quot; different items&quot;);
+            }
+<span class="fc" id="L73">            items.put(bookId, CartItem.create(bookId, title, imageUrl, isbn, quantity, unitPrice));</span>
+        }
+<span class="fc" id="L75">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L76">        registerEvent(new CartItemAddedEvent(id, userId, bookId, quantity, unitPrice));</span>
+<span class="fc" id="L77">    }</span>
+
+    /**
+     * Elimina un libro del carrito por completo.
+     */
+    public void removeItem(BookId bookId) {
+<span class="fc" id="L83">        CartItem removed = items.remove(bookId);</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (removed == null) {</span>
+<span class="fc" id="L85">            throw new DomainException(&quot;Item not found in cart: bookId=&quot; + bookId);</span>
+        }
+<span class="fc" id="L87">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L88">        registerEvent(new CartItemRemovedEvent(id, userId, bookId));</span>
+<span class="fc" id="L89">    }</span>
+
+    /**
+     * Actualiza la cantidad de un ítem existente.
+     * Si quantity == 0, elimina el ítem.
+     */
+    public void updateItemQuantity(BookId bookId, int quantity) {
+<span class="fc bfc" id="L96" title="All 2 branches covered.">        if (quantity == 0) {</span>
+<span class="fc" id="L97">            removeItem(bookId);</span>
+<span class="fc" id="L98">            return;</span>
+        }
+<span class="fc" id="L100">        CartItem item = items.get(bookId);</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">        if (item == null) {</span>
+<span class="nc" id="L102">            throw new DomainException(&quot;Item not found in cart: bookId=&quot; + bookId);</span>
+        }
+<span class="fc" id="L104">        item.setQuantity(quantity);</span>
+<span class="fc" id="L105">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L106">    }</span>
+
+    /**
+     * Sincroniza el precio de un ítem con el precio actual del catálogo.
+     * Llamado cuando se detecta un cambio de precio antes del checkout.
+     */
+    public void syncItemPrice(BookId bookId, Money newUnitPrice) {
+<span class="nc" id="L113">        CartItem item = items.get(bookId);</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (item != null) {</span>
+<span class="nc" id="L115">            item.syncPrice(newUnitPrice);</span>
+<span class="nc" id="L116">            this.updatedAt = Instant.now();</span>
+        }
+<span class="nc" id="L118">    }</span>
+
+    /**
+     * Vacía el carrito completamente.
+     */
+    public void clear() {
+<span class="fc" id="L124">        items.clear();</span>
+<span class="fc" id="L125">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L126">        registerEvent(new CartClearedEvent(id, userId));</span>
+<span class="fc" id="L127">    }</span>
+
+    /**
+     * Marca el carrito como procesado al iniciar el checkout.
+     * Publica el evento que el order-service consumirá.
+     */
+    public void checkout(String recipientEmail, CartCheckedOutEvent.ShippingAddressDto shippingAddress,
+                         String paymentMethod, String deliveryType, String couponCode) {
+<span class="fc bfc" id="L135" title="All 2 branches covered.">        if (items.isEmpty()) {</span>
+<span class="fc" id="L136">            throw new DomainException(&quot;Cannot checkout an empty cart&quot;);</span>
+        }
+<span class="fc" id="L138">        registerEvent(new CartCheckedOutEvent(id, userId, recipientEmail, new ArrayList&lt;&gt;(items.values()), total(),</span>
+                shippingAddress, paymentMethod, deliveryType, couponCode));
+        // Tras checkout, el carrito se limpia (order-service crea la orden)
+<span class="fc" id="L141">        items.clear();</span>
+<span class="fc" id="L142">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L143">    }</span>
+
+    // ── Queries ────────────────────────────────────────────────────────────
+
+    public Money total() {
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (items.isEmpty()) return Money.zero(&quot;USD&quot;);</span>
+<span class="fc" id="L149">        return items.values().stream()</span>
+<span class="fc" id="L150">                .map(CartItem::subtotal)</span>
+<span class="fc" id="L151">                .reduce(Money.zero(items.values().iterator().next().getUnitPrice().currency()),</span>
+                        Money::add);
+    }
+
+<span class="nc" id="L155">    public boolean isEmpty()           { return items.isEmpty(); }</span>
+<span class="nc" id="L156">    public int     itemCount()         { return items.size(); }</span>
+<span class="nc" id="L157">    public int     totalUnits()        { return items.values().stream().mapToInt(CartItem::getQuantity).sum(); }</span>
+<span class="nc" id="L158">    public boolean containsBook(BookId bookId) { return items.containsKey(bookId); }</span>
+
+    // ── Domain Events ─────────────────────────────────────────────────────
+
+<span class="fc" id="L162">    private void registerEvent(DomainEvent event) { domainEvents.add(event); }</span>
+
+    public List&lt;DomainEvent&gt; pullDomainEvents() {
+<span class="fc" id="L165">        List&lt;DomainEvent&gt; events = new ArrayList&lt;&gt;(domainEvents);</span>
+<span class="fc" id="L166">        domainEvents.clear();</span>
+<span class="fc" id="L167">        return Collections.unmodifiableList(events);</span>
+    }
+
+    // ── Getters ───────────────────────────────────────────────────────────
+
+<span class="fc" id="L172">    public CartId            getId()        { return id; }</span>
+<span class="fc" id="L173">    public String            getUserId()    { return userId; }</span>
+<span class="fc" id="L174">    public Collection&lt;CartItem&gt; getItems()  { return Collections.unmodifiableCollection(items.values()); }</span>
+<span class="nc" id="L175">    public Instant           getCreatedAt() { return createdAt; }</span>
+<span class="nc" id="L176">    public Instant           getUpdatedAt() { return updatedAt; }</span>
+
+    @Override public boolean equals(Object o) {
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (!(o instanceof Cart c)) return false;</span>
+<span class="nc" id="L181">        return id.equals(c.id);</span>
+    }
+<span class="nc" id="L183">    @Override public int hashCode() { return Objects.hash(id); }</span>
+    @Override public String toString() {
+<span class="nc" id="L185">        return &quot;Cart{userId='%s', items=%d, total=%s}&quot;.formatted(userId, items.size(), total());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

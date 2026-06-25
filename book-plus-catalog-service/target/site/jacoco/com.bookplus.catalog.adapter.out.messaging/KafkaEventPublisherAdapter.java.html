@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KafkaEventPublisherAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.messaging</a> &gt; <span class="el_source">KafkaEventPublisherAdapter.java</span></div><h1>KafkaEventPublisherAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.messaging;
+
+import com.bookplus.catalog.domain.event.*;
+import com.bookplus.catalog.domain.port.out.DomainEventPublisherPort;
+import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Adapter OUT — Publica Domain Events en Kafka.
+ *
+ * Topics:
+ *   catalog.book.created   → BookCreatedEvent
+ *   catalog.book.updated   → BookUpdatedEvent
+ *   catalog.book.deleted   → BookDeletedEvent
+ *   catalog.review.added   → ReviewAddedEvent
+ */
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="nc" id="L24">@Slf4j</span>
+public class KafkaEventPublisherAdapter implements DomainEventPublisherPort {
+
+<span class="nc" id="L27">    private static final Map&lt;Class&lt;?&gt;, String&gt; TOPIC_MAP = Map.of(</span>
+            BookCreatedEvent.class,  &quot;catalog.book.created&quot;,
+            BookUpdatedEvent.class,  &quot;catalog.book.updated&quot;,
+            BookDeletedEvent.class,  &quot;catalog.book.deleted&quot;,
+            ReviewAddedEvent.class,  &quot;catalog.review.added&quot;
+    );
+
+    private final KafkaTemplate&lt;String, Object&gt; kafkaTemplate;
+
+    @Override
+    public void publish(DomainEvent event) {
+<span class="nc" id="L38">        String topic = TOPIC_MAP.get(event.getClass());</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (topic == null) {</span>
+<span class="nc" id="L40">            log.warn(&quot;No Kafka topic mapped for event type: {}&quot;, event.getClass().getSimpleName());</span>
+<span class="nc" id="L41">            return;</span>
+        }
+<span class="nc" id="L43">        kafkaTemplate.send(topic, event.eventId().toString(), event)</span>
+<span class="nc" id="L44">                .whenComplete((result, ex) -&gt; {</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">                    if (ex != null) {</span>
+<span class="nc" id="L46">                        log.error(&quot;Failed to publish {} to topic '{}': {}&quot;,</span>
+<span class="nc" id="L47">                                event.getClass().getSimpleName(), topic, ex.getMessage());</span>
+                    } else {
+<span class="nc" id="L49">                        log.debug(&quot;Published {} to topic '{}' partition={} offset={}&quot;,</span>
+<span class="nc" id="L50">                                event.getClass().getSimpleName(), topic,</span>
+<span class="nc" id="L51">                                result.getRecordMetadata().partition(),</span>
+<span class="nc" id="L52">                                result.getRecordMetadata().offset());</span>
+                    }
+<span class="nc" id="L54">                });</span>
+<span class="nc" id="L55">    }</span>
+
+    @Override
+    public void publishAll(List&lt;DomainEvent&gt; events) {
+<span class="nc" id="L59">        events.forEach(this::publish);</span>
+<span class="nc" id="L60">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartItem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.domain.model</a> &gt; <span class="el_source">CartItem.java</span></div><h1>CartItem.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.domain.model;
+
+import com.bookplus.cart.domain.exception.DomainException;
+
+import java.util.Objects;
+
+/**
+ * Entity — ítem dentro del carrito.
+ * Contiene una snapshot del precio del libro en el momento de añadir.
+ * El precio se puede actualizar con syncPrice() si el catálogo cambia.
+ */
+public class CartItem {
+
+    private final CartItemId id;
+    private final BookId     bookId;
+    private final String     title;        // desnormalizado de catalog-service
+    private final String     imageUrl;     // desnormalizado
+    private final String     isbn;         // desnormalizado
+    private       int        quantity;
+    private       Money      unitPrice;    // precio snapshot al momento de añadir
+
+    private CartItem(CartItemId id, BookId bookId, String title,
+<span class="fc" id="L23">                     String imageUrl, String isbn, int quantity, Money unitPrice) {</span>
+<span class="fc" id="L24">        this.id        = Objects.requireNonNull(id);</span>
+<span class="fc" id="L25">        this.bookId    = Objects.requireNonNull(bookId);</span>
+<span class="fc" id="L26">        this.title     = Objects.requireNonNull(title);</span>
+<span class="fc" id="L27">        this.imageUrl  = imageUrl;</span>
+<span class="fc" id="L28">        this.isbn      = isbn;</span>
+<span class="fc" id="L29">        this.quantity  = validateQuantity(quantity);</span>
+<span class="fc" id="L30">        this.unitPrice = Objects.requireNonNull(unitPrice);</span>
+<span class="fc" id="L31">    }</span>
+
+    public static CartItem create(BookId bookId, String title, String imageUrl,
+                                  String isbn, int quantity, Money unitPrice) {
+<span class="fc" id="L35">        return new CartItem(CartItemId.generate(), bookId, title, imageUrl, isbn, quantity, unitPrice);</span>
+    }
+
+    public static CartItem reconstitute(CartItemId id, BookId bookId, String title,
+                                        String imageUrl, String isbn,
+                                        int quantity, Money unitPrice) {
+<span class="nc" id="L41">        return new CartItem(id, bookId, title, imageUrl, isbn, quantity, unitPrice);</span>
+    }
+
+    // ── Comportamientos ───────────────────────────────────────────────────
+
+    public void increaseQuantity(int delta) {
+<span class="fc" id="L47">        this.quantity = validateQuantity(this.quantity + delta);</span>
+<span class="fc" id="L48">    }</span>
+
+    public void setQuantity(int quantity) {
+<span class="fc" id="L51">        this.quantity = validateQuantity(quantity);</span>
+<span class="fc" id="L52">    }</span>
+
+    /** Actualiza el precio unitario si el catálogo lo ha cambiado. */
+    public void syncPrice(Money newUnitPrice) {
+<span class="fc" id="L56">        this.unitPrice = Objects.requireNonNull(newUnitPrice);</span>
+<span class="fc" id="L57">    }</span>
+
+<span class="fc" id="L59">    public Money subtotal() { return unitPrice.multiply(quantity); }</span>
+
+    private static int validateQuantity(int qty) {
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (qty &lt;= 0) throw new DomainException(&quot;Cart item quantity must be positive, got: &quot; + qty);</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (qty &gt; 99) throw new DomainException(&quot;Cart item quantity cannot exceed 99 per item&quot;);</span>
+<span class="fc" id="L64">        return qty;</span>
+    }
+
+<span class="nc" id="L67">    public CartItemId getId()       { return id; }</span>
+<span class="fc" id="L68">    public BookId     getBookId()   { return bookId; }</span>
+<span class="fc" id="L69">    public String     getTitle()    { return title; }</span>
+<span class="nc" id="L70">    public String     getImageUrl() { return imageUrl; }</span>
+<span class="nc" id="L71">    public String     getIsbn()     { return isbn; }</span>
+<span class="fc" id="L72">    public int        getQuantity() { return quantity; }</span>
+<span class="fc" id="L73">    public Money      getUnitPrice(){ return unitPrice; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

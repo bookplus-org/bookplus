@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Book.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.domain.model</a> &gt; <span class="el_source">Book.java</span></div><h1>Book.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.domain.model;
+
+import com.bookplus.catalog.domain.event.*;
+import com.bookplus.catalog.domain.exception.DomainException;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.*;
+
+/**
+ * Aggregate Root — Libro del catálogo.
+ *
+ * Encapsula toda la lógica de negocio del catálogo: precios, descuentos,
+ * reseñas, rating promedio, stock disponible (desnormalizado).
+ *
+ * Stock real pertenece a inventory-service. Aquí guardamos un snapshot
+ * actualizado por eventos Kafka (StockUpdated) para mostrar disponibilidad.
+ */
+public class Book {
+
+    private final BookId    id;
+    private final ISBN      isbn;
+    private String          title;
+    private Slug            slug;
+    private String          author;
+    private String          description;
+    private Money           price;
+    private Money           discountPrice;   // nullable
+    private String          imageUrl;
+    private String          previewUrl;      // nullable — muestra/preview (PDF)
+    private String          publisher;
+    private LocalDate       publishedDate;
+    private String          language;
+    private Integer         pages;
+    private CategoryId      categoryId;
+    private boolean         active;
+    private int             stockSnapshot;   // desnormalizado desde inventory-service
+    private BigDecimal      averageRating;   // desnormalizado desde reseñas
+    private int             reviewCount;
+    private final Instant   createdAt;
+    private Instant         updatedAt;
+
+<span class="fc" id="L45">    private final List&lt;DomainEvent&gt; domainEvents = new ArrayList&lt;&gt;();</span>
+
+    // ── Constructor privado ───────────────────────────────────────────────
+
+    private Book(BookId id, ISBN isbn, String title, Slug slug, String author,
+                 String description, Money price, Money discountPrice, String imageUrl,
+                 String previewUrl, String publisher, LocalDate publishedDate, String language,
+                 Integer pages, CategoryId categoryId, boolean active, int stockSnapshot,
+                 BigDecimal averageRating, int reviewCount,
+<span class="fc" id="L54">                 Instant createdAt, Instant updatedAt) {</span>
+<span class="fc" id="L55">        this.id            = Objects.requireNonNull(id);</span>
+<span class="fc" id="L56">        this.isbn          = Objects.requireNonNull(isbn);</span>
+<span class="fc" id="L57">        this.title         = validateTitle(title);</span>
+<span class="fc" id="L58">        this.slug          = Objects.requireNonNull(slug);</span>
+<span class="fc" id="L59">        this.author        = validateAuthor(author);</span>
+<span class="fc" id="L60">        this.description   = description;</span>
+<span class="fc" id="L61">        this.price         = Objects.requireNonNull(price);</span>
+<span class="fc" id="L62">        this.discountPrice = discountPrice;</span>
+<span class="fc" id="L63">        this.imageUrl      = imageUrl;</span>
+<span class="fc" id="L64">        this.previewUrl    = previewUrl;</span>
+<span class="fc" id="L65">        this.publisher     = publisher;</span>
+<span class="fc" id="L66">        this.publishedDate = publishedDate;</span>
+<span class="fc" id="L67">        this.language      = language;</span>
+<span class="fc" id="L68">        this.pages         = pages;</span>
+<span class="fc" id="L69">        this.categoryId    = Objects.requireNonNull(categoryId);</span>
+<span class="fc" id="L70">        this.active        = active;</span>
+<span class="fc" id="L71">        this.stockSnapshot = Math.max(0, stockSnapshot);</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        this.averageRating = averageRating != null ? averageRating : BigDecimal.ZERO;</span>
+<span class="fc" id="L73">        this.reviewCount   = Math.max(0, reviewCount);</span>
+<span class="fc" id="L74">        this.createdAt     = Objects.requireNonNull(createdAt);</span>
+<span class="fc" id="L75">        this.updatedAt     = Objects.requireNonNull(updatedAt);</span>
+<span class="fc" id="L76">    }</span>
+
+    // ── Factory Methods ───────────────────────────────────────────────────
+
+    public static Book create(ISBN isbn, String title, String author, String description,
+                              Money price, String imageUrl, String previewUrl, String publisher,
+                              LocalDate publishedDate, String language, Integer pages,
+                              CategoryId categoryId) {
+<span class="pc bpc" id="L84" title="1 of 4 branches missed.">        if (title == null || title.isBlank()) {</span>
+<span class="fc" id="L85">            throw new com.bookplus.catalog.domain.exception.DomainException(&quot;Book title must not be blank&quot;);</span>
+        }
+<span class="fc" id="L87">        Instant now = Instant.now();</span>
+<span class="fc" id="L88">        Book book = new Book(</span>
+<span class="fc" id="L89">                BookId.generate(), isbn, title, Slug.from(title), author, description,</span>
+                price, null, imageUrl, previewUrl, publisher, publishedDate, language, pages,
+                categoryId, true, 0, BigDecimal.ZERO, 0, now, now
+        );
+<span class="fc" id="L93">        book.registerEvent(new BookCreatedEvent(book.id, book.isbn, book.title,</span>
+                book.author, book.categoryId, book.price));
+<span class="fc" id="L95">        return book;</span>
+    }
+
+    public static Book reconstitute(BookId id, ISBN isbn, String title, Slug slug,
+                                    String author, String description, Money price,
+                                    Money discountPrice, String imageUrl, String previewUrl,
+                                    String publisher, LocalDate publishedDate, String language,
+                                    Integer pages, CategoryId categoryId, boolean active,
+                                    int stockSnapshot, BigDecimal averageRating, int reviewCount,
+                                    Instant createdAt, Instant updatedAt) {
+<span class="nc" id="L105">        return new Book(id, isbn, title, slug, author, description, price, discountPrice,</span>
+                imageUrl, previewUrl, publisher, publishedDate, language, pages, categoryId, active,
+                stockSnapshot, averageRating, reviewCount, createdAt, updatedAt);
+    }
+
+    // ── Comportamientos de Dominio ────────────────────────────────────────
+
+    public void update(String title, String author, String description, Money price,
+                       Money discountPrice, String imageUrl, String previewUrl, String publisher,
+                       LocalDate publishedDate, String language, Integer pages,
+                       CategoryId categoryId) {
+<span class="fc" id="L116">        this.title         = validateTitle(title);</span>
+<span class="fc" id="L117">        this.slug          = Slug.from(title);</span>
+<span class="fc" id="L118">        this.author        = validateAuthor(author);</span>
+<span class="fc" id="L119">        this.description   = description;</span>
+<span class="fc" id="L120">        this.price         = Objects.requireNonNull(price);</span>
+<span class="fc" id="L121">        this.discountPrice = discountPrice;</span>
+<span class="fc" id="L122">        this.imageUrl      = imageUrl;</span>
+<span class="fc" id="L123">        this.previewUrl    = previewUrl;</span>
+<span class="fc" id="L124">        this.publisher     = publisher;</span>
+<span class="fc" id="L125">        this.publishedDate = publishedDate;</span>
+<span class="fc" id="L126">        this.language      = language;</span>
+<span class="fc" id="L127">        this.pages         = pages;</span>
+<span class="fc" id="L128">        this.categoryId    = Objects.requireNonNull(categoryId);</span>
+<span class="fc" id="L129">        this.updatedAt     = Instant.now();</span>
+<span class="fc" id="L130">        registerEvent(new BookUpdatedEvent(this.id, this.isbn, this.title,</span>
+                this.author, this.categoryId, this.price));
+<span class="fc" id="L132">    }</span>
+
+    public void deactivate() {
+<span class="fc bfc" id="L135" title="All 2 branches covered.">        if (!this.active) throw new DomainException(&quot;Book is already inactive: &quot; + isbn);</span>
+<span class="fc" id="L136">        this.active    = false;</span>
+<span class="fc" id="L137">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L138">        registerEvent(new BookDeletedEvent(this.id, this.isbn));</span>
+<span class="fc" id="L139">    }</span>
+
+    public void applyDiscount(Money discountPrice) {
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (discountPrice.isGreaterThan(this.price)) {</span>
+<span class="fc" id="L143">            throw new DomainException(&quot;Discount price cannot exceed regular price&quot;);</span>
+        }
+<span class="fc" id="L145">        this.discountPrice = discountPrice;</span>
+<span class="fc" id="L146">        this.updatedAt     = Instant.now();</span>
+<span class="fc" id="L147">    }</span>
+
+    public void removeDiscount() {
+<span class="nc" id="L150">        this.discountPrice = null;</span>
+<span class="nc" id="L151">        this.updatedAt     = Instant.now();</span>
+<span class="nc" id="L152">    }</span>
+
+    /** Llamado por inventory-service via Kafka event StockUpdated */
+    public void updateStock(int newStock) {
+<span class="fc" id="L156">        this.stockSnapshot = Math.max(0, newStock);</span>
+<span class="fc" id="L157">        this.updatedAt     = Instant.now();</span>
+<span class="fc" id="L158">    }</span>
+
+    /** Recalcula rating promedio al agregar una nueva reseña */
+    public void addReviewStats(Rating newRating) {
+<span class="fc" id="L162">        int totalRating = this.averageRating.multiply(</span>
+<span class="fc" id="L163">                BigDecimal.valueOf(reviewCount)).intValue() + newRating.value();</span>
+<span class="fc" id="L164">        this.reviewCount++;</span>
+<span class="fc" id="L165">        this.averageRating = BigDecimal.valueOf(totalRating)</span>
+<span class="fc" id="L166">                .divide(BigDecimal.valueOf(reviewCount), 2, RoundingMode.HALF_UP);</span>
+<span class="fc" id="L167">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L168">    }</span>
+
+<span class="fc bfc" id="L170" title="All 2 branches covered.">    public boolean isInStock()       { return stockSnapshot &gt; 0; }</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">    public boolean hasDiscount()     { return discountPrice != null; }</span>
+
+    public Money effectivePrice() {
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">        return hasDiscount() ? discountPrice : price;</span>
+    }
+
+    // ── Domain Events ─────────────────────────────────────────────────────
+
+<span class="fc" id="L179">    private void registerEvent(DomainEvent event) { domainEvents.add(event); }</span>
+
+    public List&lt;DomainEvent&gt; pullDomainEvents() {
+<span class="fc" id="L182">        List&lt;DomainEvent&gt; events = new ArrayList&lt;&gt;(domainEvents);</span>
+<span class="fc" id="L183">        domainEvents.clear();</span>
+<span class="fc" id="L184">        return Collections.unmodifiableList(events);</span>
+    }
+
+    // ── Validaciones ──────────────────────────────────────────────────────
+
+    private static String validateTitle(String title) {
+<span class="pc bpc" id="L190" title="2 of 4 branches missed.">        if (title == null || title.isBlank()) throw new DomainException(&quot;Book title must not be blank&quot;);</span>
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">        if (title.length() &gt; 255) throw new DomainException(&quot;Book title must not exceed 255 chars&quot;);</span>
+<span class="fc" id="L192">        return title.trim();</span>
+    }
+
+    private static String validateAuthor(String author) {
+<span class="pc bpc" id="L196" title="1 of 4 branches missed.">        if (author == null || author.isBlank()) throw new DomainException(&quot;Author must not be blank&quot;);</span>
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        if (author.length() &gt; 255) throw new DomainException(&quot;Author must not exceed 255 chars&quot;);</span>
+<span class="fc" id="L198">        return author.trim();</span>
+    }
+
+    // ── Getters ───────────────────────────────────────────────────────────
+
+<span class="fc" id="L203">    public BookId      getId()            { return id; }</span>
+<span class="fc" id="L204">    public ISBN        getIsbn()          { return isbn; }</span>
+<span class="fc" id="L205">    public String      getTitle()         { return title; }</span>
+<span class="nc" id="L206">    public Slug        getSlug()          { return slug; }</span>
+<span class="fc" id="L207">    public String      getAuthor()        { return author; }</span>
+<span class="nc" id="L208">    public String      getDescription()   { return description; }</span>
+<span class="fc" id="L209">    public Money       getPrice()         { return price; }</span>
+<span class="fc" id="L210">    public Money       getDiscountPrice() { return discountPrice; }</span>
+<span class="nc" id="L211">    public String      getImageUrl()      { return imageUrl; }</span>
+<span class="nc" id="L212">    public String      getPreviewUrl()    { return previewUrl; }</span>
+<span class="nc" id="L213">    public String      getPublisher()     { return publisher; }</span>
+<span class="nc" id="L214">    public LocalDate   getPublishedDate() { return publishedDate; }</span>
+<span class="nc" id="L215">    public String      getLanguage()      { return language; }</span>
+<span class="nc" id="L216">    public Integer     getPages()         { return pages; }</span>
+<span class="nc" id="L217">    public CategoryId  getCategoryId()    { return categoryId; }</span>
+<span class="fc" id="L218">    public boolean     isActive()         { return active; }</span>
+<span class="fc" id="L219">    public int         getStockSnapshot() { return stockSnapshot; }</span>
+<span class="fc" id="L220">    public BigDecimal  getAverageRating() { return averageRating; }</span>
+<span class="fc" id="L221">    public int         getReviewCount()   { return reviewCount; }</span>
+<span class="nc" id="L222">    public Instant     getCreatedAt()     { return createdAt; }</span>
+<span class="nc" id="L223">    public Instant     getUpdatedAt()     { return updatedAt; }</span>
+
+    @Override public boolean equals(Object o) {
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        if (!(o instanceof Book b)) return false;</span>
+<span class="nc" id="L228">        return id.equals(b.id);</span>
+    }
+<span class="nc" id="L230">    @Override public int hashCode()  { return Objects.hash(id); }</span>
+    @Override public String toString() {
+<span class="nc" id="L232">        return &quot;Book{id=%s, isbn=%s, title='%s'}&quot;.formatted(id, isbn, title);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

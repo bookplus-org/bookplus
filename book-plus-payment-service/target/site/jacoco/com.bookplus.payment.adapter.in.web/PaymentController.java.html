@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PaymentController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-payment-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.payment.adapter.in.web</a> &gt; <span class="el_source">PaymentController.java</span></div><h1>PaymentController.java</h1><pre class="source lang-java linenums">package com.bookplus.payment.adapter.in.web;
+
+import com.bookplus.payment.adapter.in.web.dto.*;
+import com.bookplus.payment.domain.model.Payment;
+import com.bookplus.payment.domain.port.in.*;
+import com.bookplus.payment.shared.annotation.WebAdapter;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
+
+@WebAdapter
+@RestController
+@RequestMapping(&quot;/api/v1/payments&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Payments&quot;, description = &quot;Payment processing&quot;)
+@SecurityRequirement(name = &quot;bearerAuth&quot;)
+public class PaymentController {
+
+    private final GetPaymentUseCase     getPaymentUseCase;
+    private final ProcessPaymentUseCase processPaymentUseCase;
+    private final RefundPaymentUseCase  refundPaymentUseCase;
+
+    // ── GET /api/v1/payments/{paymentId} ──────────────────────────────────
+
+    @GetMapping(&quot;/{paymentId}&quot;)
+    @Operation(summary = &quot;Get payment by ID&quot;)
+    public ResponseEntity&lt;PaymentResponse&gt; getById(
+            @PathVariable String paymentId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+<span class="nc" id="L38">        Payment payment = getPaymentUseCase.getByPaymentId(paymentId);</span>
+        // Users can only see their own payments; admins see any
+<span class="nc bnc" id="L40" title="All 4 branches missed.">        if (!payment.getUserId().equals(jwt.getSubject()) &amp;&amp; !isAdmin(jwt))</span>
+<span class="nc" id="L41">            return ResponseEntity.status(403).build();</span>
+<span class="nc" id="L42">        return ResponseEntity.ok(PaymentResponse.from(payment));</span>
+    }
+
+    // ── GET /api/v1/payments/order/{orderId} ──────────────────────────────
+
+    @GetMapping(&quot;/order/{orderId}&quot;)
+    @Operation(summary = &quot;Get payment by order ID&quot;)
+    public ResponseEntity&lt;PaymentResponse&gt; getByOrder(
+            @PathVariable String orderId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+<span class="nc" id="L53">        Payment payment = getPaymentUseCase.getByOrderId(orderId);</span>
+<span class="nc bnc" id="L54" title="All 4 branches missed.">        if (!payment.getUserId().equals(jwt.getSubject()) &amp;&amp; !isAdmin(jwt))</span>
+<span class="nc" id="L55">            return ResponseEntity.status(403).build();</span>
+<span class="nc" id="L56">        return ResponseEntity.ok(PaymentResponse.from(payment));</span>
+    }
+
+    // ── POST /api/v1/payments/webhook — gateway callback ─────────────────
+
+    @PostMapping(&quot;/webhook&quot;)
+    @Operation(summary = &quot;Payment gateway webhook — marks payment completed or failed&quot;,
+               description = &quot;Called by the payment gateway. In production, validate the webhook signature.&quot;)
+    public ResponseEntity&lt;PaymentResponse&gt; webhook(
+            @Valid @RequestBody GatewayWebhookRequest req
+    ) {
+<span class="nc bnc" id="L67" title="All 3 branches missed.">        Payment payment = switch (req.status().toLowerCase()) {</span>
+<span class="nc" id="L68">            case &quot;completed&quot; -&gt; processPaymentUseCase.complete(req.paymentId(), req.transactionRef());</span>
+<span class="nc" id="L69">            case &quot;failed&quot;    -&gt; processPaymentUseCase.fail(req.paymentId(), req.failureReason());</span>
+<span class="nc" id="L70">            default -&gt; throw new IllegalArgumentException(&quot;Unknown webhook status: &quot; + req.status());</span>
+        };
+<span class="nc" id="L72">        return ResponseEntity.ok(PaymentResponse.from(payment));</span>
+    }
+
+    // ── POST /api/v1/payments/order/{orderId}/refund — ADMIN ─────────────
+
+    @PostMapping(&quot;/order/{orderId}/refund&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN')&quot;)
+    @Operation(summary = &quot;[ADMIN] Initiate refund for an order&quot;)
+    public ResponseEntity&lt;PaymentResponse&gt; refund(
+            @PathVariable String orderId,
+            @RequestParam(defaultValue = &quot;Order cancelled&quot;) String reason
+    ) {
+<span class="nc" id="L84">        return ResponseEntity.ok(PaymentResponse.from(refundPaymentUseCase.refund(orderId, reason)));</span>
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────
+
+    private boolean isAdmin(Jwt jwt) {
+<span class="nc" id="L90">        Object roles = jwt.getClaim(&quot;roles&quot;);</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (roles instanceof Iterable&lt;?&gt; list)</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            for (Object r : list)</span>
+<span class="nc bnc" id="L93" title="All 4 branches missed.">                if (&quot;ADMIN&quot;.equals(r) || &quot;SUPERADMIN&quot;.equals(r)) return true;</span>
+<span class="nc" id="L94">        return false;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

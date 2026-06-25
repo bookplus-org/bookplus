@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetCartUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.application.usecase</a> &gt; <span class="el_source">GetCartUseCaseImpl.java</span></div><h1>GetCartUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.application.usecase;
+
+import com.bookplus.cart.domain.model.Cart;
+import com.bookplus.cart.domain.port.in.GetCartUseCase;
+import com.bookplus.cart.domain.port.out.LoadCartPort;
+import com.bookplus.cart.domain.port.out.SaveCartPort;
+import com.bookplus.cart.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+<span class="nc" id="L11">@UseCase @RequiredArgsConstructor @Slf4j</span>
+public class GetCartUseCaseImpl implements GetCartUseCase {
+
+    private final LoadCartPort loadCartPort;
+    private final SaveCartPort saveCartPort;
+
+    @Override
+    public Cart getOrCreate(String userId) {
+<span class="nc" id="L19">        return loadCartPort.findByUserId(userId).orElseGet(() -&gt; {</span>
+<span class="nc" id="L20">            log.debug(&quot;No cart found for user={}, creating empty cart&quot;, userId);</span>
+<span class="nc" id="L21">            Cart newCart = Cart.createFor(userId);</span>
+<span class="nc" id="L22">            return saveCartPort.save(newCart);</span>
+        });
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

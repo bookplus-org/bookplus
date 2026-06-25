@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookCoverController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web.preview</a> &gt; <span class="el_source">BookCoverController.java</span></div><h1>BookCoverController.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web.preview;
+
+import com.bookplus.catalog.adapter.out.persistence.entity.BookCoverEntity;
+import com.bookplus.catalog.adapter.out.persistence.entity.BookEntity;
+import com.bookplus.catalog.adapter.out.persistence.repository.BookCoverJpaRepository;
+import com.bookplus.catalog.adapter.out.persistence.repository.BookJpaRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.*;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Portada del libro:
+ *   - público:  GET  /api/v1/books/{id}/cover
+ *   - admin:    POST /api/v1/admin/books/{id}/cover (multipart &quot;file&quot;)
+ *
+ * Al subir, books.image_url apunta al endpoint de portada.
+ */
+@RestController
+@RequiredArgsConstructor
+@Tag(name = &quot;Book Cover&quot;, description = &quot;Book cover image upload/serve&quot;)
+public class BookCoverController {
+
+    private static final long MAX_BYTES = 5L * 1024 * 1024; // 5 MB
+
+    private final BookCoverJpaRepository coverRepo;
+    private final BookJpaRepository      bookRepo;
+
+    @GetMapping(&quot;/api/v1/books/{id}/cover&quot;)
+    @Operation(summary = &quot;Get the book cover image. 204 if none.&quot;)
+    public ResponseEntity&lt;byte[]&gt; getCover(@PathVariable UUID id) {
+<span class="nc" id="L40">        return coverRepo.findById(id)</span>
+<span class="nc" id="L41">                .map(c -&gt; ResponseEntity.ok()</span>
+<span class="nc" id="L42">                        .contentType(MediaType.parseMediaType(c.getContentType()))</span>
+<span class="nc" id="L43">                        .cacheControl(CacheControl.noCache())</span>
+<span class="nc" id="L44">                        .body(c.getImage()))</span>
+<span class="nc" id="L45">                .orElseGet(() -&gt; ResponseEntity.noContent().build());</span>
+    }
+
+    @PostMapping(path = &quot;/api/v1/admin/books/{id}/cover&quot;,
+                 consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = &quot;Upload a book cover image; sets image_url to the cover endpoint&quot;)
+    @Transactional
+    public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; upload(
+            @PathVariable UUID id,
+            @RequestParam(&quot;file&quot;) MultipartFile file
+    ) {
+<span class="nc bnc" id="L56" title="All 4 branches missed.">        if (file == null || file.isEmpty()) {</span>
+<span class="nc" id="L57">            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, &quot;Archivo requerido&quot;);</span>
+        }
+<span class="nc" id="L59">        String ct = file.getContentType();</span>
+<span class="nc bnc" id="L60" title="All 4 branches missed.">        if (ct == null || !ct.toLowerCase().startsWith(&quot;image/&quot;)) {</span>
+<span class="nc" id="L61">            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, &quot;Debe ser una imagen&quot;);</span>
+        }
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (file.getSize() &gt; MAX_BYTES) {</span>
+<span class="nc" id="L64">            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, &quot;Máximo 5 MB&quot;);</span>
+        }
+
+<span class="nc" id="L67">        BookEntity book = bookRepo.findById(id)</span>
+<span class="nc" id="L68">                .orElseThrow(() -&gt; new ResponseStatusException(HttpStatus.NOT_FOUND, &quot;Libro no encontrado&quot;));</span>
+
+        try {
+<span class="nc" id="L71">            coverRepo.save(BookCoverEntity.builder()</span>
+<span class="nc" id="L72">                    .bookId(id)</span>
+<span class="nc" id="L73">                    .image(file.getBytes())</span>
+<span class="nc" id="L74">                    .contentType(ct)</span>
+<span class="nc" id="L75">                    .updatedAt(Instant.now())</span>
+<span class="nc" id="L76">                    .build());</span>
+<span class="nc" id="L77">        } catch (java.io.IOException ex) {</span>
+<span class="nc" id="L78">            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, &quot;No se pudo leer la imagen&quot;);</span>
+<span class="nc" id="L79">        }</span>
+
+<span class="nc" id="L81">        String imageUrl = &quot;/api/v1/books/&quot; + id + &quot;/cover&quot;;</span>
+<span class="nc" id="L82">        book.setImageUrl(imageUrl);</span>
+<span class="nc" id="L83">        bookRepo.save(book);</span>
+
+<span class="nc" id="L85">        return ResponseEntity.ok(Map.of(&quot;bookId&quot;, id, &quot;imageUrl&quot;, imageUrl));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

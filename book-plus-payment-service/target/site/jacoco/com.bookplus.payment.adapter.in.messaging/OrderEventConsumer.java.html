@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderEventConsumer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-payment-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.payment.adapter.in.messaging</a> &gt; <span class="el_source">OrderEventConsumer.java</span></div><h1>OrderEventConsumer.java</h1><pre class="source lang-java linenums">package com.bookplus.payment.adapter.in.messaging;
+
+import com.bookplus.payment.domain.model.PaymentMethod;
+import com.bookplus.payment.domain.port.in.*;
+import com.bookplus.payment.domain.port.in.InitiatePaymentUseCase.InitiatePaymentCommand;
+import com.bookplus.payment.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
+
+import java.math.BigDecimal;
+import java.util.Map;
+
+/**
+ * Consumes order lifecycle events.
+ *
+ * order.created   → initiates a payment (PENDING_PAYMENT state trigger)
+ * order.cancelled → triggers refund if payment was COMPLETED
+ */
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="nc" id="L25">@Slf4j</span>
+public class OrderEventConsumer {
+
+    private final InitiatePaymentUseCase initiatePaymentUseCase;
+    private final RefundPaymentUseCase   refundPaymentUseCase;
+
+    @KafkaListener(topics = &quot;order.created&quot;, groupId = &quot;payment-service-order&quot;,
+                   containerFactory = &quot;kafkaListenerContainerFactory&quot;)
+    public void onOrderCreated(
+            @Payload Map&lt;String, Object&gt; payload,
+            @Header(KafkaHeaders.RECEIVED_KEY) String key
+    ) {
+<span class="nc" id="L37">        String orderId = (String) payload.get(&quot;orderId&quot;);</span>
+<span class="nc" id="L38">        String userId  = (String) payload.get(&quot;userId&quot;);</span>
+<span class="nc" id="L39">        log.info(&quot;Received order.created for orderId={}&quot;, orderId);</span>
+
+        try {
+            @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L43">            Map&lt;String, Object&gt; totalMap = (Map&lt;String, Object&gt;) payload.get(&quot;total&quot;);</span>
+<span class="nc" id="L44">            BigDecimal amount   = new BigDecimal(totalMap.get(&quot;amount&quot;).toString());</span>
+<span class="nc" id="L45">            String     currency = (String) totalMap.getOrDefault(&quot;currency&quot;, &quot;USD&quot;);</span>
+
+            // Default to CREDIT_CARD; in real flow this comes from user's saved payment method
+<span class="nc" id="L48">            String rawMethod = (String) payload.getOrDefault(&quot;paymentMethod&quot;, &quot;CREDIT_CARD&quot;);</span>
+<span class="nc" id="L49">            PaymentMethod method = PaymentMethod.valueOf(rawMethod.toUpperCase());</span>
+
+<span class="nc" id="L51">            initiatePaymentUseCase.initiate(new InitiatePaymentCommand(</span>
+                    orderId, userId, amount, currency, method));
+
+<span class="nc" id="L54">        } catch (Exception ex) {</span>
+<span class="nc" id="L55">            log.error(&quot;Failed to process order.created for orderId={}: {}&quot;, orderId, ex.getMessage(), ex);</span>
+<span class="nc" id="L56">            throw new RuntimeException(ex);</span>
+<span class="nc" id="L57">        }</span>
+<span class="nc" id="L58">    }</span>
+
+    @KafkaListener(topics = &quot;order.cancelled&quot;, groupId = &quot;payment-service-order&quot;,
+                   containerFactory = &quot;kafkaListenerContainerFactory&quot;)
+    public void onOrderCancelled(
+            @Payload Map&lt;String, Object&gt; payload,
+            @Header(KafkaHeaders.RECEIVED_KEY) String key
+    ) {
+<span class="nc" id="L66">        String orderId = (String) payload.get(&quot;orderId&quot;);</span>
+<span class="nc" id="L67">        String reason  = (String) payload.getOrDefault(&quot;reason&quot;, &quot;Order cancelled&quot;);</span>
+<span class="nc" id="L68">        log.info(&quot;Received order.cancelled for orderId={}&quot;, orderId);</span>
+
+        try {
+            // Only refund if a completed payment exists — use case handles missing payment gracefully
+<span class="nc" id="L72">            refundPaymentUseCase.refund(orderId, reason);</span>
+<span class="nc" id="L73">        } catch (Exception ex) {</span>
+            // Non-fatal: order may have been cancelled before payment was completed
+<span class="nc" id="L75">            log.warn(&quot;No refundable payment found for orderId={}: {}&quot;, orderId, ex.getMessage());</span>
+<span class="nc" id="L76">        }</span>
+<span class="nc" id="L77">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

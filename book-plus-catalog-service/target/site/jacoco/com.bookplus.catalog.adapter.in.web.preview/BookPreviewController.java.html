@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookPreviewController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web.preview</a> &gt; <span class="el_source">BookPreviewController.java</span></div><h1>BookPreviewController.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web.preview;
+
+import com.bookplus.catalog.adapter.out.persistence.entity.BookPreviewEntity;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Endpoints del visor de libro:
+ *   - público:  GET /api/v1/books/{id}/preview.pdf  → muestra (primeras N páginas)
+ *   - admin:    POST /api/v1/admin/books/{id}/preview (multipart &quot;file&quot;) → sube PDF
+ */
+@RestController
+@RequiredArgsConstructor
+@Tag(name = &quot;Book Preview&quot;, description = &quot;PDF sample viewer&quot;)
+public class BookPreviewController {
+
+    private final PdfPreviewService previewService;
+
+    // ── Público: servir la muestra ─────────────────────────────────────────
+    @GetMapping(&quot;/api/v1/books/{id}/preview.pdf&quot;)
+    @Operation(summary = &quot;Get the book's PDF sample (first pages only). 204 if none.&quot;)
+    public ResponseEntity&lt;byte[]&gt; getPreview(@PathVariable UUID id) {
+        // 204 (no toast on the client) when the book has no uploaded sample.
+<span class="nc" id="L32">        return previewService.getPreview(id)</span>
+<span class="nc" id="L33">                .map(p -&gt; ResponseEntity.ok()</span>
+<span class="nc" id="L34">                        .contentType(MediaType.APPLICATION_PDF)</span>
+<span class="nc" id="L35">                        .header(HttpHeaders.CONTENT_DISPOSITION, &quot;inline; filename=\&quot;preview.pdf\&quot;&quot;)</span>
+<span class="nc" id="L36">                        .header(&quot;X-Preview-Pages&quot;, String.valueOf(p.getPageCount()))</span>
+<span class="nc" id="L37">                        .header(&quot;X-Total-Pages&quot;,</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">                                p.getSourcePages() == null ? &quot;&quot; : String.valueOf(p.getSourcePages()))</span>
+<span class="nc" id="L39">                        .cacheControl(CacheControl.noCache())</span>
+<span class="nc" id="L40">                        .body(p.getPreviewPdf()))</span>
+<span class="nc" id="L41">                .orElseGet(() -&gt; ResponseEntity.noContent().build());</span>
+    }
+
+    // ── Admin: ver el PDF completo ─────────────────────────────────────────
+    @GetMapping(&quot;/api/v1/admin/books/{id}/full.pdf&quot;)
+    @org.springframework.security.access.prepost.PreAuthorize(&quot;hasAnyRole('EDITOR','ADMIN','SUPERADMIN')&quot;)
+    @Operation(summary = &quot;Admin-only: get the full uploaded PDF. 204 if none.&quot;)
+    public ResponseEntity&lt;byte[]&gt; getFull(@PathVariable UUID id) {
+<span class="nc" id="L49">        return previewService.getPreview(id)</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">                .filter(p -&gt; p.getFullPdf() != null)</span>
+<span class="nc" id="L51">                .map(p -&gt; ResponseEntity.ok()</span>
+<span class="nc" id="L52">                        .contentType(MediaType.APPLICATION_PDF)</span>
+<span class="nc" id="L53">                        .header(HttpHeaders.CONTENT_DISPOSITION, &quot;inline; filename=\&quot;book.pdf\&quot;&quot;)</span>
+<span class="nc" id="L54">                        .header(&quot;X-Total-Pages&quot;,</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">                                p.getFullPages() == null ? &quot;&quot; : String.valueOf(p.getFullPages()))</span>
+<span class="nc" id="L56">                        .cacheControl(CacheControl.noCache())</span>
+<span class="nc" id="L57">                        .body(p.getFullPdf()))</span>
+<span class="nc" id="L58">                .orElseGet(() -&gt; ResponseEntity.noContent().build());</span>
+    }
+
+    // ── Admin: subir el PDF (se guarda muestra + completo) ─────────────────
+    @PostMapping(path = &quot;/api/v1/admin/books/{id}/preview&quot;,
+                 consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = &quot;Upload a book PDF; only the first pages are kept as the sample&quot;)
+    public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; upload(
+            @PathVariable UUID id,
+            @RequestParam(&quot;file&quot;) MultipartFile file
+    ) {
+<span class="nc bnc" id="L69" title="All 4 branches missed.">        if (file == null || file.isEmpty()) {</span>
+<span class="nc" id="L70">            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, &quot;Archivo requerido&quot;);</span>
+        }
+<span class="nc" id="L72">        String ct = file.getContentType();</span>
+<span class="nc bnc" id="L73" title="All 4 branches missed.">        if (ct != null &amp;&amp; !ct.toLowerCase().contains(&quot;pdf&quot;)) {</span>
+<span class="nc" id="L74">            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, &quot;Debe ser un PDF&quot;);</span>
+        }
+        try {
+<span class="nc" id="L77">            int pages = previewService.storePreview(id, file.getBytes());</span>
+<span class="nc" id="L78">            return ResponseEntity.ok(Map.of(&quot;bookId&quot;, id, &quot;previewPages&quot;, pages));</span>
+<span class="nc" id="L79">        } catch (java.io.IOException ex) {</span>
+<span class="nc" id="L80">            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, &quot;No se pudo leer el archivo&quot;);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,15 @@
+/app/src/test/java/com/bookplus/order/adapter/in/process/PurchaseSagaDelegatesTest.java
+/app/src/test/java/com/bookplus/order/adapter/out/persistence/OrderAuditTrailIntegrationTest.java
+/app/src/test/java/com/bookplus/order/application/coupon/CouponServiceEvaluateTest.java
+/app/src/test/java/com/bookplus/order/application/coupon/CouponServiceStoreCreditTest.java
+/app/src/test/java/com/bookplus/order/application/refund/RefundDecisionServiceTest.java
+/app/src/test/java/com/bookplus/order/application/usecase/CancelOrderUseCaseImplTest.java
+/app/src/test/java/com/bookplus/order/application/usecase/CreateOrderUseCaseImplTest.java
+/app/src/test/java/com/bookplus/order/application/usecase/UpdateOrderStatusUseCaseImplTest.java
+/app/src/test/java/com/bookplus/order/architecture/HexagonalArchitectureTest.java
+/app/src/test/java/com/bookplus/order/contract/CartCheckedOutContractTest.java
+/app/src/test/java/com/bookplus/order/domain/model/OrderTest.java
+/app/src/test/java/com/bookplus/order/domain/policy/RefundPolicyTest.java
+/app/src/test/java/com/bookplus/order/shared/crypto/CryptoConverterTest.java
+/app/src/test/java/com/bookplus/order/shared/logging/CorrelationIdFilterTest.java
+/app/src/test/java/com/bookplus/order/shared/metrics/OrderMetricsTest.java

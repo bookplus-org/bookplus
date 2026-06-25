@@ -47,6 +47,7 @@ credentials:
               scope: GLOBAL
               id: "github-app"
               appID: "${GITHUB_APP_ID:-000000}"
+              owner: "${GITHUB_APP_OWNER:-bookplus-org}"   # instalación a usar (org/usuario)
               privateKey: "${readFile:/run/secrets/github-app.pem}"
               description: "GitHub App — acuña tokens efímeros (1h) para GHCR/SCM"
 

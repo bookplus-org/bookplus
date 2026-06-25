@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookPersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.persistence</a> &gt; <span class="el_source">BookPersistenceAdapter.java</span></div><h1>BookPersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.persistence;
+
+import com.bookplus.catalog.adapter.out.persistence.mapper.BookPersistenceMapper;
+import com.bookplus.catalog.adapter.out.persistence.repository.BookJpaRepository;
+import com.bookplus.catalog.domain.model.*;
+import com.bookplus.catalog.domain.port.in.ListBooksUseCase.ListBooksQuery;
+import com.bookplus.catalog.domain.port.in.PagedResult;
+import com.bookplus.catalog.domain.port.out.LoadBookPort;
+import com.bookplus.catalog.domain.port.out.SaveBookPort;
+import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@PersistenceAdapter
+@RequiredArgsConstructor
+public class BookPersistenceAdapter implements LoadBookPort, SaveBookPort {
+
+    private final BookJpaRepository    repository;
+    private final BookPersistenceMapper mapper;
+
+    // ── LoadBookPort ──────────────────────────────────────────────────────
+
+    @Override
+    public Optional&lt;Book&gt; findById(BookId id) {
+<span class="nc" id="L30">        return repository.findById(id.value()).map(mapper::toDomain);</span>
+    }
+
+    @Override
+    public Optional&lt;Book&gt; findByIsbn(ISBN isbn) {
+<span class="nc" id="L35">        return repository.findByIsbn(isbn.value()).map(mapper::toDomain);</span>
+    }
+
+    @Override
+    public Optional&lt;Book&gt; findBySlug(Slug slug) {
+<span class="nc" id="L40">        return repository.findBySlug(slug.value()).map(mapper::toDomain);</span>
+    }
+
+    @Override
+    public boolean existsByIsbn(ISBN isbn) {
+<span class="nc" id="L45">        return repository.existsByIsbn(isbn.value());</span>
+    }
+
+    @Override
+    public PagedResult&lt;Book&gt; findAll(ListBooksQuery query) {
+<span class="nc" id="L50">        Sort sort = Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;);</span>
+<span class="nc" id="L51">        PageRequest pageable = PageRequest.of(query.page(), query.size(), sort);</span>
+
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        UUID categoryUuid = query.categoryId() != null</span>
+<span class="nc" id="L54">                ? CategoryId.of(query.categoryId()).value() : null;</span>
+
+        Page&lt;?&gt; page;
+<span class="nc bnc" id="L57" title="All 4 branches missed.">        if (categoryUuid != null &amp;&amp; query.author() != null) {</span>
+<span class="nc" id="L58">            page = repository.findAllByCategoryIdAndAuthorContainingIgnoreCaseAndActiveTrue(</span>
+<span class="nc" id="L59">                    categoryUuid, query.author(), pageable);</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        } else if (categoryUuid != null) {</span>
+<span class="nc" id="L61">            page = repository.findAllByCategoryIdAndActiveTrue(categoryUuid, pageable);</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        } else if (query.author() != null) {</span>
+<span class="nc" id="L63">            page = repository.findAllByAuthorContainingIgnoreCaseAndActiveTrue(</span>
+<span class="nc" id="L64">                    query.author(), pageable);</span>
+        } else {
+<span class="nc" id="L66">            page = repository.findAllByActiveTrue(pageable);</span>
+        }
+
+        // Re-cast — all page variants return BookEntity
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L71">        Page&lt;com.bookplus.catalog.adapter.out.persistence.entity.BookEntity&gt; bookPage =</span>
+                (Page&lt;com.bookplus.catalog.adapter.out.persistence.entity.BookEntity&gt;) page;
+
+<span class="nc" id="L74">        return new PagedResult&lt;&gt;(</span>
+<span class="nc" id="L75">                bookPage.getContent().stream().map(mapper::toDomain).toList(),</span>
+<span class="nc" id="L76">                bookPage.getNumber(),</span>
+<span class="nc" id="L77">                bookPage.getSize(),</span>
+<span class="nc" id="L78">                bookPage.getTotalElements(),</span>
+<span class="nc" id="L79">                bookPage.getTotalPages(),</span>
+<span class="nc" id="L80">                bookPage.isFirst(),</span>
+<span class="nc" id="L81">                bookPage.isLast()</span>
+        );
+    }
+
+    // ── SaveBookPort ──────────────────────────────────────────────────────
+
+    @Override
+    public Book save(Book book) {
+<span class="nc" id="L89">        return mapper.toDomain(repository.save(mapper.toEntity(book)));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

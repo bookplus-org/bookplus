@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookDocument.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.search</a> &gt; <span class="el_source">BookDocument.java</span></div><h1>BookDocument.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.search;
+
+import com.bookplus.catalog.domain.model.Book;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.elasticsearch.annotations.*;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+
+/**
+ * Elasticsearch document — representa un libro indexado.
+ * Índice: catalog-books
+ */
+@Document(indexName = &quot;catalog-books&quot;, createIndex = true)
+@Setting(settingPath = &quot;elasticsearch/book-settings.json&quot;)
+<span class="nc" id="L17">public record BookDocument(</span>
+
+        @Id
+        String id,
+
+        @Field(type = FieldType.Keyword)
+        String isbn,
+
+        @Field(type = FieldType.Text, analyzer = &quot;standard&quot;)
+        String title,
+
+        @Field(type = FieldType.Keyword)
+        String slug,
+
+        @Field(type = FieldType.Text, analyzer = &quot;standard&quot;)
+        String author,
+
+        @Field(type = FieldType.Text, analyzer = &quot;standard&quot;)
+        String description,
+
+        @Field(type = FieldType.Double)
+        BigDecimal price,
+
+        @Field(type = FieldType.Keyword)
+        String currency,
+
+        @Field(type = FieldType.Double)
+        BigDecimal discountPrice,
+
+        @Field(type = FieldType.Keyword)
+        String imageUrl,
+
+        @Field(type = FieldType.Keyword)
+        String publisher,
+
+        @Field(type = FieldType.Date, format = DateFormat.year_month_day)
+        LocalDate publishedDate,
+
+        @Field(type = FieldType.Keyword)
+        String language,
+
+        @Field(type = FieldType.Integer)
+        Integer pages,
+
+        @Field(type = FieldType.Keyword)
+        String categoryId,
+
+        @Field(type = FieldType.Boolean)
+        boolean active,
+
+        @Field(type = FieldType.Integer)
+        int stockSnapshot,
+
+        @Field(type = FieldType.Double)
+        BigDecimal averageRating,
+
+        @Field(type = FieldType.Integer)
+        int reviewCount,
+
+        @Field(type = FieldType.Date, format = DateFormat.epoch_millis)
+        Instant createdAt
+) {
+    /** Build document from domain aggregate. */
+    public static BookDocument from(Book book) {
+<span class="nc" id="L81">        return new BookDocument(</span>
+<span class="nc" id="L82">                book.getId().value().toString(),</span>
+<span class="nc" id="L83">                book.getIsbn().value(),</span>
+<span class="nc" id="L84">                book.getTitle(),</span>
+<span class="nc" id="L85">                book.getSlug().value(),</span>
+<span class="nc" id="L86">                book.getAuthor(),</span>
+<span class="nc" id="L87">                book.getDescription(),</span>
+<span class="nc" id="L88">                book.getPrice().amount(),</span>
+<span class="nc" id="L89">                book.getPrice().currency(),</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                book.getDiscountPrice() != null ? book.getDiscountPrice().amount() : null,</span>
+<span class="nc" id="L91">                book.getImageUrl(),</span>
+<span class="nc" id="L92">                book.getPublisher(),</span>
+<span class="nc" id="L93">                book.getPublishedDate(),</span>
+<span class="nc" id="L94">                book.getLanguage(),</span>
+<span class="nc" id="L95">                book.getPages(),</span>
+<span class="nc" id="L96">                book.getCategoryId().value().toString(),</span>
+<span class="nc" id="L97">                book.isActive(),</span>
+<span class="nc" id="L98">                book.getStockSnapshot(),</span>
+<span class="nc" id="L99">                book.getAverageRating(),</span>
+<span class="nc" id="L100">                book.getReviewCount(),</span>
+<span class="nc" id="L101">                book.getCreatedAt()</span>
+        );
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

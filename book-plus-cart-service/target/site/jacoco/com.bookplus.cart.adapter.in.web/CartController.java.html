@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.adapter.in.web</a> &gt; <span class="el_source">CartController.java</span></div><h1>CartController.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.adapter.in.web;
+
+import com.bookplus.cart.adapter.in.web.dto.*;
+import com.bookplus.cart.domain.model.*;
+import com.bookplus.cart.domain.port.in.*;
+import com.bookplus.cart.shared.annotation.WebAdapter;
+import com.bookplus.cart.shared.idempotency.IdempotencyService;
+import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+
+@WebAdapter
+@RestController
+@RequestMapping(&quot;/api/v1/cart&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Cart&quot;, description = &quot;Shopping cart operations&quot;)
+@SecurityRequirement(name = &quot;bearerAuth&quot;)
+public class CartController {
+
+    private final GetCartUseCase            getCartUseCase;
+    private final AddItemToCartUseCase      addItemUseCase;
+    private final RemoveItemFromCartUseCase removeItemUseCase;
+    private final UpdateItemQuantityUseCase updateQuantityUseCase;
+    private final ClearCartUseCase          clearCartUseCase;
+    private final CheckoutCartUseCase       checkoutCartUseCase;
+    private final IdempotencyService         idempotency;
+
+    // ── GET /api/v1/cart ──────────────────────────────────────────────────
+
+    @GetMapping
+    @Operation(summary = &quot;Get current user's cart (creates one if absent)&quot;)
+    public ResponseEntity&lt;CartResponse&gt; getCart(@AuthenticationPrincipal Jwt jwt) {
+<span class="nc" id="L42">        Cart cart = getCartUseCase.getOrCreate(jwt.getSubject());</span>
+<span class="nc" id="L43">        return ResponseEntity.ok(CartResponse.from(cart));</span>
+    }
+
+    // ── POST /api/v1/cart/items ───────────────────────────────────────────
+
+    @PostMapping(&quot;/items&quot;)
+    @Operation(summary = &quot;Add an item to the cart&quot;)
+    public ResponseEntity&lt;CartResponse&gt; addItem(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody AddItemRequest req
+    ) {
+<span class="nc" id="L54">        AddItemToCartUseCase.AddItemCommand command = new AddItemToCartUseCase.AddItemCommand(</span>
+<span class="nc" id="L55">                jwt.getSubject(),</span>
+<span class="nc" id="L56">                req.bookId(),</span>
+<span class="nc" id="L57">                req.isbn(),</span>
+<span class="nc" id="L58">                req.title(),</span>
+<span class="nc" id="L59">                req.imageUrl(),</span>
+<span class="nc" id="L60">                new Money(req.unitPrice(), req.currency()),</span>
+<span class="nc" id="L61">                req.quantity()</span>
+        );
+<span class="nc" id="L63">        Cart cart = addItemUseCase.addItem(command);</span>
+<span class="nc" id="L64">        return ResponseEntity.ok(CartResponse.from(cart));</span>
+    }
+
+    // ── DELETE /api/v1/cart/items/{bookId} ────────────────────────────────
+
+    @DeleteMapping(&quot;/items/{bookId}&quot;)
+    @Operation(summary = &quot;Remove an item from the cart&quot;)
+    public ResponseEntity&lt;CartResponse&gt; removeItem(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String bookId
+    ) {
+<span class="nc" id="L75">        Cart cart = removeItemUseCase.removeItem(jwt.getSubject(), bookId);</span>
+<span class="nc" id="L76">        return ResponseEntity.ok(CartResponse.from(cart));</span>
+    }
+
+    // ── PATCH /api/v1/cart/items/{bookId} ─────────────────────────────────
+
+    @PatchMapping(&quot;/items/{bookId}&quot;)
+    @Operation(summary = &quot;Update item quantity (quantity=0 removes the item)&quot;)
+    public ResponseEntity&lt;CartResponse&gt; updateQuantity(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String bookId,
+            @Valid @RequestBody UpdateQuantityRequest req
+    ) {
+<span class="nc" id="L88">        Cart cart = updateQuantityUseCase.updateQuantity(jwt.getSubject(), bookId, req.quantity());</span>
+<span class="nc" id="L89">        return ResponseEntity.ok(CartResponse.from(cart));</span>
+    }
+
+    // ── DELETE /api/v1/cart ───────────────────────────────────────────────
+
+    @DeleteMapping
+    @Operation(summary = &quot;Clear all items from the cart&quot;)
+    public ResponseEntity&lt;Void&gt; clearCart(@AuthenticationPrincipal Jwt jwt) {
+<span class="nc" id="L97">        clearCartUseCase.clear(jwt.getSubject());</span>
+<span class="nc" id="L98">        return ResponseEntity.noContent().build();</span>
+    }
+
+    // ── POST /api/v1/cart/checkout ────────────────────────────────────────
+
+    @PostMapping(&quot;/checkout&quot;)
+    @Operation(summary = &quot;Checkout the cart — publishes CartCheckedOutEvent consumed by order-service&quot;)
+    public ResponseEntity&lt;Void&gt; checkout(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = &quot;Idempotency-Key&quot;, required = false) String idempotencyKey,
+            @Valid @RequestBody CheckoutRequest req
+    ) {
+<span class="nc bnc" id="L110" title="All 4 branches missed.">        if (req.isPhysical() &amp;&amp; req.shippingAddress() == null) {</span>
+<span class="nc" id="L111">            throw new org.springframework.web.server.ResponseStatusException(</span>
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    &quot;La dirección de envío es obligatoria para entrega física&quot;);
+        }
+<span class="nc" id="L115">        String userId = jwt.getSubject();</span>
+
+        // Idempotencia (estilo Stripe): si el cliente reintenta el mismo checkout con la
+        // misma Idempotency-Key, no se vuelve a procesar (evita pedidos/cargos duplicados).
+<span class="nc bnc" id="L119" title="All 4 branches missed.">        boolean withKey = idempotencyKey != null &amp;&amp; !idempotencyKey.isBlank();</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if (withKey) {</span>
+<span class="nc bnc" id="L121" title="All 3 branches missed.">            switch (idempotency.begin(userId, idempotencyKey)) {</span>
+<span class="nc" id="L122">                case REPLAY      -&gt; { return ResponseEntity.accepted().build(); }  // ya procesado</span>
+<span class="nc" id="L123">                case IN_PROGRESS -&gt; { return ResponseEntity.status(HttpStatus.CONFLICT).build(); }</span>
+                case PROCEED     -&gt; { /* seguir */ }
+            }
+        }
+
+        try {
+<span class="nc" id="L129">            String email = jwt.getClaimAsString(&quot;email&quot;);</span>
+<span class="nc" id="L130">            checkoutCartUseCase.checkout(userId, email, req.toShippingAddressDto(),</span>
+<span class="nc" id="L131">                    req.paymentMethod(), req.deliveryType(), req.couponCode());</span>
+<span class="nc" id="L132">        } catch (RuntimeException ex) {</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            if (withKey) idempotency.cancel(userId, idempotencyKey); // liberar para reintentar</span>
+<span class="nc" id="L134">            throw ex;</span>
+<span class="nc" id="L135">        }</span>
+
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (withKey) idempotency.complete(userId, idempotencyKey);</span>
+<span class="nc" id="L138">        return ResponseEntity.accepted().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-api-gateway</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.gateway.config</a> &gt; <span class="el_source">SecurityConfig.java</span></div><h1>SecurityConfig.java</h1><pre class="source lang-java linenums">package com.bookplus.gateway.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.*;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.server.resource.authentication.*;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import reactor.core.publisher.Mono;
+
+import java.security.KeyFactory;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+
+/**
+ * Reactive security for Spring Cloud Gateway (WebFlux).
+ *
+ * Strategy:
+ *  - Public routes (catalog read, auth, actuator, swagger) → permitAll
+ *  - Everything else → requires valid JWT
+ *  - The gateway validates JWT once and forwards downstream;
+ *    each service also validates independently for defence-in-depth.
+ */
+@Configuration
+@EnableWebFluxSecurity
+<span class="fc" id="L28">public class SecurityConfig {</span>
+
+    @Value(&quot;${gateway.jwt.public-key-base64}&quot;)
+    private String publicKeyBase64;
+
+    @Bean
+    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+<span class="fc" id="L35">        http</span>
+<span class="fc" id="L36">            .csrf(ServerHttpSecurity.CsrfSpec::disable)</span>
+<span class="fc" id="L37">            .authorizeExchange(exchanges -&gt; exchanges</span>
+                // ── Public ──────────────────────────────────────────────
+<span class="fc" id="L39">                .pathMatchers(&quot;/api/v1/auth/**&quot;).permitAll()</span>
+                // Catalog reads are public
+<span class="fc" id="L41">                .pathMatchers(&quot;GET&quot;, &quot;/api/v1/books/**&quot;).permitAll()</span>
+<span class="fc" id="L42">                .pathMatchers(&quot;GET&quot;, &quot;/api/v1/categories/**&quot;).permitAll()</span>
+                // Actuator health — public
+<span class="fc" id="L44">                .pathMatchers(&quot;/actuator/health&quot;, &quot;/actuator/info&quot;).permitAll()</span>
+                // Swagger UIs per service
+<span class="fc" id="L46">                .pathMatchers(&quot;/*/v3/api-docs/**&quot;, &quot;/*/swagger-ui/**&quot;).permitAll()</span>
+                // Payment webhook (called by gateway, not by users)
+<span class="fc" id="L48">                .pathMatchers(&quot;POST&quot;, &quot;/api/v1/payments/webhook&quot;).permitAll()</span>
+                // SSE de pedidos: EventSource no envía Authorization; el JWT viaja
+                // como ?token=… y lo valida order-service. Por eso es público aquí.
+<span class="fc" id="L51">                .pathMatchers(&quot;GET&quot;, &quot;/api/v1/orders/stream&quot;).permitAll()</span>
+                // ── Authenticated ────────────────────────────────────────
+<span class="fc" id="L53">                .anyExchange().authenticated()</span>
+            )
+<span class="fc" id="L55">            .oauth2ResourceServer(oauth2 -&gt; oauth2</span>
+<span class="fc" id="L56">                .jwt(jwt -&gt; jwt.jwtDecoder(jwtDecoder()))</span>
+            );
+
+<span class="fc" id="L59">        return http.build();</span>
+    }
+
+    @Bean
+    public ReactiveJwtDecoder jwtDecoder() {
+        try {
+<span class="fc" id="L65">            byte[]       decoded = Base64.getDecoder().decode(publicKeyBase64);</span>
+<span class="fc" id="L66">            RSAPublicKey key     = (RSAPublicKey) KeyFactory.getInstance(&quot;RSA&quot;)</span>
+<span class="fc" id="L67">                    .generatePublic(new X509EncodedKeySpec(decoded));</span>
+<span class="fc" id="L68">            return NimbusReactiveJwtDecoder.withPublicKey(key).build();</span>
+<span class="fc" id="L69">        } catch (Exception ex) {</span>
+<span class="fc" id="L70">            throw new IllegalStateException(&quot;Cannot load RSA public key for api-gateway&quot;, ex);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

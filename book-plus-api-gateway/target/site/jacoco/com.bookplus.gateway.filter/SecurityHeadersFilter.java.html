@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityHeadersFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-api-gateway</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.gateway.filter</a> &gt; <span class="el_source">SecurityHeadersFilter.java</span></div><h1>SecurityHeadersFilter.java</h1><pre class="source lang-java linenums">package com.bookplus.gateway.filter;
+
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.core.Ordered;
+import org.springframework.http.HttpHeaders;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+
+/**
+ * Global security headers filter.
+ * Runs on every response before it is sent back to the client.
+ *
+ * Headers added:
+ *  - X-Content-Type-Options: nosniff       (evita MIME-sniffing)
+ *  - X-Frame-Options: DENY                 (evita clickjacking en iframes)
+ *  - X-XSS-Protection: 1; mode=block       (protección XSS heredada; lo moderno es CSP)
+ *  - Strict-Transport-Security             (fuerza HTTPS durante 1 año)
+ *  - Referrer-Policy                       (limita la info de referrer)
+ *  - Content-Security-Policy               (restringe orígenes de recursos)
+ *  - Permissions-Policy                    (desactiva APIs sensibles del navegador)
+ *  - Cross-Origin-Opener-Policy / -Resource-Policy  (aislamiento entre orígenes)
+ *  - X-Permitted-Cross-Domain-Policies     (bloquea políticas cross-domain heredadas)
+ */
+@Component
+<span class="fc" id="L27">public class SecurityHeadersFilter implements GlobalFilter, Ordered {</span>
+
+    @Override
+    public Mono&lt;Void&gt; filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+<span class="fc" id="L31">        return chain.filter(exchange).then(Mono.fromRunnable(() -&gt; {</span>
+<span class="fc" id="L32">            HttpHeaders headers = exchange.getResponse().getHeaders();</span>
+
+<span class="fc" id="L34">            headers.set(&quot;X-Content-Type-Options&quot;,   &quot;nosniff&quot;);</span>
+<span class="fc" id="L35">            headers.set(&quot;X-Frame-Options&quot;,           &quot;DENY&quot;);</span>
+<span class="fc" id="L36">            headers.set(&quot;X-XSS-Protection&quot;,          &quot;1; mode=block&quot;);</span>
+<span class="fc" id="L37">            headers.set(&quot;Referrer-Policy&quot;,           &quot;strict-origin-when-cross-origin&quot;);</span>
+
+            // HSTS — only effective over HTTPS; safe to include here
+<span class="fc" id="L40">            headers.set(&quot;Strict-Transport-Security&quot;,</span>
+                    &quot;max-age=31536000; includeSubDomains&quot;);
+
+            // Permissions Policy — disable sensitive browser APIs
+<span class="fc" id="L44">            headers.set(&quot;Permissions-Policy&quot;,</span>
+                    &quot;camera=(), microphone=(), geolocation=(), payment=()&quot;);
+
+            // Cross-origin isolation (OWASP) — aísla la app de otros orígenes/popups.
+<span class="fc" id="L48">            headers.set(&quot;Cross-Origin-Opener-Policy&quot;,   &quot;same-origin&quot;);</span>
+<span class="fc" id="L49">            headers.set(&quot;Cross-Origin-Resource-Policy&quot;, &quot;same-origin&quot;);</span>
+            // Bloquea políticas cross-domain heredadas (Flash/PDF antiguos).
+<span class="fc" id="L51">            headers.set(&quot;X-Permitted-Cross-Domain-Policies&quot;, &quot;none&quot;);</span>
+
+            // Content Security Policy
+<span class="fc" id="L54">            headers.set(&quot;Content-Security-Policy&quot;,</span>
+                    &quot;default-src 'self'; &quot; +
+                    &quot;script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; &quot; +
+                    &quot;style-src 'self' 'unsafe-inline'; &quot; +
+                    &quot;img-src 'self' data: https:; &quot; +
+                    &quot;connect-src 'self'; &quot; +
+                    &quot;frame-ancestors 'none'&quot;);
+<span class="fc" id="L61">        }));</span>
+    }
+
+    @Override
+    public int getOrder() {
+        // Run after routing but before response is committed
+<span class="fc" id="L67">        return Ordered.LOWEST_PRECEDENCE - 10;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

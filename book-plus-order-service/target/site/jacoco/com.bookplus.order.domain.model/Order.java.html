@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Order.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.model</a> &gt; <span class="el_source">Order.java</span></div><h1>Order.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.model;
+
+import com.bookplus.order.domain.event.*;
+import com.bookplus.order.domain.exception.*;
+import lombok.Getter;
+
+import java.time.Instant;
+import java.util.*;
+
+/**
+ * Order Aggregate Root.
+ *
+ * Lifecycle:
+ *  create()   → PENDING_PAYMENT
+ *  confirmPayment()  → CONFIRMED
+ *  startPaymentProcessing() → PAYMENT_PROCESSING
+ *  ship()     → SHIPPED
+ *  deliver()  → DELIVERED
+ *  cancel()   → CANCELLED  (only from PENDING_PAYMENT or PAYMENT_PROCESSING)
+ *
+ * Valid transitions enforced via allowedTransitions map.
+ */
+@Getter
+public class Order {
+
+    /** SecureRandom es costoso de inicializar; se crea una sola vez y se reutiliza (thread-safe). */
+<span class="fc" id="L27">    private static final java.security.SecureRandom SECURE_RANDOM = new java.security.SecureRandom();</span>
+
+<span class="fc" id="L29">    private static final Map&lt;OrderStatus, Set&lt;OrderStatus&gt;&gt; ALLOWED_TRANSITIONS = Map.of(</span>
+<span class="fc" id="L30">            OrderStatus.PENDING_PAYMENT,    Set.of(OrderStatus.PAYMENT_PROCESSING, OrderStatus.CANCELLED),</span>
+<span class="fc" id="L31">            OrderStatus.PAYMENT_PROCESSING, Set.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),</span>
+<span class="fc" id="L32">            OrderStatus.CONFIRMED,          Set.of(OrderStatus.SHIPPED),</span>
+<span class="fc" id="L33">            OrderStatus.SHIPPED,            Set.of(OrderStatus.DELIVERED),</span>
+<span class="fc" id="L34">            OrderStatus.DELIVERED,          Set.of(),</span>
+<span class="fc" id="L35">            OrderStatus.CANCELLED,          Set.of(),</span>
+<span class="fc" id="L36">            OrderStatus.REFUNDED,           Set.of()</span>
+    );
+
+    private final OrderId         id;
+    private final String          userId;
+    private       String          userEmail;       // email del comprador (para notificaciones)
+    private final String          cartId;
+    private       OrderStatus     status;
+    private final List&lt;OrderItem&gt; items;
+    private final Money           total;
+    private final ShippingAddress shippingAddress;
+    private final String          paymentMethod;   // YAPE / PLIN / CARD / CASH
+    private final String          deliveryType;    // DIGITAL | PHYSICAL
+    private final String          couponCode;      // cupón aplicado (si hay)
+    private final java.math.BigDecimal discountAmount; // descuento aplicado
+    private       String          paymentId;       // set when payment is initiated
+    private       String          carrier;         // paquetería (al enviar)
+    private       String          trackingNumber;  // n° de seguimiento (al enviar)
+    private       String          deliveryCode;    // código que el cliente da al repartidor (prueba)
+    private       String          receivedBy;      // quién/cómo se confirmó la recepción
+    private       String          assignedCourier;     // userId del repartidor que tomó el pedido
+    private       String          assignedCourierName; // nombre del repartidor (para el admin)
+<span class="fc" id="L58">    private       String          claimStatus = &quot;NONE&quot;; // NONE | OPEN | RESOLVED</span>
+    private       String          claimReason;     // motivo del reclamo del cliente
+    private       String          claimResolution; // nota de resolución del admin
+    private       Instant         createdAt;
+    private       Instant         updatedAt;
+    private       Long            version;          // bloqueo optimista (lo gestiona JPA)
+
+<span class="fc" id="L65">    private final List&lt;DomainEvent&gt; domainEvents = new ArrayList&lt;&gt;();</span>
+
+    /** Lo usa el adaptador de persistencia para preservar la versión de bloqueo optimista. */
+<span class="nc" id="L68">    public void assignPersistenceVersion(Long version) { this.version = version; }</span>
+
+    // ── Factory ───────────────────────────────────────────────────────────
+
+    private Order(OrderId id, String userId, String cartId,
+                  List&lt;OrderItem&gt; items, Money total, ShippingAddress shippingAddress,
+                  String paymentMethod, String deliveryType,
+<span class="fc" id="L75">                  String couponCode, java.math.BigDecimal discountAmount) {</span>
+<span class="pc bpc" id="L76" title="1 of 4 branches missed.">        if (items == null || items.isEmpty())</span>
+<span class="fc" id="L77">            throw new DomainException(&quot;Order must have at least one item&quot;);</span>
+
+<span class="fc" id="L79">        this.id              = id;</span>
+<span class="fc" id="L80">        this.userId          = userId;</span>
+<span class="fc" id="L81">        this.cartId          = cartId;</span>
+<span class="fc" id="L82">        this.status          = OrderStatus.PENDING_PAYMENT;</span>
+<span class="fc" id="L83">        this.items           = new ArrayList&lt;&gt;(items);</span>
+<span class="fc" id="L84">        this.total           = total;</span>
+<span class="fc" id="L85">        this.shippingAddress = shippingAddress;</span>
+<span class="fc" id="L86">        this.paymentMethod   = paymentMethod;</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        this.deliveryType    = deliveryType == null ? &quot;PHYSICAL&quot; : deliveryType;</span>
+<span class="fc" id="L88">        this.couponCode      = couponCode;</span>
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        this.discountAmount  = discountAmount == null ? java.math.BigDecimal.ZERO : discountAmount;</span>
+<span class="fc" id="L90">        this.createdAt       = Instant.now();</span>
+<span class="fc" id="L91">        this.updatedAt       = this.createdAt;</span>
+<span class="fc" id="L92">    }</span>
+
+    /**
+     * Creates a new order from a CartCheckedOutEvent payload.
+     * Automatically emits OrderCreatedEvent (carrying the chosen payment method).
+     */
+    public static Order create(String userId, String userEmail, String cartId,
+                               List&lt;OrderItem&gt; items, Money total,
+                               ShippingAddress shippingAddress, String paymentMethod, String deliveryType,
+                               String couponCode, java.math.BigDecimal discountAmount) {
+<span class="fc" id="L102">        Order order = new Order(OrderId.generate(), userId, cartId, items, total,</span>
+                shippingAddress, paymentMethod, deliveryType, couponCode, discountAmount);
+<span class="fc" id="L104">        order.userEmail = userEmail;</span>
+        // Código de entrega solo para envíos físicos (prueba de entrega).
+<span class="fc bfc" id="L106" title="All 2 branches covered.">        if (&quot;PHYSICAL&quot;.equals(order.deliveryType)) {</span>
+<span class="fc" id="L107">            order.deliveryCode = String.format(&quot;%06d&quot;, SECURE_RANDOM.nextInt(1_000_000));</span>
+        }
+<span class="fc" id="L109">        order.registerEvent(new OrderCreatedEvent(</span>
+<span class="fc" id="L110">                order.id.toString(),</span>
+                userId,
+                userEmail,
+<span class="fc" id="L113">                items.stream().map(i -&gt; new OrderCreatedEvent.Item(</span>
+<span class="fc" id="L114">                        i.getBookId(), i.getIsbn(), i.getTitle(), i.getQuantity(), i.getUnitPrice()</span>
+<span class="fc" id="L115">                )).toList(),</span>
+                total,
+                paymentMethod
+        ));
+<span class="fc" id="L119">        return order;</span>
+    }
+
+    /** Reconstitutes an existing order from persistence without emitting events. */
+    public static Order reconstitute(OrderId id, String userId, String cartId,
+                                     OrderStatus status, List&lt;OrderItem&gt; items,
+                                     Money total, ShippingAddress shippingAddress,
+                                     String paymentMethod, String deliveryType, String paymentId,
+                                     String carrier, String trackingNumber,
+                                     String deliveryCode, String receivedBy, String assignedCourier,
+                                     String assignedCourierName,
+                                     String claimStatus, String claimReason, String claimResolution,
+                                     String couponCode, java.math.BigDecimal discountAmount,
+                                     Instant createdAt, Instant updatedAt, String userEmail) {
+<span class="nc" id="L133">        Order order = new Order(id, userId, cartId, items, total, shippingAddress, paymentMethod,</span>
+                deliveryType, couponCode, discountAmount);
+<span class="nc" id="L135">        order.userEmail       = userEmail;</span>
+<span class="nc" id="L136">        order.status          = status;</span>
+<span class="nc" id="L137">        order.paymentId       = paymentId;</span>
+<span class="nc" id="L138">        order.carrier         = carrier;</span>
+<span class="nc" id="L139">        order.trackingNumber  = trackingNumber;</span>
+<span class="nc" id="L140">        order.deliveryCode    = deliveryCode;</span>
+<span class="nc" id="L141">        order.receivedBy      = receivedBy;</span>
+<span class="nc" id="L142">        order.assignedCourier = assignedCourier;</span>
+<span class="nc" id="L143">        order.assignedCourierName = assignedCourierName;</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        order.claimStatus     = claimStatus == null ? &quot;NONE&quot; : claimStatus;</span>
+<span class="nc" id="L145">        order.claimReason     = claimReason;</span>
+<span class="nc" id="L146">        order.claimResolution = claimResolution;</span>
+<span class="nc" id="L147">        order.createdAt      = createdAt;   // preservar las fechas reales de la BD</span>
+<span class="nc" id="L148">        order.updatedAt      = updatedAt;</span>
+<span class="nc" id="L149">        return order;</span>
+    }
+
+    // ── Status transitions ─────────────────────────────────────────────────
+
+    /**
+     * Idempotent + tolerant of out-of-order delivery: payment.initiated and
+     * payment.confirmed arrive on different Kafka topics, so the &quot;confirmed&quot;
+     * event may be consumed before &quot;initiated&quot;. We only advance when still
+     * PENDING_PAYMENT; otherwise we just record the paymentId.
+     */
+    public void startPaymentProcessing(String paymentId) {
+<span class="fc" id="L161">        this.paymentId = paymentId;</span>
+<span class="pc bpc" id="L162" title="1 of 2 branches missed.">        if (status == OrderStatus.PENDING_PAYMENT) {</span>
+<span class="fc" id="L163">            transition(OrderStatus.PAYMENT_PROCESSING);</span>
+        }
+<span class="fc" id="L165">    }</span>
+
+    public void confirmPayment() {
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        if (status == OrderStatus.CONFIRMED) {</span>
+<span class="nc" id="L169">            return; // already confirmed — idempotent no-op (redelivery)</span>
+        }
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        if (status == OrderStatus.PENDING_PAYMENT) {</span>
+            // payment.confirmed arrived before payment.initiated — fast-forward
+<span class="nc" id="L173">            transition(OrderStatus.PAYMENT_PROCESSING);</span>
+        }
+<span class="fc" id="L175">        transition(OrderStatus.CONFIRMED);</span>
+        // Trigger definitive stock deduction in inventory-service
+<span class="fc" id="L177">        registerEvent(new OrderPaymentConfirmedEvent(</span>
+<span class="fc" id="L178">                id.toString(), userId,</span>
+<span class="fc" id="L179">                items.stream()</span>
+<span class="fc" id="L180">                        .map(i -&gt; new OrderPaymentConfirmedEvent.Item(i.getBookId(), i.getQuantity()))</span>
+<span class="fc" id="L181">                        .toList(),</span>
+                deliveryType
+        ));
+<span class="fc" id="L184">    }</span>
+
+    public void ship(String carrier, String trackingNumber) {
+<span class="fc" id="L187">        this.carrier        = carrier;</span>
+<span class="fc" id="L188">        this.trackingNumber = trackingNumber;</span>
+<span class="fc" id="L189">        transition(OrderStatus.SHIPPED);</span>
+<span class="fc" id="L190">    }</span>
+
+    public void deliver(String receivedBy) {
+<span class="fc" id="L193">        this.receivedBy = receivedBy;</span>
+<span class="fc" id="L194">        transition(OrderStatus.DELIVERED);</span>
+<span class="fc" id="L195">    }</span>
+
+    /** Un repartidor toma el pedido (autoasignación). */
+    public void assignToCourier(String courierUserId, String courierName) {
+<span class="nc bnc" id="L199" title="All 4 branches missed.">        if (this.assignedCourier != null &amp;&amp; !this.assignedCourier.equals(courierUserId)) {</span>
+<span class="nc" id="L200">            throw new DomainException(&quot;Este pedido ya fue tomado por otro repartidor&quot;);</span>
+        }
+<span class="nc" id="L202">        this.assignedCourier     = courierUserId;</span>
+<span class="nc" id="L203">        this.assignedCourierName = courierName;</span>
+<span class="nc" id="L204">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L205">    }</span>
+
+    /** El cliente abre un reclamo (p. ej. &quot;no recibí mi pedido&quot;). */
+    public void openClaim(String reason) {
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        if (&quot;OPEN&quot;.equals(this.claimStatus)) {</span>
+<span class="nc" id="L210">            throw new DomainException(&quot;Ya hay un reclamo abierto para este pedido&quot;);</span>
+        }
+<span class="nc" id="L212">        this.claimStatus     = &quot;OPEN&quot;;</span>
+<span class="nc" id="L213">        this.claimReason     = reason;</span>
+<span class="nc" id="L214">        this.claimResolution = null;</span>
+<span class="nc" id="L215">        this.updatedAt       = Instant.now();</span>
+<span class="nc" id="L216">    }</span>
+
+    /** El admin resuelve el reclamo dejando una nota. */
+    public void resolveClaim(String resolution) {
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        if (!&quot;OPEN&quot;.equals(this.claimStatus)) {</span>
+<span class="nc" id="L221">            throw new DomainException(&quot;No hay un reclamo abierto que resolver&quot;);</span>
+        }
+<span class="nc" id="L223">        this.claimStatus     = &quot;RESOLVED&quot;;</span>
+<span class="nc" id="L224">        this.claimResolution = resolution;</span>
+<span class="nc" id="L225">        this.updatedAt       = Instant.now();</span>
+<span class="nc" id="L226">    }</span>
+
+    public void cancel(String reason) {
+<span class="fc bfc" id="L229" title="All 2 branches covered.">        if (!status.isCancellable())</span>
+<span class="fc" id="L230">            throw new OrderNotCancellableException(id.toString(), status);</span>
+<span class="fc" id="L231">        OrderStatus previous = this.status;</span>
+<span class="fc" id="L232">        this.status    = OrderStatus.CANCELLED;</span>
+<span class="fc" id="L233">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L234">        registerEvent(new OrderCancelledEvent(id.toString(), userId, reason,</span>
+<span class="fc" id="L235">                items.stream()</span>
+<span class="fc" id="L236">                        .map(i -&gt; new OrderCancelledEvent.Item(i.getBookId(), i.getQuantity()))</span>
+<span class="fc" id="L237">                        .toList()));</span>
+<span class="fc" id="L238">        registerEvent(new OrderStatusChangedEvent(id.toString(), userId, userEmail, previous, OrderStatus.CANCELLED));</span>
+<span class="fc" id="L239">    }</span>
+
+    /**
+     * El admin emite un reembolso (devolución). Solo desde estados ya pagados.
+     * El dinero se devuelve de forma simulada; si había un reclamo abierto, queda
+     * resuelto con el motivo del reembolso. El restock se gestiona aparte (manual),
+     * ya que un producto devuelto puede no ser revendible.
+     */
+    public void refund(String reason, boolean restock) {
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        if (!status.isRefundable())</span>
+<span class="fc" id="L249">            throw new DomainException(&quot;Solo se puede reembolsar un pedido pagado (confirmado, enviado o entregado)&quot;);</span>
+<span class="fc" id="L250">        OrderStatus previous = this.status;</span>
+<span class="fc" id="L251">        this.status = OrderStatus.REFUNDED;</span>
+<span class="pc bpc" id="L252" title="1 of 2 branches missed.">        if (&quot;OPEN&quot;.equals(this.claimStatus)) {</span>
+<span class="nc" id="L253">            this.claimStatus = &quot;RESOLVED&quot;;</span>
+        }
+<span class="pc bpc" id="L255" title="2 of 4 branches missed.">        this.claimResolution = (reason == null || reason.isBlank())</span>
+<span class="pc" id="L256">                ? &quot;Reembolso emitido&quot; : reason;</span>
+<span class="fc" id="L257">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L258">        registerEvent(new OrderStatusChangedEvent(id.toString(), userId, userEmail, previous, OrderStatus.REFUNDED));</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        if (restock) {</span>
+<span class="fc" id="L260">            registerEvent(new OrderRefundedEvent(id.toString(), userId, this.claimResolution,</span>
+<span class="fc" id="L261">                    items.stream()</span>
+<span class="fc" id="L262">                            .map(i -&gt; new OrderRefundedEvent.Item(i.getBookId(), i.getQuantity()))</span>
+<span class="fc" id="L263">                            .toList()));</span>
+        }
+        // Para pedidos digitales, revocar el acceso a la biblioteca (no hay stock que reponer,
+        // pero sí acceso que retirar): así reembolsar no deja al usuario con el libro.
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">        if (&quot;DIGITAL&quot;.equalsIgnoreCase(this.deliveryType)) {</span>
+<span class="nc" id="L268">            registerEvent(new DigitalAccessRevokedEvent(id.toString(), userId,</span>
+<span class="nc" id="L269">                    items.stream()</span>
+<span class="nc" id="L270">                            .map(i -&gt; new DigitalAccessRevokedEvent.Item(i.getBookId()))</span>
+<span class="nc" id="L271">                            .toList()));</span>
+        }
+<span class="fc" id="L273">    }</span>
+
+    // ── Internal helpers ──────────────────────────────────────────────────
+
+    private void transition(OrderStatus next) {
+<span class="fc" id="L278">        Set&lt;OrderStatus&gt; allowed = ALLOWED_TRANSITIONS.getOrDefault(status, Set.of());</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        if (!allowed.contains(next))</span>
+<span class="fc" id="L280">            throw new InvalidOrderTransitionException(status, next);</span>
+<span class="fc" id="L281">        OrderStatus previous = this.status;</span>
+<span class="fc" id="L282">        this.status    = next;</span>
+<span class="fc" id="L283">        this.updatedAt = Instant.now();</span>
+<span class="fc" id="L284">        registerEvent(new OrderStatusChangedEvent(id.toString(), userId, userEmail, previous, next));</span>
+<span class="fc" id="L285">    }</span>
+
+    private void registerEvent(DomainEvent event) {
+<span class="fc" id="L288">        domainEvents.add(event);</span>
+<span class="fc" id="L289">    }</span>
+
+    public List&lt;DomainEvent&gt; pullDomainEvents() {
+<span class="fc" id="L292">        List&lt;DomainEvent&gt; copy = List.copyOf(domainEvents);</span>
+<span class="fc" id="L293">        domainEvents.clear();</span>
+<span class="fc" id="L294">        return copy;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

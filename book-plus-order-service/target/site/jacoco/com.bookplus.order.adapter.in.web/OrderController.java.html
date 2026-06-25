@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.in.web</a> &gt; <span class="el_source">OrderController.java</span></div><h1>OrderController.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.in.web;
+
+import com.bookplus.order.adapter.in.web.dto.*;
+import com.bookplus.order.application.refund.RefundDecisionService;
+import com.bookplus.order.domain.model.Order;
+import com.bookplus.order.domain.model.OrderStatus;
+import com.bookplus.order.domain.policy.RefundContext;
+import com.bookplus.order.domain.port.in.*;
+import com.bookplus.order.shared.annotation.WebAdapter;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Instant;
+import java.util.List;
+
+@WebAdapter
+@RestController
+@RequestMapping(&quot;/api/v1/orders&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Orders&quot;, description = &quot;Order management&quot;)
+@SecurityRequirement(name = &quot;bearerAuth&quot;)
+public class OrderController {
+
+    private final GetOrderUseCase           getOrderUseCase;
+    private final CancelOrderUseCase        cancelOrderUseCase;
+    private final UpdateOrderStatusUseCase  updateStatusUseCase;
+    private final RefundDecisionService     refundDecisionService;
+
+    // ── GET /api/v1/orders — list current user's orders ───────────────────
+
+    @GetMapping
+    @Operation(summary = &quot;List current user's orders (paginated)&quot;)
+    public ResponseEntity&lt;PagedOrderResponse&gt; listMyOrders(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = &quot;0&quot;) int page,
+            @RequestParam(defaultValue = &quot;20&quot;) int size
+    ) {
+<span class="nc" id="L48">        String userId = jwt.getSubject();</span>
+<span class="nc" id="L49">        List&lt;OrderResponse&gt; orders = getOrderUseCase.getByUserId(userId, page, size)</span>
+<span class="nc" id="L50">                .stream().map(o -&gt; OrderResponse.from(o, true)).toList();</span>
+<span class="nc" id="L51">        long total = getOrderUseCase.countByUserId(userId);</span>
+<span class="nc" id="L52">        return ResponseEntity.ok(PagedOrderResponse.of(orders, page, size, total));</span>
+    }
+
+    // ── GET /api/v1/orders/{orderId} ──────────────────────────────────────
+
+    @GetMapping(&quot;/{orderId}&quot;)
+    @Operation(summary = &quot;Get order by ID — accessible by owner or admin&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; getOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String orderId
+    ) {
+<span class="nc" id="L63">        Order order = getOrderUseCase.getById(orderId);</span>
+<span class="nc" id="L64">        boolean owner = order.getUserId().equals(jwt.getSubject());</span>
+        // Users can only see their own orders; admins see any
+<span class="nc bnc" id="L66" title="All 4 branches missed.">        if (!owner &amp;&amp; !isAdmin(jwt))</span>
+<span class="nc" id="L67">            return ResponseEntity.status(403).build();</span>
+        // El código de entrega solo se muestra al dueño (para dárselo al repartidor).
+<span class="nc" id="L69">        return ResponseEntity.ok(OrderResponse.from(order, owner));</span>
+    }
+
+    // ── POST /api/v1/orders/{orderId}/confirm-receipt — el cliente confirma ─
+    @PostMapping(&quot;/{orderId}/confirm-receipt&quot;)
+    @Operation(summary = &quot;Customer confirms they received the order&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; confirmReceipt(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String orderId
+    ) {
+<span class="nc" id="L79">        Order updated = updateStatusUseCase.confirmReceipt(orderId, jwt.getSubject());</span>
+<span class="nc" id="L80">        return ResponseEntity.ok(OrderResponse.from(updated, true));</span>
+    }
+
+    // ── POST /api/v1/orders/{orderId}/claim — el cliente reclama ──────────
+    @PostMapping(&quot;/{orderId}/claim&quot;)
+    @Operation(summary = &quot;Customer opens a claim (e.g. 'order not received')&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; openClaim(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String orderId,
+            @Valid @RequestBody ClaimRequest req
+    ) {
+<span class="nc" id="L91">        Order updated = updateStatusUseCase.openClaim(orderId, jwt.getSubject(), req.reason());</span>
+<span class="nc" id="L92">        return ResponseEntity.ok(OrderResponse.from(updated, true));</span>
+    }
+
+    @PatchMapping(&quot;/{orderId}/claim/resolve&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN')&quot;)
+    @Operation(summary = &quot;[ADMIN] Resolve a claim with a note&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; resolveClaim(
+            @PathVariable String orderId,
+            @Valid @RequestBody ResolveClaimRequest req
+    ) {
+<span class="nc" id="L102">        return ResponseEntity.ok(OrderResponse.from(</span>
+<span class="nc" id="L103">                updateStatusUseCase.resolveClaim(orderId, req.resolution())));</span>
+    }
+
+    // ── DELETE /api/v1/orders/{orderId} — cancel ──────────────────────────
+
+    @DeleteMapping(&quot;/{orderId}&quot;)
+    @Operation(summary = &quot;Cancel an order (user can cancel own orders in cancellable states)&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; cancelOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String orderId,
+            @Valid @RequestBody CancelOrderRequest req
+    ) {
+<span class="nc" id="L115">        Order order = cancelOrderUseCase.cancel(orderId, jwt.getSubject(), req.reason());</span>
+<span class="nc" id="L116">        return ResponseEntity.ok(OrderResponse.from(order));</span>
+    }
+
+    // ── Admin — listar todos los pedidos ──────────────────────────────────
+
+    @GetMapping(&quot;/admin&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN')&quot;)
+    @Operation(summary = &quot;[ADMIN] List all orders (optional status filter)&quot;)
+    public ResponseEntity&lt;PagedOrderResponse&gt; listAll(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = &quot;0&quot;) int page,
+            @RequestParam(defaultValue = &quot;20&quot;) int size
+    ) {
+<span class="nc bnc" id="L129" title="All 4 branches missed.">        OrderStatus filter = (status == null || status.isBlank())</span>
+<span class="nc" id="L130">                ? null : OrderStatus.valueOf(status.toUpperCase());</span>
+<span class="nc" id="L131">        List&lt;OrderResponse&gt; orders = getOrderUseCase.getAll(filter, page, size)</span>
+<span class="nc" id="L132">                .stream().map(OrderResponse::from).toList();</span>
+<span class="nc" id="L133">        long total = getOrderUseCase.countAll(filter);</span>
+<span class="nc" id="L134">        return ResponseEntity.ok(PagedOrderResponse.of(orders, page, size, total));</span>
+    }
+
+    // ── Admin — status transitions ────────────────────────────────────────
+
+    @PatchMapping(&quot;/{orderId}/cancel&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN')&quot;)
+    @Operation(summary = &quot;[ADMIN] Cancel any order&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; adminCancel(
+            @PathVariable String orderId,
+            @Valid @RequestBody CancelOrderRequest req
+    ) {
+<span class="nc" id="L146">        return ResponseEntity.ok(OrderResponse.from(</span>
+<span class="nc" id="L147">                cancelOrderUseCase.cancelAsAdmin(orderId, req.reason())));</span>
+    }
+
+    @PatchMapping(&quot;/{orderId}/refund&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN')&quot;)
+    @Operation(summary = &quot;[ADMIN] Issue a refund (devolución) on a paid order, applying the refund policy&quot;)
+    public ResponseEntity&lt;RefundResponse&gt; refund(
+            @PathVariable String orderId,
+            @RequestBody RefundRequest req
+    ) {
+<span class="nc" id="L157">        Order order = getOrderUseCase.getById(orderId);</span>
+
+        // La política decide CASH / STORE_CREDIT / DENY a partir de hechos autoritativos
+        // del pedido (tipo de entrega, fecha) + hechos de consumo que aporta el admin/UI.
+<span class="nc" id="L161">        RefundContext ctx = new RefundContext(</span>
+<span class="nc" id="L162">                order.getDeliveryType(),</span>
+<span class="nc" id="L163">                order.getCreatedAt(),</span>
+<span class="nc" id="L164">                Instant.now(),</span>
+<span class="nc" id="L165">                Boolean.TRUE.equals(req.downloaded()),</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                req.readProgress() == null ? 0 : req.readProgress(),</span>
+<span class="nc" id="L167">                req.adminOverride());</span>
+
+<span class="nc" id="L169">        var resolution = refundDecisionService.resolve(ctx, order.getTotal().amount());</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        if (resolution.isDenied()) {</span>
+<span class="nc" id="L171">            throw new ResponseStatusException(HttpStatus.CONFLICT, resolution.decision().reason());</span>
+        }
+
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        String note = resolution.isStoreCredit()</span>
+<span class="nc" id="L175">                ? appendCredit(req.reason(), resolution.storeCreditCode())</span>
+<span class="nc" id="L176">                : req.reason();</span>
+<span class="nc" id="L177">        Order updated = updateStatusUseCase.refund(orderId, note, req.restock());</span>
+
+<span class="nc" id="L179">        return ResponseEntity.ok(new RefundResponse(</span>
+<span class="nc" id="L180">                OrderResponse.from(updated),</span>
+<span class="nc" id="L181">                resolution.decision().outcome().name(),</span>
+<span class="nc" id="L182">                resolution.storeCreditCode(),</span>
+<span class="nc" id="L183">                resolution.decision().reason()));</span>
+    }
+
+    private static String appendCredit(String reason, String code) {
+<span class="nc bnc" id="L187" title="All 4 branches missed.">        String base = (reason == null || reason.isBlank()) ? &quot;Reembolso&quot; : reason;</span>
+<span class="nc" id="L188">        return base + &quot; — crédito en tienda emitido: &quot; + code;</span>
+    }
+
+    /**
+     * @param downloaded    si el cliente descargó/abrió el libro (digital)
+     * @param readProgress  progreso de lectura 0-100 (digital)
+     * @param adminOverride fuerza el reembolso en efectivo saltándose ventana y consumo
+     */
+<span class="nc" id="L196">    public record RefundRequest(String reason, boolean restock, Boolean downloaded,</span>
+                                Integer readProgress, boolean adminOverride) {}
+
+<span class="nc" id="L199">    public record RefundResponse(OrderResponse order, String outcome,</span>
+                                 String storeCreditCode, String policyReason) {}
+
+    @GetMapping(&quot;/admin/shipments&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN','REPARTIDOR')&quot;)
+    @Operation(summary = &quot;[ADMIN/REPARTIDOR] Fulfillment queue: physical orders to ship/deliver&quot;)
+    public ResponseEntity&lt;List&lt;OrderResponse&gt;&gt; shipmentsQueue(@AuthenticationPrincipal Jwt jwt) {
+<span class="nc" id="L206">        List&lt;OrderResponse&gt; orders = getOrderUseCase.getShipmentsQueue(jwt.getSubject(), isAdmin(jwt))</span>
+<span class="nc" id="L207">                .stream().map(OrderResponse::from).toList();</span>
+<span class="nc" id="L208">        return ResponseEntity.ok(orders);</span>
+    }
+
+    @PatchMapping(&quot;/{orderId}/claim-delivery&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN','REPARTIDOR')&quot;)
+    @Operation(summary = &quot;[REPARTIDOR] Claim an unassigned delivery&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; claimDelivery(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable String orderId) {
+<span class="nc" id="L216">        String courierName = jwt.getClaimAsString(&quot;username&quot;);</span>
+<span class="nc bnc" id="L217" title="All 4 branches missed.">        if (courierName == null || courierName.isBlank()) courierName = jwt.getClaimAsString(&quot;email&quot;);</span>
+<span class="nc" id="L218">        return ResponseEntity.ok(OrderResponse.from(</span>
+<span class="nc" id="L219">                updateStatusUseCase.claimDelivery(orderId, jwt.getSubject(), courierName)));</span>
+    }
+
+    @PatchMapping(&quot;/{orderId}/ship&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN','REPARTIDOR')&quot;)
+    @Operation(summary = &quot;[ADMIN/REPARTIDOR] Mark order as shipped (with carrier + tracking)&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; ship(
+            @PathVariable String orderId,
+            @Valid @RequestBody ShipOrderRequest req
+    ) {
+<span class="nc" id="L229">        return ResponseEntity.ok(OrderResponse.from(</span>
+<span class="nc" id="L230">                updateStatusUseCase.ship(orderId, req.carrier(), req.trackingNumber())));</span>
+    }
+
+    @PatchMapping(&quot;/{orderId}/deliver&quot;)
+    @PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN','REPARTIDOR')&quot;)
+    @Operation(summary = &quot;[ADMIN/REPARTIDOR] Mark order as delivered (requires the customer's delivery code)&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; deliver(
+            @PathVariable String orderId,
+            @Valid @RequestBody DeliverOrderRequest req
+    ) {
+<span class="nc" id="L240">        return ResponseEntity.ok(OrderResponse.from(</span>
+<span class="nc" id="L241">                updateStatusUseCase.deliver(orderId, req.deliveryCode(), req.receivedBy())));</span>
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    private boolean isAdmin(Jwt jwt) {
+<span class="nc" id="L247">        Object roles = jwt.getClaim(&quot;roles&quot;);</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (roles instanceof Iterable&lt;?&gt; list)</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            for (Object r : list)</span>
+<span class="nc bnc" id="L250" title="All 4 branches missed.">                if (&quot;ROLE_ADMIN&quot;.equals(r) || &quot;ROLE_SUPERADMIN&quot;.equals(r)) return true;</span>
+<span class="nc" id="L251">        return false;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

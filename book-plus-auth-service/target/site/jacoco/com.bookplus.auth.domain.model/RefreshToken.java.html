@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefreshToken.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.domain.model</a> &gt; <span class="el_source">RefreshToken.java</span></div><h1>RefreshToken.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.domain.model;
+
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+/**
+ * Entity — Refresh Token de sesión.
+ * Pertenece al aggregate User pero se persiste por separado.
+ */
+public class RefreshToken {
+
+    private final UUID id;
+    private final UserId userId;
+    private final String tokenHash;   // almacenamos hash, no el token en claro
+    private final Instant expiresAt;
+    private final String ipAddress;
+    private final String userAgent;
+    private boolean revoked;
+    private final Instant createdAt;
+
+    private RefreshToken(UUID id, UserId userId, String tokenHash,
+                         Instant expiresAt, String ipAddress, String userAgent,
+<span class="nc" id="L24">                         boolean revoked, Instant createdAt) {</span>
+<span class="nc" id="L25">        this.id        = Objects.requireNonNull(id);</span>
+<span class="nc" id="L26">        this.userId    = Objects.requireNonNull(userId);</span>
+<span class="nc" id="L27">        this.tokenHash = Objects.requireNonNull(tokenHash);</span>
+<span class="nc" id="L28">        this.expiresAt = Objects.requireNonNull(expiresAt);</span>
+<span class="nc" id="L29">        this.ipAddress = ipAddress;</span>
+<span class="nc" id="L30">        this.userAgent = userAgent;</span>
+<span class="nc" id="L31">        this.revoked   = revoked;</span>
+<span class="nc" id="L32">        this.createdAt = Objects.requireNonNull(createdAt);</span>
+<span class="nc" id="L33">    }</span>
+
+    public static RefreshToken create(UserId userId, String tokenHash,
+                                      Instant expiresAt, String ipAddress, String userAgent) {
+<span class="nc" id="L37">        return new RefreshToken(UUID.randomUUID(), userId, tokenHash,</span>
+<span class="nc" id="L38">                expiresAt, ipAddress, userAgent, false, Instant.now());</span>
+    }
+
+    public static RefreshToken reconstitute(UUID id, UserId userId, String tokenHash,
+                                            Instant expiresAt, String ipAddress, String userAgent,
+                                            boolean revoked, Instant createdAt) {
+<span class="nc" id="L44">        return new RefreshToken(id, userId, tokenHash, expiresAt,</span>
+                ipAddress, userAgent, revoked, createdAt);
+    }
+
+    public boolean isExpired() {
+<span class="nc" id="L49">        return Instant.now().isAfter(expiresAt);</span>
+    }
+
+    public boolean isValid() {
+<span class="nc bnc" id="L53" title="All 4 branches missed.">        return !revoked &amp;&amp; !isExpired();</span>
+    }
+
+    public void revoke() {
+<span class="nc" id="L57">        this.revoked = true;</span>
+<span class="nc" id="L58">    }</span>
+
+<span class="nc" id="L60">    public UUID getId()           { return id; }</span>
+<span class="nc" id="L61">    public UserId getUserId()     { return userId; }</span>
+<span class="nc" id="L62">    public String getTokenHash()  { return tokenHash; }</span>
+<span class="nc" id="L63">    public Instant getExpiresAt() { return expiresAt; }</span>
+<span class="nc" id="L64">    public String getIpAddress()  { return ipAddress; }</span>
+<span class="nc" id="L65">    public String getUserAgent()  { return userAgent; }</span>
+<span class="nc" id="L66">    public boolean isRevoked()    { return revoked; }</span>
+<span class="nc" id="L67">    public Instant getCreatedAt() { return createdAt; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

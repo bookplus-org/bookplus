@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CategoryController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web</a> &gt; <span class="el_source">CategoryController.java</span></div><h1>CategoryController.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web;
+
+import com.bookplus.catalog.adapter.in.web.dto.CategoryResponse;
+import com.bookplus.catalog.domain.port.in.ListCategoriesUseCase;
+import com.bookplus.catalog.shared.web.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * Adapter IN — Controlador público de categorías.
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/categories&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Categories&quot;, description = &quot;Public category endpoints&quot;)
+public class CategoryController {
+
+    private final ListCategoriesUseCase listCategoriesUseCase;
+
+    // ── GET /api/v1/categories ──────────────────────────────────────────────
+
+    @GetMapping
+    @Operation(summary = &quot;List all active categories&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;List&lt;CategoryResponse&gt;&gt;&gt; listAll() {
+<span class="nc" id="L30">        List&lt;CategoryResponse&gt; response = listCategoriesUseCase.listAll()</span>
+<span class="nc" id="L31">                .stream().map(CategoryResponse::from).toList();</span>
+<span class="nc" id="L32">        return ResponseEntity.ok(ApiResponse.ok(response));</span>
+    }
+
+    // ── GET /api/v1/categories/{parentId}/children ──────────────────────────
+
+    @GetMapping(&quot;/{parentId}/children&quot;)
+    @Operation(summary = &quot;List sub-categories of a parent&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;List&lt;CategoryResponse&gt;&gt;&gt; listByParent(
+            @PathVariable String parentId) {
+<span class="nc" id="L41">        List&lt;CategoryResponse&gt; response = listCategoriesUseCase.listByParent(parentId)</span>
+<span class="nc" id="L42">                .stream().map(CategoryResponse::from).toList();</span>
+<span class="nc" id="L43">        return ResponseEntity.ok(ApiResponse.ok(response));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

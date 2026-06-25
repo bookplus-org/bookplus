@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AccountController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.adapter.in.web</a> &gt; <span class="el_source">AccountController.java</span></div><h1>AccountController.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.adapter.in.web;
+
+import com.bookplus.auth.domain.model.User;
+import com.bookplus.auth.domain.model.UserId;
+import com.bookplus.auth.domain.port.in.AccountUseCase;
+import com.bookplus.auth.shared.web.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * Autogestión de la cuenta del usuario autenticado.
+ * Protegido por SecurityConfig: requiere autenticación (no admin).
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/auth/me&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Account&quot;, description = &quot;Self-service account management&quot;)
+public class AccountController {
+
+    private final AccountUseCase accountUseCase;
+
+    @PatchMapping(&quot;/profile&quot;)
+    @Operation(summary = &quot;Update my username and email&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;MeResponse&gt;&gt; updateProfile(
+            Authentication auth,
+            @Valid @RequestBody UpdateProfileRequest body) {
+<span class="nc" id="L37">        User updated = accountUseCase.updateMyProfile(</span>
+<span class="nc" id="L38">                UserId.of(auth.getName()), body.username(), body.email());</span>
+<span class="nc" id="L39">        return ResponseEntity.ok(ApiResponse.ok(MeResponse.from(updated)));</span>
+    }
+
+    @PatchMapping(&quot;/password&quot;)
+    @Operation(summary = &quot;Change my password (requires current password)&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; changePassword(
+            Authentication auth,
+            @Valid @RequestBody ChangePasswordRequest body) {
+<span class="nc" id="L47">        accountUseCase.changeMyPassword(</span>
+<span class="nc" id="L48">                UserId.of(auth.getName()), body.currentPassword(), body.newPassword());</span>
+<span class="nc" id="L49">        return ResponseEntity.ok(ApiResponse.ok(&quot;Contraseña actualizada&quot;));</span>
+    }
+
+    // ── DTOs ────────────────────────────────────────────────────────────────
+
+<span class="nc" id="L54">    public record UpdateProfileRequest(</span>
+            @NotBlank @Size(min = 3, max = 50) String username,
+            @NotBlank @Email String email
+    ) {}
+
+<span class="nc" id="L59">    public record ChangePasswordRequest(</span>
+            @NotBlank String currentPassword,
+            @NotBlank @Size(min = 8, max = 72) String newPassword
+    ) {}
+
+<span class="nc" id="L64">    public record MeResponse(String id, String username, String email, List&lt;String&gt; roles) {</span>
+        public static MeResponse from(User u) {
+<span class="nc" id="L66">            return new MeResponse(</span>
+<span class="nc" id="L67">                    u.getId().toString(), u.getUsername(), u.getEmail().value(),</span>
+<span class="nc" id="L68">                    u.getRoles().stream().map(Enum::name).sorted().toList());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReviewPersistenceMapper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.persistence.mapper</a> &gt; <span class="el_source">ReviewPersistenceMapper.java</span></div><h1>ReviewPersistenceMapper.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.persistence.mapper;
+
+import com.bookplus.catalog.adapter.out.persistence.entity.ReviewEntity;
+import com.bookplus.catalog.domain.model.*;
+import org.springframework.stereotype.Component;
+
+@Component
+<span class="nc" id="L8">public class ReviewPersistenceMapper {</span>
+
+    public Review toDomain(ReviewEntity e) {
+<span class="nc" id="L11">        return Review.reconstitute(</span>
+<span class="nc" id="L12">                ReviewId.of(e.getId()),</span>
+<span class="nc" id="L13">                BookId.of(e.getBookId()),</span>
+<span class="nc" id="L14">                e.getUserId(),</span>
+<span class="nc" id="L15">                e.getUsername(),</span>
+<span class="nc" id="L16">                Rating.of(e.getRating()),</span>
+<span class="nc" id="L17">                e.getComment(),</span>
+<span class="nc" id="L18">                e.isVerifiedPurchase(),</span>
+<span class="nc" id="L19">                e.getCreatedAt()</span>
+        );
+    }
+
+    public ReviewEntity toEntity(Review r) {
+<span class="nc" id="L24">        return ReviewEntity.builder()</span>
+<span class="nc" id="L25">                .id(r.getId().value())</span>
+<span class="nc" id="L26">                .bookId(r.getBookId().value())</span>
+<span class="nc" id="L27">                .userId(r.getUserId())</span>
+<span class="nc" id="L28">                .username(r.getUsername())</span>
+<span class="nc" id="L29">                .rating(r.getRating().value())</span>
+<span class="nc" id="L30">                .comment(r.getComment())</span>
+<span class="nc" id="L31">                .verifiedPurchase(r.isVerifiedPurchase())</span>
+<span class="nc" id="L32">                .createdAt(r.getCreatedAt())</span>
+<span class="nc" id="L33">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

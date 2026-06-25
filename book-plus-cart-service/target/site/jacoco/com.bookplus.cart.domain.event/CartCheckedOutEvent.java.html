@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartCheckedOutEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.domain.event</a> &gt; <span class="el_source">CartCheckedOutEvent.java</span></div><h1>CartCheckedOutEvent.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.domain.event;
+
+import com.bookplus.cart.domain.model.*;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Kafka topic: cart.checked-out
+ *
+ * Consumido por order-service para crear la orden.
+ * Incluye el snapshot completo de los ítems, la dirección de envío y el método de pago.
+ */
+<span class="fc" id="L14">public record CartCheckedOutEvent(</span>
+        UUID            eventId,
+        String          eventType,
+        Instant         occurredOn,
+        CartId          cartId,
+        String          userId,
+        String          recipientEmail,  // email del comprador (para notificaciones)
+        List&lt;CartItem&gt;  items,
+        Money           total,
+        ShippingAddressDto shippingAddress,
+        String          paymentMethod,
+        String          deliveryType,  // DIGITAL | PHYSICAL
+        String          couponCode
+) implements DomainEvent {
+
+    /** Snapshot de la dirección de envío elegida en el checkout. */
+<span class="fc" id="L30">    public record ShippingAddressDto(</span>
+            String recipientName,
+            String street,
+            String city,
+            String state,
+            String postalCode,
+            String country
+    ) {}
+
+    public CartCheckedOutEvent(CartId cartId, String userId, String recipientEmail,
+                                List&lt;CartItem&gt; items, Money total,
+                                ShippingAddressDto shippingAddress, String paymentMethod,
+                                String deliveryType, String couponCode) {
+<span class="fc" id="L43">        this(UUID.randomUUID(), &quot;CART_CHECKED_OUT&quot;, Instant.now(),</span>
+<span class="fc" id="L44">             cartId, userId, recipientEmail, List.copyOf(items), total, shippingAddress,</span>
+             paymentMethod, deliveryType, couponCode);
+<span class="fc" id="L46">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

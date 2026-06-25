@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DigitalAccessRevokedEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.event</a> &gt; <span class="el_source">DigitalAccessRevokedEvent.java</span></div><h1>DigitalAccessRevokedEvent.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.event;
+
+import com.bookplus.order.domain.model.DomainEvent;
+import lombok.Getter;
+
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Se publica cuando se reembolsa un pedido DIGITAL. Consumido por catalog-service,
+ * que revoca el acceso del usuario a esos libros en su biblioteca (a diferencia del
+ * físico, donde no hay acceso digital que retirar). Así, devolver el dinero no deja
+ * al usuario con el libro: pérdida cero.
+ */
+@Getter
+public class DigitalAccessRevokedEvent implements DomainEvent {
+
+    private final String     orderId;
+    private final String     userId;
+    private final List&lt;Item&gt; items;
+    private final Instant    occurredOn;
+
+<span class="nc" id="L23">    public record Item(String bookId) {}</span>
+
+<span class="nc" id="L25">    public DigitalAccessRevokedEvent(String orderId, String userId, List&lt;Item&gt; items) {</span>
+<span class="nc" id="L26">        this.orderId    = orderId;</span>
+<span class="nc" id="L27">        this.userId     = userId;</span>
+<span class="nc" id="L28">        this.items      = List.copyOf(items);</span>
+<span class="nc" id="L29">        this.occurredOn = Instant.now();</span>
+<span class="nc" id="L30">    }</span>
+
+<span class="nc" id="L32">    @Override public String  aggregateId() { return orderId; }</span>
+<span class="nc" id="L33">    @Override public Instant occurredOn()  { return occurredOn; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

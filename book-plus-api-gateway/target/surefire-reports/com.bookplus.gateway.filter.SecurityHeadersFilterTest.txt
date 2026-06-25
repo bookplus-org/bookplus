@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.bookplus.gateway.filter.SecurityHeadersFilterTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.395 s -- in com.bookplus.gateway.filter.SecurityHeadersFilterTest

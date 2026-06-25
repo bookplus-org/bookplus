@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TwoLevelCacheAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.cache</a> &gt; <span class="el_source">TwoLevelCacheAdapter.java</span></div><h1>TwoLevelCacheAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.cache;
+
+import com.bookplus.catalog.domain.model.Book;
+import com.bookplus.catalog.domain.port.out.CachePort;
+import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
+
+import java.time.Duration;
+import java.util.Optional;
+
+/**
+ * Caché de dos niveles (near-cache) para el catálogo de libros.
+ *
+ * L1 = Caffeine, en memoria del proceso: rapidísimo (nanosegundos), sin red. Es la primera
+ * parada de cada lectura.
+ * L2 = Redis ({@link RedisCacheAdapter}): compartido entre réplicas, sobrevive a reinicios.
+ *
+ * Flujo de lectura: L1 → (fallo) L2 → (fallo) quien llame irá a la BD. Cada acierto en L2
+ * repuebla L1. Las escrituras y evicciones se propagan a ambos niveles para no servir datos
+ * obsoletos. Reduce drásticamente los viajes a Redis para los libros más consultados.
+ *
+ * Es @Primary: los casos de uso siguen inyectando {@link CachePort} y reciben esta versión;
+ * el adaptador Redis queda como L2 detrás.
+ */
+@PersistenceAdapter
+@Primary
+<span class="fc" id="L30">@Slf4j</span>
+public class TwoLevelCacheAdapter implements CachePort {
+
+    private final RedisCacheAdapter l2;
+    private final Cache&lt;String, Book&gt; l1;
+
+<span class="fc" id="L36">    public TwoLevelCacheAdapter(RedisCacheAdapter l2) {</span>
+<span class="fc" id="L37">        this.l2 = l2;</span>
+<span class="fc" id="L38">        this.l1 = Caffeine.newBuilder()</span>
+<span class="fc" id="L39">                .maximumSize(10_000)</span>
+<span class="fc" id="L40">                .expireAfterWrite(Duration.ofMinutes(5))</span>
+<span class="fc" id="L41">                .recordStats()</span>
+<span class="fc" id="L42">                .build();</span>
+<span class="fc" id="L43">    }</span>
+
+    @Override
+    public Optional&lt;Book&gt; getBook(String key) {
+<span class="fc" id="L47">        Book cached = l1.getIfPresent(key);</span>
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (cached != null) {</span>
+<span class="fc" id="L49">            return Optional.of(cached);              // acierto L1</span>
+        }
+<span class="fc" id="L51">        Optional&lt;Book&gt; fromL2 = l2.getBook(key);     // mira en Redis</span>
+<span class="fc" id="L52">        fromL2.ifPresent(book -&gt; l1.put(key, book)); // repuebla L1</span>
+<span class="fc" id="L53">        return fromL2;</span>
+    }
+
+    @Override
+    public void putBook(String key, Book book) {
+<span class="fc" id="L58">        l1.put(key, book);</span>
+<span class="fc" id="L59">        l2.putBook(key, book);</span>
+<span class="fc" id="L60">    }</span>
+
+    @Override
+    public void evictBook(String key) {
+<span class="fc" id="L64">        l1.invalidate(key);</span>
+<span class="fc" id="L65">        l2.evictBook(key);</span>
+<span class="fc" id="L66">    }</span>
+
+    @Override
+    public void evictByPattern(String pattern) {
+        // Caffeine no soporta evicción por patrón; ante un cambio amplio invalidamos todo L1
+        // (es local y se repuebla solo). Redis sí evicta por patrón con precisión.
+<span class="nc" id="L72">        l1.invalidateAll();</span>
+<span class="nc" id="L73">        l2.evictByPattern(pattern);</span>
+<span class="nc" id="L74">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

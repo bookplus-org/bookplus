@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderEventConsumer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.adapter.in.messaging</a> &gt; <span class="el_source">OrderEventConsumer.java</span></div><h1>OrderEventConsumer.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.adapter.in.messaging;
+
+import com.bookplus.inventory.domain.exception.StockNotFoundException;
+import com.bookplus.inventory.domain.model.BookId;
+import com.bookplus.inventory.domain.model.StockReservation;
+import com.bookplus.inventory.domain.port.in.AddStockUseCase;
+import com.bookplus.inventory.domain.port.in.AddStockUseCase.AddStockCommand;
+import com.bookplus.inventory.domain.port.in.ConfirmReservationUseCase;
+import com.bookplus.inventory.domain.port.in.ConfirmReservationUseCase.ConfirmReservationCommand;
+import com.bookplus.inventory.domain.port.in.InitializeStockUseCase;
+import com.bookplus.inventory.domain.port.in.InitializeStockUseCase.InitializeStockCommand;
+import com.bookplus.inventory.domain.port.in.ReleaseReservationUseCase;
+import com.bookplus.inventory.domain.port.in.ReleaseReservationUseCase.ReleaseReservationCommand;
+import com.bookplus.inventory.domain.port.in.ReserveStockUseCase;
+import com.bookplus.inventory.domain.port.in.ReserveStockUseCase.ReserveStockCommand;
+import com.bookplus.inventory.domain.port.out.LoadReservationPort;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Adapter IN — Kafka consumer del flujo de pedidos (saga de stock).
+ *
+ *   order.created            → reservar stock por cada ítem
+ *   order.payment.confirmed  → confirmar reserva (descuento definitivo)
+ *   order.cancelled          → liberar reserva
+ *
+ * Cada ítem se procesa de forma best-effort e idempotente: un fallo aislado
+ * (p. ej. sin stock o reserva inexistente) se registra sin abortar el resto.
+ */
+@Component
+@RequiredArgsConstructor
+<span class="nc" id="L40">@Slf4j</span>
+public class OrderEventConsumer {
+
+    private static final int DEFAULT_STOCK     = 1000;
+    private static final int LOW_STOCK_THRESHOLD = 10;
+
+    private final ReserveStockUseCase       reserveStockUseCase;
+    private final ConfirmReservationUseCase confirmReservationUseCase;
+    private final ReleaseReservationUseCase releaseReservationUseCase;
+    private final InitializeStockUseCase    initializeStockUseCase;
+    private final LoadReservationPort       loadReservationPort;
+    private final AddStockUseCase           addStockUseCase;
+
+    // ── order.created → reservar ───────────────────────────────────────────
+    @KafkaListener(
+            topics = &quot;order.created&quot;,
+            groupId = &quot;inventory-service&quot;,
+            containerFactory = &quot;kafkaListenerContainerFactory&quot;
+    )
+    public void onOrderCreated(ConsumerRecord&lt;String, Map&lt;String, Object&gt;&gt; record) {
+<span class="nc" id="L60">        Map&lt;String, Object&gt; payload = record.value();</span>
+<span class="nc" id="L61">        String orderId = asString(payload.get(&quot;orderId&quot;));</span>
+<span class="nc" id="L62">        String userId  = asString(payload.get(&quot;userId&quot;));</span>
+<span class="nc" id="L63">        log.info(&quot;Received order.created: orderId={} — reserving stock&quot;, orderId);</span>
+
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        for (Map&lt;String, Object&gt; item : items(payload)) {</span>
+<span class="nc" id="L66">            String bookId = asString(item.get(&quot;bookId&quot;));</span>
+<span class="nc" id="L67">            int    qty    = intOf(item.get(&quot;quantity&quot;));</span>
+            try {
+<span class="nc" id="L69">                reserveStockUseCase.reserve(new ReserveStockCommand(bookId, orderId, userId, qty));</span>
+<span class="nc" id="L70">            } catch (StockNotFoundException notFound) {</span>
+                // Demo convenience: catalog books may not have an inventory record yet.
+                // Initialize with a default stock and retry once so the saga proceeds.
+<span class="nc" id="L73">                log.info(&quot;No stock record for bookId={}; initializing with {} units&quot;, bookId, DEFAULT_STOCK);</span>
+                try {
+<span class="nc" id="L75">                    initializeStockUseCase.initialize(</span>
+                            new InitializeStockCommand(bookId, DEFAULT_STOCK, LOW_STOCK_THRESHOLD));
+<span class="nc" id="L77">                    reserveStockUseCase.reserve(new ReserveStockCommand(bookId, orderId, userId, qty));</span>
+<span class="nc" id="L78">                } catch (Exception retryEx) {</span>
+<span class="nc" id="L79">                    log.error(&quot;Could not reserve stock after init: orderId={} bookId={} — {}&quot;,</span>
+<span class="nc" id="L80">                            orderId, bookId, retryEx.getMessage());</span>
+<span class="nc" id="L81">                }</span>
+<span class="nc" id="L82">            } catch (Exception ex) {</span>
+<span class="nc" id="L83">                log.error(&quot;Could not reserve stock: orderId={} bookId={} qty={} — {}&quot;,</span>
+<span class="nc" id="L84">                        orderId, bookId, qty, ex.getMessage());</span>
+<span class="nc" id="L85">            }</span>
+<span class="nc" id="L86">        }</span>
+<span class="nc" id="L87">    }</span>
+
+    // ── order.payment.confirmed → confirmar reserva ────────────────────────
+    @KafkaListener(
+            topics = &quot;order.payment.confirmed&quot;,
+            groupId = &quot;inventory-service&quot;,
+            containerFactory = &quot;kafkaListenerContainerFactory&quot;
+    )
+    public void onPaymentConfirmed(ConsumerRecord&lt;String, Map&lt;String, Object&gt;&gt; record) {
+<span class="nc" id="L96">        Map&lt;String, Object&gt; payload = record.value();</span>
+<span class="nc" id="L97">        String orderId = asString(payload.get(&quot;orderId&quot;));</span>
+<span class="nc" id="L98">        log.info(&quot;Received order.payment.confirmed: orderId={} — confirming reservations&quot;, orderId);</span>
+
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        for (Map&lt;String, Object&gt; item : items(payload)) {</span>
+<span class="nc" id="L101">            String bookId = asString(item.get(&quot;bookId&quot;));</span>
+<span class="nc" id="L102">            Optional&lt;StockReservation&gt; reservation =</span>
+<span class="nc" id="L103">                    loadReservationPort.findByOrderIdAndBookId(orderId, BookId.of(bookId));</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            if (reservation.isEmpty()) {</span>
+<span class="nc" id="L105">                log.warn(&quot;No reservation to confirm: orderId={} bookId={}&quot;, orderId, bookId);</span>
+<span class="nc" id="L106">                continue;</span>
+            }
+            try {
+<span class="nc" id="L109">                confirmReservationUseCase.confirm(</span>
+<span class="nc" id="L110">                        new ConfirmReservationCommand(reservation.get().getId().toString(), orderId));</span>
+<span class="nc" id="L111">            } catch (Exception ex) {</span>
+<span class="nc" id="L112">                log.error(&quot;Could not confirm reservation: orderId={} bookId={} — {}&quot;,</span>
+<span class="nc" id="L113">                        orderId, bookId, ex.getMessage());</span>
+<span class="nc" id="L114">            }</span>
+<span class="nc" id="L115">        }</span>
+<span class="nc" id="L116">    }</span>
+
+    // ── order.cancelled → liberar reserva ──────────────────────────────────
+    @KafkaListener(
+            topics = &quot;order.cancelled&quot;,
+            groupId = &quot;inventory-service&quot;,
+            containerFactory = &quot;kafkaListenerContainerFactory&quot;
+    )
+    public void onOrderCancelled(ConsumerRecord&lt;String, Map&lt;String, Object&gt;&gt; record) {
+<span class="nc" id="L125">        Map&lt;String, Object&gt; payload = record.value();</span>
+<span class="nc" id="L126">        String orderId = asString(payload.get(&quot;orderId&quot;));</span>
+<span class="nc" id="L127">        String reason  = asString(payload.getOrDefault(&quot;reason&quot;, &quot;Order cancelled&quot;));</span>
+<span class="nc" id="L128">        log.info(&quot;Received order.cancelled: orderId={} — releasing reservations&quot;, orderId);</span>
+
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        for (Map&lt;String, Object&gt; item : items(payload)) {</span>
+<span class="nc" id="L131">            String bookId = asString(item.get(&quot;bookId&quot;));</span>
+<span class="nc" id="L132">            Optional&lt;StockReservation&gt; reservation =</span>
+<span class="nc" id="L133">                    loadReservationPort.findByOrderIdAndBookId(orderId, BookId.of(bookId));</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">            if (reservation.isEmpty()) {</span>
+<span class="nc" id="L135">                log.warn(&quot;No reservation to release: orderId={} bookId={}&quot;, orderId, bookId);</span>
+<span class="nc" id="L136">                continue;</span>
+            }
+            try {
+<span class="nc" id="L139">                releaseReservationUseCase.release(new ReleaseReservationCommand(</span>
+<span class="nc" id="L140">                        reservation.get().getId().toString(), orderId, reason));</span>
+<span class="nc" id="L141">            } catch (Exception ex) {</span>
+<span class="nc" id="L142">                log.error(&quot;Could not release reservation: orderId={} bookId={} — {}&quot;,</span>
+<span class="nc" id="L143">                        orderId, bookId, ex.getMessage());</span>
+<span class="nc" id="L144">            }</span>
+<span class="nc" id="L145">        }</span>
+<span class="nc" id="L146">    }</span>
+
+    // ── order.refunded → reponer stock (devolución revendible) ─────────────
+    @KafkaListener(
+            topics = &quot;order.refunded&quot;,
+            groupId = &quot;inventory-service&quot;,
+            containerFactory = &quot;kafkaListenerContainerFactory&quot;
+    )
+    public void onOrderRefunded(ConsumerRecord&lt;String, Map&lt;String, Object&gt;&gt; record) {
+<span class="nc" id="L155">        Map&lt;String, Object&gt; payload = record.value();</span>
+<span class="nc" id="L156">        String orderId = asString(payload.get(&quot;orderId&quot;));</span>
+<span class="nc" id="L157">        log.info(&quot;Received order.refunded: orderId={} — restocking items&quot;, orderId);</span>
+
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        for (Map&lt;String, Object&gt; item : items(payload)) {</span>
+<span class="nc" id="L160">            String bookId   = asString(item.get(&quot;bookId&quot;));</span>
+<span class="nc" id="L161">            int    quantity = intOf(item.get(&quot;quantity&quot;));</span>
+            try {
+<span class="nc" id="L163">                addStockUseCase.addStock(new AddStockCommand(</span>
+                        bookId, quantity, orderId, &quot;Reposición por devolución/reembolso&quot;));
+<span class="nc" id="L165">            } catch (Exception ex) {</span>
+<span class="nc" id="L166">                log.error(&quot;Could not restock on refund: orderId={} bookId={} — {}&quot;,</span>
+<span class="nc" id="L167">                        orderId, bookId, ex.getMessage());</span>
+<span class="nc" id="L168">            }</span>
+<span class="nc" id="L169">        }</span>
+<span class="nc" id="L170">    }</span>
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private static List&lt;Map&lt;String, Object&gt;&gt; items(Map&lt;String, Object&gt; payload) {
+<span class="nc" id="L176">        Object raw = payload.get(&quot;items&quot;);</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        return raw instanceof List ? (List&lt;Map&lt;String, Object&gt;&gt;) raw : Collections.emptyList();</span>
+    }
+
+    /** Value objects pueden serializarse como {&quot;value&quot;:&quot;...&quot;}; los aplanamos. */
+    private static String asString(Object o) {
+<span class="nc bnc" id="L182" title="All 4 branches missed.">        if (o instanceof Map&lt;?, ?&gt; m &amp;&amp; m.containsKey(&quot;value&quot;)) {</span>
+<span class="nc" id="L183">            return String.valueOf(m.get(&quot;value&quot;));</span>
+        }
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        return o == null ? null : o.toString();</span>
+    }
+
+    private static int intOf(Object o) {
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        return o instanceof Number n ? n.intValue() : Integer.parseInt(String.valueOf(o));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

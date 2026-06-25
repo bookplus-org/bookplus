@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderPersistenceMapper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.out.persistence</a> &gt; <span class="el_source">OrderPersistenceMapper.java</span></div><h1>OrderPersistenceMapper.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.out.persistence;
+
+import com.bookplus.order.adapter.out.persistence.entity.*;
+import com.bookplus.order.domain.model.*;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+@Component
+<span class="nc" id="L10">public class OrderPersistenceMapper {</span>
+
+    public Order toDomain(OrderEntity e) {
+<span class="nc" id="L13">        List&lt;OrderItem&gt; items = e.getItems().stream()</span>
+<span class="nc" id="L14">                .map(i -&gt; OrderItem.reconstitute(</span>
+<span class="nc" id="L15">                        i.getId(),</span>
+<span class="nc" id="L16">                        i.getBookId(),</span>
+<span class="nc" id="L17">                        i.getIsbn(),</span>
+<span class="nc" id="L18">                        i.getTitle(),</span>
+<span class="nc" id="L19">                        i.getImageUrl(),</span>
+<span class="nc" id="L20">                        Money.of(i.getUnitPrice(), i.getCurrency()),</span>
+<span class="nc" id="L21">                        i.getQuantity()</span>
+                ))
+<span class="nc" id="L23">                .toList();</span>
+
+<span class="nc" id="L25">        ShippingAddress address = new ShippingAddress(</span>
+<span class="nc" id="L26">                e.getShippingRecipientName(),</span>
+<span class="nc" id="L27">                e.getShippingStreet(),</span>
+<span class="nc" id="L28">                e.getShippingCity(),</span>
+<span class="nc" id="L29">                e.getShippingState(),</span>
+<span class="nc" id="L30">                e.getShippingPostalCode(),</span>
+<span class="nc" id="L31">                e.getShippingCountry()</span>
+        );
+
+<span class="nc" id="L34">        Order order = Order.reconstitute(</span>
+<span class="nc" id="L35">                OrderId.of(e.getId()),</span>
+<span class="nc" id="L36">                e.getUserId(),</span>
+<span class="nc" id="L37">                e.getCartId(),</span>
+<span class="nc" id="L38">                e.getStatus(),</span>
+                items,
+<span class="nc" id="L40">                Money.of(e.getTotalAmount(), e.getTotalCurrency()),</span>
+                address,
+<span class="nc" id="L42">                e.getPaymentMethod(),</span>
+<span class="nc" id="L43">                e.getDeliveryType(),</span>
+<span class="nc" id="L44">                e.getPaymentId(),</span>
+<span class="nc" id="L45">                e.getCarrier(),</span>
+<span class="nc" id="L46">                e.getTrackingNumber(),</span>
+<span class="nc" id="L47">                e.getDeliveryCode(),</span>
+<span class="nc" id="L48">                e.getReceivedBy(),</span>
+<span class="nc" id="L49">                e.getAssignedCourier(),</span>
+<span class="nc" id="L50">                e.getAssignedCourierName(),</span>
+<span class="nc" id="L51">                e.getClaimStatus(),</span>
+<span class="nc" id="L52">                e.getClaimReason(),</span>
+<span class="nc" id="L53">                e.getClaimResolution(),</span>
+<span class="nc" id="L54">                e.getCouponCode(),</span>
+<span class="nc" id="L55">                e.getDiscountAmount(),</span>
+<span class="nc" id="L56">                e.getCreatedAt(),</span>
+<span class="nc" id="L57">                e.getUpdatedAt(),</span>
+<span class="nc" id="L58">                e.getUserEmail()</span>
+        );
+<span class="nc" id="L60">        order.assignPersistenceVersion(e.getVersion());</span>
+<span class="nc" id="L61">        return order;</span>
+    }
+
+    public OrderEntity toEntity(Order order) {
+<span class="nc" id="L65">        OrderEntity entity = OrderEntity.builder()</span>
+<span class="nc" id="L66">                .id(order.getId().value())</span>
+<span class="nc" id="L67">                .version(order.getVersion())</span>
+<span class="nc" id="L68">                .userId(order.getUserId())</span>
+<span class="nc" id="L69">                .userEmail(order.getUserEmail())</span>
+<span class="nc" id="L70">                .cartId(order.getCartId())</span>
+<span class="nc" id="L71">                .status(order.getStatus())</span>
+<span class="nc" id="L72">                .totalAmount(order.getTotal().amount())</span>
+<span class="nc" id="L73">                .totalCurrency(order.getTotal().currency())</span>
+<span class="nc" id="L74">                .shippingRecipientName(order.getShippingAddress().recipientName())</span>
+<span class="nc" id="L75">                .shippingStreet(order.getShippingAddress().street())</span>
+<span class="nc" id="L76">                .shippingCity(order.getShippingAddress().city())</span>
+<span class="nc" id="L77">                .shippingState(order.getShippingAddress().state())</span>
+<span class="nc" id="L78">                .shippingPostalCode(order.getShippingAddress().postalCode())</span>
+<span class="nc" id="L79">                .shippingCountry(order.getShippingAddress().country())</span>
+<span class="nc" id="L80">                .paymentMethod(order.getPaymentMethod())</span>
+<span class="nc" id="L81">                .deliveryType(order.getDeliveryType())</span>
+<span class="nc" id="L82">                .paymentId(order.getPaymentId())</span>
+<span class="nc" id="L83">                .carrier(order.getCarrier())</span>
+<span class="nc" id="L84">                .trackingNumber(order.getTrackingNumber())</span>
+<span class="nc" id="L85">                .deliveryCode(order.getDeliveryCode())</span>
+<span class="nc" id="L86">                .receivedBy(order.getReceivedBy())</span>
+<span class="nc" id="L87">                .assignedCourier(order.getAssignedCourier())</span>
+<span class="nc" id="L88">                .assignedCourierName(order.getAssignedCourierName())</span>
+<span class="nc" id="L89">                .claimStatus(order.getClaimStatus())</span>
+<span class="nc" id="L90">                .claimReason(order.getClaimReason())</span>
+<span class="nc" id="L91">                .claimResolution(order.getClaimResolution())</span>
+<span class="nc" id="L92">                .couponCode(order.getCouponCode())</span>
+<span class="nc" id="L93">                .discountAmount(order.getDiscountAmount())</span>
+<span class="nc" id="L94">                .createdAt(order.getCreatedAt())</span>
+<span class="nc" id="L95">                .updatedAt(order.getUpdatedAt())</span>
+<span class="nc" id="L96">                .build();</span>
+
+<span class="nc" id="L98">        List&lt;OrderItemEntity&gt; itemEntities = order.getItems().stream()</span>
+<span class="nc" id="L99">                .map(i -&gt; OrderItemEntity.builder()</span>
+<span class="nc" id="L100">                        .id(i.getId())</span>
+<span class="nc" id="L101">                        .order(entity)</span>
+<span class="nc" id="L102">                        .bookId(i.getBookId())</span>
+<span class="nc" id="L103">                        .isbn(i.getIsbn())</span>
+<span class="nc" id="L104">                        .title(i.getTitle())</span>
+<span class="nc" id="L105">                        .imageUrl(i.getImageUrl())</span>
+<span class="nc" id="L106">                        .unitPrice(i.getUnitPrice().amount())</span>
+<span class="nc" id="L107">                        .currency(i.getUnitPrice().currency())</span>
+<span class="nc" id="L108">                        .quantity(i.getQuantity())</span>
+<span class="nc" id="L109">                        .build())</span>
+<span class="nc" id="L110">                .toList();</span>
+
+<span class="nc" id="L112">        entity.getItems().addAll(itemEntities);</span>
+<span class="nc" id="L113">        return entity;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

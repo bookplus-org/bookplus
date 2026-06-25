@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PiiCryptoKey.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.shared.crypto</a> &gt; <span class="el_source">PiiCryptoKey.java</span></div><h1>PiiCryptoKey.java</h1><pre class="source lang-java linenums">package com.bookplus.order.shared.crypto;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
+
+/**
+ * Proveedor de la clave AES para el cifrado de PII en reposo.
+ *
+ * La clave (32 bytes, Base64) se lee de la propiedad de sistema o variable de entorno
+ * {@code PII_ENCRYPTION_KEY} — en producción la sirve Vault. Si no está, cae a una clave de
+ * DESARROLLO (solo para tests/local; nunca usar en producción). Se carga de forma perezosa
+ * para permitir fijar la propiedad antes del primer uso.
+ */
+public final class PiiCryptoKey {
+
+    // Clave de desarrollo (32 bytes Base64). NO usar en producción.
+    private static final String DEV_KEY = &quot;Ym9va3BsdXMtZGV2LWFlczI1Ni1rZXktMzJieXRlcyE=&quot;;
+
+    private static volatile SecretKey key;
+
+    private PiiCryptoKey() {}
+
+    public static SecretKey get() {
+<span class="fc" id="L25">        SecretKey k = key;</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">        if (k == null) {</span>
+<span class="fc" id="L27">            synchronized (PiiCryptoKey.class) {</span>
+<span class="fc" id="L28">                k = key;</span>
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">                if (k == null) {</span>
+<span class="fc" id="L30">                    k = load();</span>
+<span class="fc" id="L31">                    key = k;</span>
+                }
+<span class="fc" id="L33">            }</span>
+        }
+<span class="fc" id="L35">        return k;</span>
+    }
+
+    private static SecretKey load() {
+<span class="fc" id="L39">        String b64 = System.getProperty(&quot;PII_ENCRYPTION_KEY&quot;);</span>
+<span class="pc bpc" id="L40" title="3 of 4 branches missed.">        if (b64 == null || b64.isBlank()) {</span>
+<span class="fc" id="L41">            b64 = System.getenv(&quot;PII_ENCRYPTION_KEY&quot;);</span>
+        }
+<span class="pc bpc" id="L43" title="3 of 4 branches missed.">        if (b64 == null || b64.isBlank()) {</span>
+<span class="fc" id="L44">            b64 = DEV_KEY; // fallback de desarrollo</span>
+        }
+<span class="fc" id="L46">        byte[] raw = Base64.getDecoder().decode(b64);</span>
+<span class="fc" id="L47">        return new SecretKeySpec(raw, &quot;AES&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

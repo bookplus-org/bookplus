@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StockPersistenceMapper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.adapter.out.persistence.mapper</a> &gt; <span class="el_source">StockPersistenceMapper.java</span></div><h1>StockPersistenceMapper.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.adapter.out.persistence.mapper;
+
+import com.bookplus.inventory.adapter.out.persistence.entity.*;
+import com.bookplus.inventory.domain.model.*;
+import org.springframework.stereotype.Component;
+
+@Component
+<span class="nc" id="L8">public class StockPersistenceMapper {</span>
+
+    public Stock toDomain(StockEntity e) {
+<span class="nc" id="L11">        Stock stock = Stock.reconstitute(</span>
+<span class="nc" id="L12">                StockId.of(e.getId()),</span>
+<span class="nc" id="L13">                BookId.of(e.getBookId()),</span>
+<span class="nc" id="L14">                e.getQuantityTotal(),</span>
+<span class="nc" id="L15">                e.getQuantityAvailable(),</span>
+<span class="nc" id="L16">                e.getQuantityReserved(),</span>
+<span class="nc" id="L17">                e.getLowStockThreshold(),</span>
+<span class="nc" id="L18">                e.getCreatedAt(),</span>
+<span class="nc" id="L19">                e.getUpdatedAt()</span>
+        );
+<span class="nc" id="L21">        stock.assignPersistenceVersion(e.getVersion());</span>
+<span class="nc" id="L22">        return stock;</span>
+    }
+
+    public StockEntity toEntity(Stock s) {
+<span class="nc" id="L26">        return StockEntity.builder()</span>
+<span class="nc" id="L27">                .id(s.getId().value())</span>
+<span class="nc" id="L28">                .version(s.getVersion())</span>
+<span class="nc" id="L29">                .bookId(s.getBookId().value())</span>
+<span class="nc" id="L30">                .quantityTotal(s.getQuantityTotal())</span>
+<span class="nc" id="L31">                .quantityAvailable(s.getQuantityAvailable())</span>
+<span class="nc" id="L32">                .quantityReserved(s.getQuantityReserved())</span>
+<span class="nc" id="L33">                .lowStockThreshold(s.getLowStockThreshold())</span>
+<span class="nc" id="L34">                .createdAt(s.getCreatedAt())</span>
+<span class="nc" id="L35">                .updatedAt(s.getUpdatedAt())</span>
+<span class="nc" id="L36">                .build();</span>
+    }
+
+    public StockReservation toDomain(StockReservationEntity e) {
+<span class="nc" id="L40">        return StockReservation.reconstitute(</span>
+<span class="nc" id="L41">                ReservationId.of(e.getId()),</span>
+<span class="nc" id="L42">                BookId.of(e.getBookId()),</span>
+<span class="nc" id="L43">                e.getOrderId(),</span>
+<span class="nc" id="L44">                e.getUserId(),</span>
+<span class="nc" id="L45">                e.getQuantity(),</span>
+<span class="nc" id="L46">                e.getStatus(),</span>
+<span class="nc" id="L47">                e.getCreatedAt(),</span>
+<span class="nc" id="L48">                e.getExpiresAt(),</span>
+<span class="nc" id="L49">                e.getResolvedAt()</span>
+        );
+    }
+
+    public StockReservationEntity toEntity(StockReservation r) {
+<span class="nc" id="L54">        return StockReservationEntity.builder()</span>
+<span class="nc" id="L55">                .id(r.getId().value())</span>
+<span class="nc" id="L56">                .bookId(r.getBookId().value())</span>
+<span class="nc" id="L57">                .orderId(r.getOrderId())</span>
+<span class="nc" id="L58">                .userId(r.getUserId())</span>
+<span class="nc" id="L59">                .quantity(r.getQuantity())</span>
+<span class="nc" id="L60">                .status(r.getStatus())</span>
+<span class="nc" id="L61">                .createdAt(r.getCreatedAt())</span>
+<span class="nc" id="L62">                .expiresAt(r.getExpiresAt())</span>
+<span class="nc" id="L63">                .resolvedAt(r.getResolvedAt())</span>
+<span class="nc" id="L64">                .build();</span>
+    }
+
+    public StockMovement toDomain(StockMovementEntity e) {
+<span class="nc" id="L68">        return StockMovement.reconstitute(</span>
+<span class="nc" id="L69">                MovementId.of(e.getId()),</span>
+<span class="nc" id="L70">                BookId.of(e.getBookId()),</span>
+<span class="nc" id="L71">                e.getType(),</span>
+<span class="nc" id="L72">                e.getQuantity(),</span>
+<span class="nc" id="L73">                e.getStockBefore(),</span>
+<span class="nc" id="L74">                e.getStockAfter(),</span>
+<span class="nc" id="L75">                e.getReferenceId(),</span>
+<span class="nc" id="L76">                e.getNotes(),</span>
+<span class="nc" id="L77">                e.getOccurredAt()</span>
+        );
+    }
+
+    public StockMovementEntity toEntity(StockMovement m) {
+<span class="nc" id="L82">        return StockMovementEntity.builder()</span>
+<span class="nc" id="L83">                .id(m.getId().value())</span>
+<span class="nc" id="L84">                .bookId(m.getBookId().value())</span>
+<span class="nc" id="L85">                .type(m.getType())</span>
+<span class="nc" id="L86">                .quantity(m.getQuantity())</span>
+<span class="nc" id="L87">                .stockBefore(m.getStockBefore())</span>
+<span class="nc" id="L88">                .stockAfter(m.getStockAfter())</span>
+<span class="nc" id="L89">                .referenceId(m.getReferenceId())</span>
+<span class="nc" id="L90">                .notes(m.getNotes())</span>
+<span class="nc" id="L91">                .occurredAt(m.getOccurredAt())</span>
+<span class="nc" id="L92">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

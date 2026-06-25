@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AddItemToCartUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.application.usecase</a> &gt; <span class="el_source">AddItemToCartUseCaseImpl.java</span></div><h1>AddItemToCartUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.application.usecase;
+
+import com.bookplus.cart.domain.model.*;
+import com.bookplus.cart.domain.port.in.AddItemToCartUseCase;
+import com.bookplus.cart.domain.port.out.*;
+import com.bookplus.cart.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+<span class="fc" id="L10">@UseCase @RequiredArgsConstructor @Slf4j</span>
+public class AddItemToCartUseCaseImpl implements AddItemToCartUseCase {
+
+    private final LoadCartPort             loadCartPort;
+    private final SaveCartPort             saveCartPort;
+    private final DomainEventPublisherPort eventPublisher;
+
+    @Override
+    public Cart addItem(AddItemCommand command) {
+<span class="fc" id="L19">        log.debug(&quot;Adding item to cart: userId={} bookId={} qty={}&quot;,</span>
+<span class="fc" id="L20">                command.userId(), command.bookId(), command.quantity());</span>
+
+        // Cargar o crear carrito
+<span class="fc" id="L23">        Cart cart = loadCartPort.findByUserId(command.userId())</span>
+<span class="fc" id="L24">                .orElseGet(() -&gt; Cart.createFor(command.userId()));</span>
+
+<span class="fc" id="L26">        Money unitPrice = command.unitPrice();</span>
+
+<span class="fc" id="L28">        cart.addItem(</span>
+<span class="fc" id="L29">                BookId.of(command.bookId()),</span>
+<span class="fc" id="L30">                command.title(),</span>
+<span class="fc" id="L31">                command.imageUrl(),</span>
+<span class="fc" id="L32">                command.isbn(),</span>
+<span class="fc" id="L33">                command.quantity(),</span>
+                unitPrice
+        );
+
+<span class="fc" id="L37">        Cart saved = saveCartPort.save(cart);</span>
+
+        try {
+<span class="fc" id="L40">            eventPublisher.publishAll(cart.pullDomainEvents());</span>
+<span class="fc" id="L41">        } catch (Exception ex) {</span>
+<span class="fc" id="L42">            log.warn(&quot;Failed to publish CartItemAddedEvent: {}&quot;, ex.getMessage());</span>
+<span class="fc" id="L43">        }</span>
+
+<span class="fc" id="L45">        return saved;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

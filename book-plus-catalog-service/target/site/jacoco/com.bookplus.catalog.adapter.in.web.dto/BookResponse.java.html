@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web.dto</a> &gt; <span class="el_source">BookResponse.java</span></div><h1>BookResponse.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web.dto;
+
+import com.bookplus.catalog.domain.model.Book;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+
+/** DTO de respuesta completo para un libro (detalle). */
+<span class="nc" id="L10">public record BookResponse(</span>
+        String      id,
+        String      isbn,
+        String      title,
+        String      slug,
+        String      author,
+        String      description,
+        BigDecimal  price,
+        String      currency,
+        BigDecimal  discountPrice,
+        boolean     hasDiscount,
+        String      imageUrl,
+        String      previewUrl,
+        String      publisher,
+        LocalDate   publishedDate,
+        String      language,
+        Integer     pages,
+        String      categoryId,
+        boolean     active,
+        boolean     inStock,
+        int         stockSnapshot,
+        BigDecimal  averageRating,
+        int         reviewCount,
+        Instant     createdAt,
+        Instant     updatedAt
+) {
+    public static BookResponse from(Book book) {
+<span class="nc" id="L37">        return new BookResponse(</span>
+<span class="nc" id="L38">                book.getId().value().toString(),</span>
+<span class="nc" id="L39">                book.getIsbn().value(),</span>
+<span class="nc" id="L40">                book.getTitle(),</span>
+<span class="nc" id="L41">                book.getSlug().value(),</span>
+<span class="nc" id="L42">                book.getAuthor(),</span>
+<span class="nc" id="L43">                book.getDescription(),</span>
+<span class="nc" id="L44">                book.getPrice().amount(),</span>
+<span class="nc" id="L45">                book.getPrice().currency(),</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">                book.getDiscountPrice() != null ? book.getDiscountPrice().amount() : null,</span>
+<span class="nc" id="L47">                book.hasDiscount(),</span>
+<span class="nc" id="L48">                book.getImageUrl(),</span>
+<span class="nc" id="L49">                book.getPreviewUrl(),</span>
+<span class="nc" id="L50">                book.getPublisher(),</span>
+<span class="nc" id="L51">                book.getPublishedDate(),</span>
+<span class="nc" id="L52">                book.getLanguage(),</span>
+<span class="nc" id="L53">                book.getPages(),</span>
+<span class="nc" id="L54">                book.getCategoryId().value().toString(),</span>
+<span class="nc" id="L55">                book.isActive(),</span>
+<span class="nc" id="L56">                book.isInStock(),</span>
+<span class="nc" id="L57">                book.getStockSnapshot(),</span>
+<span class="nc" id="L58">                book.getAverageRating(),</span>
+<span class="nc" id="L59">                book.getReviewCount(),</span>
+<span class="nc" id="L60">                book.getCreatedAt(),</span>
+<span class="nc" id="L61">                book.getUpdatedAt()</span>
+        );
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

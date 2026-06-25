@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FavoritesController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web</a> &gt; <span class="el_source">FavoritesController.java</span></div><h1>FavoritesController.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web;
+
+import com.bookplus.catalog.adapter.in.web.dto.BookResponse;
+import com.bookplus.catalog.adapter.out.persistence.entity.UserFavoriteEntity;
+import com.bookplus.catalog.adapter.out.persistence.repository.UserFavoriteJpaRepository;
+import com.bookplus.catalog.domain.model.BookId;
+import com.bookplus.catalog.domain.port.out.LoadBookPort;
+import com.bookplus.catalog.shared.web.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Favoritos / lista de deseos del usuario autenticado.
+ * Ruta en el gateway: /api/v1/favorites/** → catalog-service (requiere auth).
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/favorites&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Favorites&quot;, description = &quot;User wishlist&quot;)
+@SecurityRequirement(name = &quot;bearerAuth&quot;)
+public class FavoritesController {
+
+    private final UserFavoriteJpaRepository favoriteRepo;
+    private final LoadBookPort              loadBookPort;
+
+    @GetMapping
+    @Operation(summary = &quot;List my favorite books&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;List&lt;BookResponse&gt;&gt;&gt; myFavorites(@AuthenticationPrincipal Jwt jwt) {
+<span class="nc" id="L39">        List&lt;BookResponse&gt; books = favoriteRepo.findByUserIdOrderByCreatedAtDesc(jwt.getSubject())</span>
+<span class="nc" id="L40">                .stream()</span>
+<span class="nc" id="L41">                .map(fav -&gt; loadBookPort.findById(BookId.of(fav.getBookId().toString())).orElse(null))</span>
+<span class="nc" id="L42">                .filter(java.util.Objects::nonNull)</span>
+<span class="nc" id="L43">                .map(BookResponse::from)</span>
+<span class="nc" id="L44">                .toList();</span>
+<span class="nc" id="L45">        return ResponseEntity.ok(ApiResponse.ok(books));</span>
+    }
+
+    @GetMapping(&quot;/ids&quot;)
+    @Operation(summary = &quot;List my favorite book ids&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;List&lt;String&gt;&gt;&gt; myFavoriteIds(@AuthenticationPrincipal Jwt jwt) {
+<span class="nc" id="L51">        List&lt;String&gt; ids = favoriteRepo.findByUserIdOrderByCreatedAtDesc(jwt.getSubject())</span>
+<span class="nc" id="L52">                .stream().map(f -&gt; f.getBookId().toString()).toList();</span>
+<span class="nc" id="L53">        return ResponseEntity.ok(ApiResponse.ok(ids));</span>
+    }
+
+    @PutMapping(&quot;/{bookId}&quot;)
+    @Operation(summary = &quot;Add a book to favorites (idempotent)&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; add(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID bookId) {
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (!favoriteRepo.existsByUserIdAndBookId(jwt.getSubject(), bookId)) {</span>
+<span class="nc" id="L61">            favoriteRepo.save(UserFavoriteEntity.builder()</span>
+<span class="nc" id="L62">                    .userId(jwt.getSubject()).bookId(bookId).createdAt(Instant.now()).build());</span>
+        }
+<span class="nc" id="L64">        return ResponseEntity.ok(ApiResponse.ok(&quot;Añadido a favoritos&quot;));</span>
+    }
+
+    @DeleteMapping(&quot;/{bookId}&quot;)
+    @Operation(summary = &quot;Remove a book from favorites&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; remove(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID bookId) {
+<span class="nc" id="L71">        favoriteRepo.deleteByUserIdAndBookId(jwt.getSubject(), bookId);</span>
+<span class="nc" id="L72">        return ResponseEntity.ok(ApiResponse.ok(&quot;Eliminado de favoritos&quot;));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

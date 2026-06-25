@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CustomRevisionEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.out.persistence.entity</a> &gt; <span class="el_source">CustomRevisionEntity.java</span></div><h1>CustomRevisionEntity.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.out.persistence.entity;
+
+import jakarta.persistence.*;
+import org.hibernate.envers.RevisionEntity;
+import org.hibernate.envers.RevisionNumber;
+import org.hibernate.envers.RevisionTimestamp;
+
+/**
+ * Entidad de revisión de Hibernate Envers.
+ *
+ * Definimos la nuestra (en vez de la DefaultRevisionEntity) para controlar de forma
+ * determinista el esquema — nombre de tabla ({@code revinfo}) y de secuencia
+ * ({@code revinfo_seq}) — de modo que la migración Flyway case exactamente con lo que
+ * Hibernate espera (clave para arrancar con {@code ddl-auto: validate}).
+ *
+ * Cada operación de escritura sobre una entidad auditada genera una fila aquí (un &quot;punto
+ * en el tiempo&quot;) y las filas de detalle en las tablas {@code *_aud}. Tener nuestra propia
+ * entidad deja además la puerta abierta a enriquecer la revisión (p. ej. el usuario que
+ * hizo el cambio) más adelante.
+ */
+@Entity
+@Table(name = &quot;revinfo&quot;)
+@RevisionEntity
+<span class="nc" id="L24">public class CustomRevisionEntity {</span>
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = &quot;revinfo_gen&quot;)
+    @SequenceGenerator(name = &quot;revinfo_gen&quot;, sequenceName = &quot;revinfo_seq&quot;, allocationSize = 1)
+    @RevisionNumber
+    @Column(name = &quot;rev&quot;)
+    private int rev;
+
+    @RevisionTimestamp
+    @Column(name = &quot;revtstmp&quot;)
+    private long timestamp;
+
+<span class="nc" id="L37">    public int getRev() { return rev; }</span>
+<span class="nc" id="L38">    public void setRev(int rev) { this.rev = rev; }</span>
+
+<span class="nc" id="L40">    public long getTimestamp() { return timestamp; }</span>
+<span class="nc" id="L41">    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

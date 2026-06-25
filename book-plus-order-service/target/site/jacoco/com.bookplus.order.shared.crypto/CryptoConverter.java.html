@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CryptoConverter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.shared.crypto</a> &gt; <span class="el_source">CryptoConverter.java</span></div><h1>CryptoConverter.java</h1><pre class="source lang-java linenums">package com.bookplus.order.shared.crypto;
+
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
+
+/**
+ * Cifra/descifra atributos de texto (PII) de forma transparente al persistir/leer en JPA.
+ *
+ * Usa AES-256-GCM (cifrado autenticado): cada valor se cifra con un IV aleatorio que se
+ * antepone al texto cifrado y todo se guarda en Base64. GCM detecta además cualquier
+ * manipulación del dato en reposo. Aplicado con {@code @Convert} a campos sensibles.
+ */
+@Converter
+<span class="fc" id="L21">public class CryptoConverter implements AttributeConverter&lt;String, String&gt; {</span>
+
+    private static final String TRANSFORMATION = &quot;AES/GCM/NoPadding&quot;;
+    private static final int IV_LENGTH = 12;     // 96 bits, recomendado para GCM
+    private static final int TAG_LENGTH_BITS = 128;
+<span class="fc" id="L26">    private static final SecureRandom RANDOM = new SecureRandom();</span>
+
+    @Override
+    public String convertToDatabaseColumn(String attribute) {
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (attribute == null) return null;</span>
+        try {
+<span class="fc" id="L32">            byte[] iv = new byte[IV_LENGTH];</span>
+<span class="fc" id="L33">            RANDOM.nextBytes(iv);</span>
+<span class="fc" id="L34">            Cipher cipher = Cipher.getInstance(TRANSFORMATION);</span>
+<span class="fc" id="L35">            cipher.init(Cipher.ENCRYPT_MODE, PiiCryptoKey.get(), new GCMParameterSpec(TAG_LENGTH_BITS, iv));</span>
+<span class="fc" id="L36">            byte[] cipherText = cipher.doFinal(attribute.getBytes(StandardCharsets.UTF_8));</span>
+<span class="fc" id="L37">            byte[] payload = ByteBuffer.allocate(iv.length + cipherText.length)</span>
+<span class="fc" id="L38">                    .put(iv).put(cipherText).array();</span>
+<span class="fc" id="L39">            return Base64.getEncoder().encodeToString(payload);</span>
+<span class="nc" id="L40">        } catch (Exception e) {</span>
+<span class="nc" id="L41">            throw new IllegalStateException(&quot;Error cifrando PII&quot;, e);</span>
+        }
+    }
+
+    @Override
+    public String convertToEntityAttribute(String dbData) {
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (dbData == null) return null;</span>
+        try {
+<span class="fc" id="L49">            byte[] payload = Base64.getDecoder().decode(dbData);</span>
+<span class="fc" id="L50">            ByteBuffer buffer = ByteBuffer.wrap(payload);</span>
+<span class="fc" id="L51">            byte[] iv = new byte[IV_LENGTH];</span>
+<span class="fc" id="L52">            buffer.get(iv);</span>
+<span class="fc" id="L53">            byte[] cipherText = new byte[buffer.remaining()];</span>
+<span class="fc" id="L54">            buffer.get(cipherText);</span>
+<span class="fc" id="L55">            Cipher cipher = Cipher.getInstance(TRANSFORMATION);</span>
+<span class="fc" id="L56">            cipher.init(Cipher.DECRYPT_MODE, PiiCryptoKey.get(), new GCMParameterSpec(TAG_LENGTH_BITS, iv));</span>
+<span class="fc" id="L57">            return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);</span>
+<span class="fc" id="L58">        } catch (Exception e) {</span>
+<span class="fc" id="L59">            throw new IllegalStateException(&quot;Error descifrando PII&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

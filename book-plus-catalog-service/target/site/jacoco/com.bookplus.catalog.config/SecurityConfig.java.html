@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.config</a> &gt; <span class="el_source">SecurityConfig.java</span></div><h1>SecurityConfig.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
+/**
+ * Seguridad del catalog-service.
+ *
+ * Estrategia: Resource Server OAuth2 / JWT (RS256).
+ * El catalog-service valida el token JWT usando la clave pública del auth-service.
+ *
+ * Rutas públicas (GET): libros, categorías, búsqueda, reseñas
+ * Rutas protegidas: POST reseñas (cualquier usuario autenticado)
+ * Rutas admin: /api/v1/admin/** (EDITOR / ADMIN / SUPERADMIN)
+ */
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+<span class="nc" id="L36">public class SecurityConfig {</span>
+
+    @Value(&quot;${security.jwt.public-key-base64:}&quot;)
+    private String publicKeyBase64;
+
+    // ── JWT Decoder (RS256) ───────────────────────────────────────────────
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+<span class="nc bnc" id="L45" title="All 4 branches missed.">        if (publicKeyBase64 == null || publicKeyBase64.isBlank()) {</span>
+            // Dev mode: use auth-service JWKS endpoint via issuer-uri (spring auto-config)
+            // This bean won't override spring.security.oauth2.resourceserver.jwt.issuer-uri
+<span class="nc" id="L48">            throw new IllegalStateException(</span>
+                    &quot;JWT public key not configured. &quot; +
+                    &quot;Set CATALOG_JWT_PUBLIC_KEY_BASE64 or configure issuer-uri.&quot;);
+        }
+        try {
+<span class="nc" id="L53">            byte[] decoded = java.util.Base64.getDecoder().decode(publicKeyBase64);</span>
+<span class="nc" id="L54">            java.security.KeyFactory kf = java.security.KeyFactory.getInstance(&quot;RSA&quot;);</span>
+<span class="nc" id="L55">            java.security.spec.X509EncodedKeySpec spec =</span>
+                    new java.security.spec.X509EncodedKeySpec(decoded);
+<span class="nc" id="L57">            java.security.interfaces.RSAPublicKey publicKey =</span>
+<span class="nc" id="L58">                    (java.security.interfaces.RSAPublicKey) kf.generatePublic(spec);</span>
+<span class="nc" id="L59">            return NimbusJwtDecoder.withPublicKey(publicKey).build();</span>
+<span class="nc" id="L60">        } catch (Exception ex) {</span>
+<span class="nc" id="L61">            throw new IllegalStateException(&quot;Failed to load JWT public key&quot;, ex);</span>
+        }
+    }
+
+    // ── Roles claim converter ─────────────────────────────────────────────
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+<span class="nc" id="L69">        JwtGrantedAuthoritiesConverter grantedConverter = new JwtGrantedAuthoritiesConverter();</span>
+<span class="nc" id="L70">        grantedConverter.setAuthoritiesClaimName(&quot;roles&quot;);</span>
+        // El claim &quot;roles&quot; ya incluye el prefijo ROLE_ (p. ej. ROLE_SUPERADMIN),
+        // así que no debemos volver a anteponerlo (evita ROLE_ROLE_SUPERADMIN).
+<span class="nc" id="L73">        grantedConverter.setAuthorityPrefix(&quot;&quot;);</span>
+
+<span class="nc" id="L75">        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();</span>
+<span class="nc" id="L76">        converter.setJwtGrantedAuthoritiesConverter(grantedConverter);</span>
+<span class="nc" id="L77">        return converter;</span>
+    }
+
+    // ── Security Filter Chain ─────────────────────────────────────────────
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+<span class="nc" id="L84">        return http</span>
+<span class="nc" id="L85">                .csrf(AbstractHttpConfigurer::disable)</span>
+<span class="nc" id="L86">                .cors(cors -&gt; cors.configurationSource(corsConfigurationSource()))</span>
+<span class="nc" id="L87">                .sessionManagement(sm -&gt; sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
+<span class="nc" id="L88">                .authorizeHttpRequests(auth -&gt; auth</span>
+                        // Public read endpoints
+<span class="nc" id="L90">                        .requestMatchers(HttpMethod.GET, &quot;/api/v1/books/**&quot;).permitAll()</span>
+<span class="nc" id="L91">                        .requestMatchers(HttpMethod.GET, &quot;/api/v1/categories/**&quot;).permitAll()</span>
+                        // OpenAPI / Actuator
+<span class="nc" id="L93">                        .requestMatchers(&quot;/v3/api-docs/**&quot;, &quot;/swagger-ui/**&quot;,</span>
+<span class="nc" id="L94">                                         &quot;/swagger-ui.html&quot;, &quot;/actuator/health&quot;).permitAll()</span>
+                        // Admin
+<span class="nc" id="L96">                        .requestMatchers(&quot;/api/v1/admin/**&quot;)</span>
+<span class="nc" id="L97">                            .hasAnyRole(&quot;EDITOR&quot;, &quot;ADMIN&quot;, &quot;SUPERADMIN&quot;)</span>
+                        // Authenticated for POST reviews
+<span class="nc" id="L99">                        .anyRequest().authenticated()</span>
+                )
+<span class="nc" id="L101">                .oauth2ResourceServer(oauth2 -&gt; oauth2</span>
+<span class="nc" id="L102">                        .jwt(jwt -&gt; jwt</span>
+<span class="nc" id="L103">                                .jwtAuthenticationConverter(jwtAuthenticationConverter())))</span>
+<span class="nc" id="L104">                .build();</span>
+    }
+
+    // ── CORS ──────────────────────────────────────────────────────────────
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+<span class="nc" id="L111">        CorsConfiguration config = new CorsConfiguration();</span>
+<span class="nc" id="L112">        config.setAllowedOriginPatterns(List.of(&quot;http://localhost:*&quot;, &quot;http://127.0.0.1:*&quot;));</span>
+<span class="nc" id="L113">        config.setAllowedMethods(List.of(&quot;GET&quot;, &quot;POST&quot;, &quot;PUT&quot;, &quot;DELETE&quot;, &quot;OPTIONS&quot;));</span>
+<span class="nc" id="L114">        config.setAllowedHeaders(List.of(&quot;*&quot;));</span>
+<span class="nc" id="L115">        config.setAllowCredentials(true);</span>
+<span class="nc" id="L116">        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();</span>
+<span class="nc" id="L117">        source.registerCorsConfiguration(&quot;/**&quot;, config);</span>
+<span class="nc" id="L118">        return source;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

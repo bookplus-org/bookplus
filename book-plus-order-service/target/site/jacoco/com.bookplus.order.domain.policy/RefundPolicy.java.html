@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefundPolicy.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.policy</a> &gt; <span class="el_source">RefundPolicy.java</span></div><h1>RefundPolicy.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.policy;
+
+/**
+ * Política de reembolsos de la tienda. Encapsula la regla de negocio que evita la
+ * pérdida en productos digitales (el clásico &quot;leer y pedir reembolso&quot;).
+ *
+ * Reglas:
+ * &lt;ol&gt;
+ *   &lt;li&gt;&lt;b&gt;Override de admin&lt;/b&gt; → siempre CASH (cobro doble, compra duplicada,
+ *       archivo corrupto, etc.; son excepciones que el admin autoriza explícitamente).&lt;/li&gt;
+ *   &lt;li&gt;&lt;b&gt;Físico&lt;/b&gt; → CASH. El control de pérdida se hace con la reposición de stock
+ *       (restock) solo si el artículo vuelve revendible; eso se decide aparte.&lt;/li&gt;
+ *   &lt;li&gt;&lt;b&gt;Digital fuera de la ventana&lt;/b&gt; → DENY.&lt;/li&gt;
+ *   &lt;li&gt;&lt;b&gt;Digital dentro de la ventana y SIN consumir&lt;/b&gt; (nunca descargado, o progreso
+ *       por debajo del umbral) → CASH. Al reembolsar se revoca el acceso, por lo que no
+ *       hay pérdida: el cliente no se queda con el libro.&lt;/li&gt;
+ *   &lt;li&gt;&lt;b&gt;Digital dentro de la ventana pero YA consumido&lt;/b&gt; → STORE_CREDIT. No procede
+ *       efectivo (ya leyó el libro), pero se ofrece crédito en tienda como gesto comercial
+ *       que mantiene el dinero en el ecosistema.&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * Inmutable y sin dependencias: es un value object de dominio, fácil de testear.
+ */
+public final class RefundPolicy {
+
+    /** Días desde la compra durante los que un digital es elegible (estilo Kindle/Google Play). */
+    private final int windowDays;
+    /** Umbral de lectura (%) a partir del cual se considera &quot;consumido&quot;. */
+    private final int progressThresholdPercent;
+
+<span class="fc" id="L31">    public RefundPolicy(int windowDays, int progressThresholdPercent) {</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        if (windowDays &lt; 0)</span>
+<span class="fc" id="L33">            throw new IllegalArgumentException(&quot;windowDays no puede ser negativo&quot;);</span>
+<span class="pc bpc" id="L34" title="1 of 4 branches missed.">        if (progressThresholdPercent &lt; 0 || progressThresholdPercent &gt; 100)</span>
+<span class="fc" id="L35">            throw new IllegalArgumentException(&quot;progressThresholdPercent debe estar entre 0 y 100&quot;);</span>
+<span class="fc" id="L36">        this.windowDays = windowDays;</span>
+<span class="fc" id="L37">        this.progressThresholdPercent = progressThresholdPercent;</span>
+<span class="fc" id="L38">    }</span>
+
+    /** Política por defecto: 7 días de ventana, 20% de lectura como umbral de consumo. */
+    public static RefundPolicy defaults() {
+<span class="fc" id="L42">        return new RefundPolicy(7, 20);</span>
+    }
+
+    public RefundDecision decide(RefundContext ctx) {
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (ctx.adminOverride()) {</span>
+<span class="fc" id="L47">            return RefundDecision.cash(&quot;Reembolso autorizado por administración (excepción)&quot;);</span>
+        }
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (ctx.isPhysical()) {</span>
+<span class="fc" id="L50">            return RefundDecision.cash(&quot;Producto físico: reembolso al recibir la devolución del artículo&quot;);</span>
+        }
+
+        // A partir de aquí: producto digital.
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (ctx.daysSincePurchase() &gt; windowDays) {</span>
+<span class="fc" id="L55">            return RefundDecision.deny(</span>
+                    &quot;Fuera de la ventana de &quot; + windowDays + &quot; días para reembolso de productos digitales&quot;);
+        }
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        if (!isConsumed(ctx)) {</span>
+<span class="fc" id="L59">            return RefundDecision.cash(</span>
+                    &quot;Digital sin consumir dentro de la ventana de &quot; + windowDays + &quot; días: se reembolsa y se revoca el acceso&quot;);
+        }
+<span class="fc" id="L62">        return RefundDecision.storeCredit(</span>
+                &quot;Digital ya consumido (lectura ≥ &quot; + progressThresholdPercent
+                        + &quot;%): no procede efectivo, se ofrece crédito en tienda&quot;);
+    }
+
+    private boolean isConsumed(RefundContext ctx) {
+<span class="fc bfc" id="L68" title="All 4 branches covered.">        return ctx.downloaded() &amp;&amp; ctx.readProgressPercent() &gt;= progressThresholdPercent;</span>
+    }
+
+<span class="nc" id="L71">    public int windowDays()               { return windowDays; }</span>
+<span class="nc" id="L72">    public int progressThresholdPercent() { return progressThresholdPercent; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

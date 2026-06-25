@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefreshTokenPersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.adapter.out.persistence</a> &gt; <span class="el_source">RefreshTokenPersistenceAdapter.java</span></div><h1>RefreshTokenPersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.adapter.out.persistence;
+
+import com.bookplus.auth.adapter.out.persistence.entity.RefreshTokenEntity;
+import com.bookplus.auth.adapter.out.persistence.repository.RefreshTokenJpaRepository;
+import com.bookplus.auth.domain.model.RefreshToken;
+import com.bookplus.auth.domain.model.UserId;
+import com.bookplus.auth.domain.port.out.LoadRefreshTokenPort;
+import com.bookplus.auth.domain.port.out.SaveRefreshTokenPort;
+import com.bookplus.auth.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+
+import java.util.Optional;
+
+@PersistenceAdapter
+@RequiredArgsConstructor
+public class RefreshTokenPersistenceAdapter implements LoadRefreshTokenPort, SaveRefreshTokenPort {
+
+    private final RefreshTokenJpaRepository repository;
+
+    @Override
+    public Optional&lt;RefreshToken&gt; findByTokenHash(String tokenHash) {
+<span class="nc" id="L22">        return repository.findByTokenHash(tokenHash).map(this::toDomain);</span>
+    }
+
+    @Override
+    public void revokeAllByUserId(UserId userId) {
+<span class="nc" id="L27">        repository.revokeAllByUserId(userId.value());</span>
+<span class="nc" id="L28">    }</span>
+
+    @Override
+    public RefreshToken save(RefreshToken token) {
+<span class="nc" id="L32">        RefreshTokenEntity entity = toEntity(token);</span>
+<span class="nc" id="L33">        return toDomain(repository.save(entity));</span>
+    }
+
+    @Override
+    public void update(RefreshToken token) {
+<span class="nc" id="L38">        repository.findById(token.getId()).ifPresent(entity -&gt; {</span>
+<span class="nc" id="L39">            entity.setRevoked(token.isRevoked());</span>
+<span class="nc" id="L40">            repository.save(entity);</span>
+<span class="nc" id="L41">        });</span>
+<span class="nc" id="L42">    }</span>
+
+    private RefreshToken toDomain(RefreshTokenEntity e) {
+<span class="nc" id="L45">        return RefreshToken.reconstitute(</span>
+<span class="nc" id="L46">                e.getId(), UserId.of(e.getUserId()), e.getTokenHash(),</span>
+<span class="nc" id="L47">                e.getExpiresAt(), e.getIpAddress(), e.getUserAgent(),</span>
+<span class="nc" id="L48">                e.isRevoked(), e.getCreatedAt());</span>
+    }
+
+    private RefreshTokenEntity toEntity(RefreshToken d) {
+<span class="nc" id="L52">        return RefreshTokenEntity.builder()</span>
+<span class="nc" id="L53">                .id(d.getId())</span>
+<span class="nc" id="L54">                .userId(d.getUserId().value())</span>
+<span class="nc" id="L55">                .tokenHash(d.getTokenHash())</span>
+<span class="nc" id="L56">                .expiresAt(d.getExpiresAt())</span>
+<span class="nc" id="L57">                .ipAddress(d.getIpAddress())</span>
+<span class="nc" id="L58">                .userAgent(d.getUserAgent())</span>
+<span class="nc" id="L59">                .revoked(d.isRevoked())</span>
+<span class="nc" id="L60">                .createdAt(d.getCreatedAt())</span>
+<span class="nc" id="L61">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

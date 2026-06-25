@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.shared.security</a> &gt; <span class="el_source">JwtService.java</span></div><h1>JwtService.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.shared.security;
+
+import com.bookplus.auth.domain.model.RefreshToken;
+import com.bookplus.auth.domain.model.User;
+import com.bookplus.auth.domain.model.UserId;
+import com.bookplus.auth.domain.model.UserRole;
+import com.bookplus.auth.shared.security.JwtConfig.JwtProperties;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+/**
+ * Servicio JWT — genera, valida y gestiona tokens RS256.
+ * También gestiona la blacklist de access tokens en Redis.
+ */
+@Service
+@RequiredArgsConstructor
+<span class="fc" id="L29">@Slf4j</span>
+public class JwtService {
+
+    private static final String CLAIM_ROLES    = &quot;roles&quot;;
+    private static final String CLAIM_EMAIL    = &quot;email&quot;;
+    private static final String CLAIM_USERNAME = &quot;username&quot;;
+    private static final String BLACKLIST_PREFIX = &quot;jwt:blacklist:&quot;;
+
+    /** SecureRandom es costoso de inicializar; se crea una vez y se reutiliza (thread-safe). */
+<span class="fc" id="L38">    private static final java.security.SecureRandom SECURE_RANDOM = new java.security.SecureRandom();</span>
+
+    private final JwtProperties          jwtProperties;
+    private final StringRedisTemplate    redisTemplate;
+
+    // ── Generación ────────────────────────────────────────────────────────
+
+    public String generateAccessToken(User user) {
+<span class="nc" id="L46">        Instant now        = Instant.now();</span>
+<span class="nc" id="L47">        Instant expiration = now.plusMillis(jwtProperties.accessTokenExpiration());</span>
+
+<span class="nc" id="L49">        return Jwts.builder()</span>
+<span class="nc" id="L50">                .id(UUID.randomUUID().toString())</span>
+<span class="nc" id="L51">                .subject(user.getId().toString())</span>
+<span class="nc" id="L52">                .claim(CLAIM_USERNAME, user.getUsername())</span>
+<span class="nc" id="L53">                .claim(CLAIM_EMAIL,    user.getEmail().value())</span>
+<span class="nc" id="L54">                .claim(CLAIM_ROLES,    user.getRoles().stream()</span>
+<span class="nc" id="L55">                        .map(UserRole::authority).collect(Collectors.toList()))</span>
+<span class="nc" id="L56">                .issuedAt(Date.from(now))</span>
+<span class="nc" id="L57">                .expiration(Date.from(expiration))</span>
+<span class="nc" id="L58">                .signWith(jwtProperties.privateKey(), Jwts.SIG.RS256)</span>
+<span class="nc" id="L59">                .compact();</span>
+    }
+
+    public String generateRefreshTokenValue() {
+<span class="nc" id="L63">        byte[] bytes = new byte[64];</span>
+<span class="nc" id="L64">        SECURE_RANDOM.nextBytes(bytes);</span>
+<span class="nc" id="L65">        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);</span>
+    }
+
+    public RefreshToken buildRefreshToken(User user, String plainToken,
+                                          String ipAddress, String userAgent) {
+<span class="nc" id="L70">        String tokenHash = hashToken(plainToken);</span>
+<span class="nc" id="L71">        Instant expiresAt = Instant.now().plusMillis(jwtProperties.refreshTokenExpiration());</span>
+<span class="nc" id="L72">        return RefreshToken.create(user.getId(), tokenHash, expiresAt, ipAddress, userAgent);</span>
+    }
+
+    // ── Validación ────────────────────────────────────────────────────────
+
+    public Claims validateAndParseToken(String token) {
+<span class="nc" id="L78">        return Jwts.parser()</span>
+<span class="nc" id="L79">                .verifyWith(jwtProperties.publicKey())</span>
+<span class="nc" id="L80">                .build()</span>
+<span class="nc" id="L81">                .parseSignedClaims(token)</span>
+<span class="nc" id="L82">                .getPayload();</span>
+    }
+
+    public boolean isTokenValid(String token) {
+        try {
+<span class="nc" id="L87">            Claims claims = validateAndParseToken(token);</span>
+            // Verificar blacklist
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            return !isBlacklisted(claims.getId());</span>
+<span class="nc" id="L90">        } catch (JwtException | IllegalArgumentException e) {</span>
+<span class="nc" id="L91">            log.debug(&quot;Invalid JWT token: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L92">            return false;</span>
+        }
+    }
+
+    public UserId extractUserId(String token) {
+<span class="nc" id="L97">        return UserId.of(validateAndParseToken(token).getSubject());</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public Set&lt;UserRole&gt; extractRoles(String token) {
+<span class="nc" id="L102">        List&lt;String&gt; roles = validateAndParseToken(token).get(CLAIM_ROLES, List.class);</span>
+<span class="nc" id="L103">        return roles.stream()</span>
+<span class="nc" id="L104">                .map(UserRole::valueOf)</span>
+<span class="nc" id="L105">                .collect(Collectors.toSet());</span>
+    }
+
+    // ── Blacklist (Redis) ─────────────────────────────────────────────────
+
+    public void blacklistToken(String token) {
+        try {
+<span class="nc" id="L112">            Claims claims = validateAndParseToken(token);</span>
+<span class="nc" id="L113">            long ttlMillis = claims.getExpiration().getTime() - System.currentTimeMillis();</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">            if (ttlMillis &gt; 0) {</span>
+<span class="nc" id="L115">                redisTemplate.opsForValue().set(</span>
+<span class="nc" id="L116">                        BLACKLIST_PREFIX + claims.getId(),</span>
+                        &quot;revoked&quot;,
+                        ttlMillis,
+                        TimeUnit.MILLISECONDS
+                );
+<span class="nc" id="L121">                log.debug(&quot;Token blacklisted: jti={}&quot;, claims.getId());</span>
+            }
+<span class="nc" id="L123">        } catch (JwtException e) {</span>
+<span class="nc" id="L124">            log.debug(&quot;Cannot blacklist expired/invalid token: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L125">        }</span>
+<span class="nc" id="L126">    }</span>
+
+    private boolean isBlacklisted(String jti) {
+<span class="nc" id="L129">        return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + jti));</span>
+    }
+
+    // ── Utilidades ────────────────────────────────────────────────────────
+
+    /**
+     * Hash SHA-256 del token para almacenar en BD sin guardar el valor en claro.
+     */
+    public String hashToken(String plainToken) {
+        try {
+<span class="nc" id="L139">            MessageDigest digest = MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="nc" id="L140">            byte[] hash = digest.digest(plainToken.getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L141">            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);</span>
+<span class="nc" id="L142">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L143">            throw new IllegalStateException(&quot;SHA-256 not available&quot;, e);</span>
+        }
+    }
+
+    public long getAccessTokenExpirationSeconds() {
+<span class="nc" id="L148">        return jwtProperties.accessTokenExpiration() / 1000;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

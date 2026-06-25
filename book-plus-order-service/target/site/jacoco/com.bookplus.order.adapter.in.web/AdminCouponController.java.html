@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminCouponController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.in.web</a> &gt; <span class="el_source">AdminCouponController.java</span></div><h1>AdminCouponController.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.in.web;
+
+import com.bookplus.order.adapter.out.persistence.entity.CouponEntity;
+import com.bookplus.order.adapter.out.persistence.repository.CouponJpaRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+
+/**
+ * Gestión de cupones para el admin.
+ * Ruta gateway: /api/v1/orders/** (reaprovecha el route del order-service).
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/orders/admin/coupons&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Admin Coupons&quot;, description = &quot;Create / list / toggle discount coupons&quot;)
+@SecurityRequirement(name = &quot;bearerAuth&quot;)
+@PreAuthorize(&quot;hasAnyRole('ADMIN','SUPERADMIN')&quot;)
+public class AdminCouponController {
+
+    private final CouponJpaRepository repository;
+
+    @GetMapping
+    @Operation(summary = &quot;List all coupons&quot;)
+    public List&lt;CouponResponse&gt; list() {
+<span class="nc" id="L39">        return repository.findAll().stream()</span>
+<span class="nc" id="L40">                .sorted(Comparator.comparing(CouponEntity::getCreatedAt,</span>
+<span class="nc" id="L41">                        Comparator.nullsLast(Comparator.reverseOrder())))</span>
+<span class="nc" id="L42">                .map(CouponResponse::from)</span>
+<span class="nc" id="L43">                .toList();</span>
+    }
+
+    @PostMapping
+    @Operation(summary = &quot;Create (or replace) a coupon&quot;)
+    public ResponseEntity&lt;CouponResponse&gt; create(@RequestBody CreateCouponRequest req) {
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        String code = req.code() == null ? &quot;&quot; : req.code().trim().toUpperCase();</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (code.isBlank()) {</span>
+<span class="nc" id="L51">            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, &quot;El código es obligatorio&quot;);</span>
+        }
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (repository.existsById(code)) {</span>
+<span class="nc" id="L54">            throw new ResponseStatusException(HttpStatus.CONFLICT, &quot;Ya existe un cupón con ese código&quot;);</span>
+        }
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        String type = &quot;FIXED&quot;.equalsIgnoreCase(req.discountType()) ? &quot;FIXED&quot; : &quot;PERCENT&quot;;</span>
+<span class="nc bnc" id="L57" title="All 4 branches missed.">        if (req.discountValue() == null || req.discountValue().signum() &lt;= 0) {</span>
+<span class="nc" id="L58">            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, &quot;El descuento debe ser mayor a 0&quot;);</span>
+        }
+<span class="nc bnc" id="L60" title="All 4 branches missed.">        if (&quot;PERCENT&quot;.equals(type) &amp;&amp; req.discountValue().compareTo(BigDecimal.valueOf(100)) &gt; 0) {</span>
+<span class="nc" id="L61">            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, &quot;El porcentaje no puede superar 100&quot;);</span>
+        }
+
+<span class="nc" id="L64">        CouponEntity saved = repository.save(CouponEntity.builder()</span>
+<span class="nc" id="L65">                .code(code)</span>
+<span class="nc" id="L66">                .discountType(type)</span>
+<span class="nc" id="L67">                .discountValue(req.discountValue())</span>
+<span class="nc" id="L68">                .minAmount(req.minAmount())</span>
+<span class="nc" id="L69">                .expiresAt(req.expiresAt())</span>
+<span class="nc" id="L70">                .active(true)</span>
+<span class="nc" id="L71">                .createdAt(Instant.now())</span>
+<span class="nc" id="L72">                .build());</span>
+<span class="nc" id="L73">        return ResponseEntity.status(HttpStatus.CREATED).body(CouponResponse.from(saved));</span>
+    }
+
+    @PatchMapping(&quot;/{code}/active&quot;)
+    @Operation(summary = &quot;Enable or disable a coupon&quot;)
+    public CouponResponse setActive(@PathVariable String code, @RequestParam boolean value) {
+<span class="nc" id="L79">        CouponEntity c = repository.findById(code.trim().toUpperCase())</span>
+<span class="nc" id="L80">                .orElseThrow(() -&gt; new ResponseStatusException(HttpStatus.NOT_FOUND, &quot;Cupón no encontrado&quot;));</span>
+<span class="nc" id="L81">        c.setActive(value);</span>
+<span class="nc" id="L82">        return CouponResponse.from(repository.save(c));</span>
+    }
+
+    @DeleteMapping(&quot;/{code}&quot;)
+    @Operation(summary = &quot;Delete a coupon&quot;)
+    public ResponseEntity&lt;Void&gt; delete(@PathVariable String code) {
+<span class="nc" id="L88">        String id = code.trim().toUpperCase();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (!repository.existsById(id)) {</span>
+<span class="nc" id="L90">            throw new ResponseStatusException(HttpStatus.NOT_FOUND, &quot;Cupón no encontrado&quot;);</span>
+        }
+<span class="nc" id="L92">        repository.deleteById(id);</span>
+<span class="nc" id="L93">        return ResponseEntity.noContent().build();</span>
+    }
+
+    // ── DTOs ──────────────────────────────────────────────────────────────
+
+<span class="nc" id="L98">    public record CreateCouponRequest(</span>
+            @NotBlank String code,
+            @NotBlank String discountType,        // PERCENT | FIXED
+            @NotNull  BigDecimal discountValue,
+            BigDecimal minAmount,
+            Instant expiresAt
+    ) {}
+
+<span class="nc" id="L106">    public record CouponResponse(</span>
+            String code,
+            String discountType,
+            BigDecimal discountValue,
+            BigDecimal minAmount,
+            boolean active,
+            Instant expiresAt,
+            Instant createdAt
+    ) {
+        static CouponResponse from(CouponEntity c) {
+<span class="nc" id="L116">            return new CouponResponse(</span>
+<span class="nc" id="L117">                    c.getCode(), c.getDiscountType(), c.getDiscountValue(),</span>
+<span class="nc" id="L118">                    c.getMinAmount(), c.isActive(), c.getExpiresAt(), c.getCreatedAt());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

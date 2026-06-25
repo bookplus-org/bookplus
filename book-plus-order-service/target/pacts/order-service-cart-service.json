@@ -1,0 +1,252 @@
+{
+  "consumer": {
+    "name": "order-service"
+  },
+  "interactions": [
+    {
+      "contents": {
+        "content": {
+          "cartId": {
+            "value": "e2490de5-5bd3-43d5-b7c4-526e33f71304"
+          },
+          "deliveryType": "PHYSICAL",
+          "items": [
+            {
+              "bookId": {
+                "value": "e2490de5-5bd3-43d5-b7c4-526e33f71304"
+              },
+              "imageUrl": "img",
+              "isbn": "9780132350884",
+              "quantity": 2,
+              "title": "Clean Code",
+              "unitPrice": {
+                "amount": 29.99,
+                "currency": "USD"
+              }
+            }
+          ],
+          "paymentMethod": "CARD",
+          "recipientEmail": "buyer@mail.com",
+          "shippingAddress": {
+            "city": "Lima",
+            "country": "PE",
+            "postalCode": "15001",
+            "recipientName": "David",
+            "state": "Lima",
+            "street": "Av. Siempre Viva 742"
+          },
+          "total": {
+            "amount": 59.98,
+            "currency": "USD"
+          },
+          "userId": "user-1"
+        },
+        "contentType": "application/json",
+        "encoded": false
+      },
+      "description": "a cart checked-out event",
+      "generators": {
+        "body": {
+          "$.cartId.value": {
+            "type": "Uuid"
+          },
+          "$.items[*].bookId.value": {
+            "type": "Uuid"
+          }
+        }
+      },
+      "key": "",
+      "matchingRules": {
+        "body": {
+          "$.cartId.value": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+              }
+            ]
+          },
+          "$.deliveryType": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.items": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type",
+                "min": 1
+              }
+            ]
+          },
+          "$.items[*].bookId.value": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+              }
+            ]
+          },
+          "$.items[*].imageUrl": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.items[*].isbn": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.items[*].quantity": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "integer"
+              }
+            ]
+          },
+          "$.items[*].title": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.items[*].unitPrice.amount": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "decimal"
+              }
+            ]
+          },
+          "$.items[*].unitPrice.currency": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.paymentMethod": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.recipientEmail": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.shippingAddress.city": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.shippingAddress.country": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.shippingAddress.postalCode": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.shippingAddress.recipientName": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.shippingAddress.state": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.shippingAddress.street": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.total.amount": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "decimal"
+              }
+            ]
+          },
+          "$.total.currency": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.userId": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "contentType": "application/json"
+      },
+      "pending": false,
+      "type": "Asynchronous/Messages"
+    }
+  ],
+  "metadata": {
+    "pact-jvm": {
+      "version": "4.6.14"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    }
+  },
+  "provider": {
+    "name": "cart-service"
+  }
+}

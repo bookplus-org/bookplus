@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.adapter.in.web</a> &gt; <span class="el_source">AuthController.java</span></div><h1>AuthController.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.adapter.in.web;
+
+import com.bookplus.auth.adapter.in.web.dto.request.*;
+import com.bookplus.auth.adapter.in.web.dto.response.AuthResponse;
+import com.bookplus.auth.domain.port.in.*;
+import com.bookplus.auth.shared.web.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Adaptador web — Controller REST de autenticación.
+ * Delega todo al use case correspondiente. CERO lógica de negocio aquí.
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/auth&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Authentication&quot;, description = &quot;Register, Login, Refresh, Logout, Password Reset&quot;)
+public class AuthController {
+
+    private final RegisterUserUseCase   registerUserUseCase;
+    private final AuthenticateUserUseCase authenticateUserUseCase;
+    private final RefreshTokenUseCase   refreshTokenUseCase;
+    private final LogoutUseCase         logoutUseCase;
+    private final ForgotPasswordUseCase forgotPasswordUseCase;
+    private final ResetPasswordUseCase  resetPasswordUseCase;
+
+    @PostMapping(&quot;/register&quot;)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = &quot;Register a new user&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;AuthResponse&gt;&gt; register(
+            @Valid @RequestBody RegisterRequest request) {
+
+<span class="nc" id="L39">        var result = registerUserUseCase.register(</span>
+                new RegisterUserUseCase.RegisterUserCommand(
+<span class="nc" id="L41">                        request.username(),</span>
+<span class="nc" id="L42">                        request.email(),</span>
+<span class="nc" id="L43">                        request.password()));</span>
+
+<span class="nc" id="L45">        return ResponseEntity.status(HttpStatus.CREATED)</span>
+<span class="nc" id="L46">                .body(ApiResponse.ok(&quot;User registered successfully&quot;, AuthResponse.from(result)));</span>
+    }
+
+    @PostMapping(&quot;/login&quot;)
+    @Operation(summary = &quot;Authenticate user and get tokens&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;AuthResponse&gt;&gt; login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
+
+<span class="nc" id="L55">        var result = authenticateUserUseCase.authenticate(</span>
+                new AuthenticateUserUseCase.AuthenticateCommand(
+<span class="nc" id="L57">                        request.usernameOrEmail(),</span>
+<span class="nc" id="L58">                        request.password(),</span>
+<span class="nc" id="L59">                        httpRequest.getRemoteAddr(),</span>
+<span class="nc" id="L60">                        httpRequest.getHeader(&quot;User-Agent&quot;)));</span>
+
+<span class="nc" id="L62">        return ResponseEntity.ok(ApiResponse.ok(AuthResponse.from(result)));</span>
+    }
+
+    @PostMapping(&quot;/refresh&quot;)
+    @Operation(summary = &quot;Refresh access token using refresh token&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;AuthResponse&gt;&gt; refresh(
+            @Valid @RequestBody RefreshTokenRequest request,
+            HttpServletRequest httpRequest) {
+
+<span class="nc" id="L71">        var result = refreshTokenUseCase.refresh(</span>
+                new RefreshTokenUseCase.RefreshCommand(
+<span class="nc" id="L73">                        request.refreshToken(),</span>
+<span class="nc" id="L74">                        httpRequest.getRemoteAddr(),</span>
+<span class="nc" id="L75">                        httpRequest.getHeader(&quot;User-Agent&quot;)));</span>
+
+<span class="nc" id="L77">        return ResponseEntity.ok(ApiResponse.ok(AuthResponse.from(result)));</span>
+    }
+
+    @PostMapping(&quot;/logout&quot;)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = &quot;Revoke refresh token and blacklist access token&quot;)
+    public ResponseEntity&lt;Void&gt; logout(
+            @Valid @RequestBody RefreshTokenRequest request,
+            @RequestHeader(&quot;Authorization&quot;) String authHeader) {
+
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        String accessToken = authHeader.startsWith(&quot;Bearer &quot;)</span>
+<span class="nc" id="L88">                ? authHeader.substring(7) : authHeader;</span>
+
+<span class="nc" id="L90">        logoutUseCase.logout(new LogoutUseCase.LogoutCommand(request.refreshToken(), accessToken));</span>
+<span class="nc" id="L91">        return ResponseEntity.noContent().build();</span>
+    }
+
+    @PostMapping(&quot;/forgot-password&quot;)
+    @Operation(summary = &quot;Request password reset email (always returns 200)&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+<span class="nc" id="L99">        forgotPasswordUseCase.requestReset(</span>
+<span class="nc" id="L100">                new ForgotPasswordUseCase.ForgotPasswordCommand(request.email()));</span>
+
+<span class="nc" id="L102">        return ResponseEntity.ok(ApiResponse.ok(</span>
+                &quot;If that email is registered, you will receive a reset link shortly&quot;));
+    }
+
+    @PostMapping(&quot;/reset-password&quot;)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = &quot;Reset password using the token from email&quot;)
+    public ResponseEntity&lt;Void&gt; resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+<span class="nc" id="L112">        resetPasswordUseCase.reset(</span>
+                new ResetPasswordUseCase.ResetPasswordCommand(
+<span class="nc" id="L114">                        request.token(), request.newPassword()));</span>
+
+<span class="nc" id="L116">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

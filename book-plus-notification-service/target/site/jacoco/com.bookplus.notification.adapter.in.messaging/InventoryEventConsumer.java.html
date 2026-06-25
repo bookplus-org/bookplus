@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InventoryEventConsumer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-notification-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.notification.adapter.in.messaging</a> &gt; <span class="el_source">InventoryEventConsumer.java</span></div><h1>InventoryEventConsumer.java</h1><pre class="source lang-java linenums">package com.bookplus.notification.adapter.in.messaging;
+
+import com.bookplus.notification.application.service.EmailTemplateService;
+import com.bookplus.notification.domain.model.*;
+import com.bookplus.notification.domain.port.in.SendNotificationUseCase;
+import com.bookplus.notification.domain.port.in.SendNotificationUseCase.SendNotificationCommand;
+import com.bookplus.notification.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
+
+import java.util.Map;
+
+/**
+ * Consumes inventory.stock.low-alert events.
+ * These are internal operational alerts — sent to the admin team, not customers.
+ */
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="nc" id="L24">@Slf4j</span>
+public class InventoryEventConsumer {
+
+    private final SendNotificationUseCase sendNotificationUseCase;
+    private final EmailTemplateService    emailTemplateService;
+
+    @Value(&quot;${notification.admin-email:admin@bookplus.com}&quot;)
+    private String adminEmail;
+
+    @KafkaListener(topics = &quot;inventory.stock.low-alert&quot;, groupId = &quot;notification-service-inventory&quot;,
+                   containerFactory = &quot;kafkaListenerContainerFactory&quot;)
+    public void onLowStockAlert(@Payload Map&lt;String, Object&gt; payload,
+                                @Header(KafkaHeaders.RECEIVED_KEY) String key) {
+<span class="nc" id="L37">        String bookId    = (String) payload.get(&quot;bookId&quot;);</span>
+<span class="nc" id="L38">        String bookTitle = (String) payload.getOrDefault(&quot;bookTitle&quot;, &quot;Unknown&quot;);</span>
+<span class="nc" id="L39">        int    available = ((Number) payload.getOrDefault(&quot;quantityAvailable&quot;, 0)).intValue();</span>
+
+<span class="nc" id="L41">        log.warn(&quot;Low stock alert received bookId={} available={}&quot;, bookId, available);</span>
+        try {
+<span class="nc" id="L43">            sendNotificationUseCase.send(new SendNotificationCommand(</span>
+                    &quot;system&quot;,
+                    adminEmail,
+                    NotificationType.LOW_STOCK_ALERT,
+                    NotificationChannel.EMAIL,
+                    &quot;[ALERT] Low Stock: &quot; + bookTitle,
+<span class="nc" id="L49">                    emailTemplateService.lowStockAlert(bookTitle, bookId, available),</span>
+                    bookId
+            ));
+<span class="nc" id="L52">        } catch (Exception ex) {</span>
+<span class="nc" id="L53">            log.error(&quot;Failed to send low-stock alert for bookId={}: {}&quot;, bookId, ex.getMessage());</span>
+<span class="nc" id="L54">        }</span>
+<span class="nc" id="L55">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

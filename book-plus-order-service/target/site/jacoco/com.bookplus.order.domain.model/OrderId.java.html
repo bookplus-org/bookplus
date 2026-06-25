@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderId.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.model</a> &gt; <span class="el_source">OrderId.java</span></div><h1>OrderId.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.model;
+
+import java.util.UUID;
+
+<span class="fc" id="L5">public record OrderId(UUID value) {</span>
+<span class="fc" id="L6">    public static OrderId generate()          { return new OrderId(UUID.randomUUID()); }</span>
+<span class="nc" id="L7">    public static OrderId of(String id)       { return new OrderId(UUID.fromString(id)); }</span>
+<span class="nc" id="L8">    public static OrderId of(UUID id)         { return new OrderId(id); }</span>
+<span class="fc" id="L9">    @Override public String toString()        { return value.toString(); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

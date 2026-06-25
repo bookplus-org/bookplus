@@ -1,0 +1,2 @@
+/app/src/test/java/com/bookplus/notification/application/usecase/SendNotificationUseCaseImplTest.java
+/app/src/test/java/com/bookplus/notification/architecture/HexagonalArchitectureTest.java

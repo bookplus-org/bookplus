@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DeleteCategoryUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.application.usecase</a> &gt; <span class="el_source">DeleteCategoryUseCaseImpl.java</span></div><h1>DeleteCategoryUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.application.usecase;
+
+import com.bookplus.catalog.domain.exception.CategoryNotFoundException;
+import com.bookplus.catalog.domain.model.Category;
+import com.bookplus.catalog.domain.model.CategoryId;
+import com.bookplus.catalog.domain.port.in.DeleteCategoryUseCase;
+import com.bookplus.catalog.domain.port.out.LoadCategoryPort;
+import com.bookplus.catalog.domain.port.out.SaveCategoryPort;
+import com.bookplus.catalog.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
+
+@UseCase
+@RequiredArgsConstructor
+<span class="nc" id="L17">@Slf4j</span>
+public class DeleteCategoryUseCaseImpl implements DeleteCategoryUseCase {
+
+    private final LoadCategoryPort loadCategoryPort;
+    private final SaveCategoryPort saveCategoryPort;
+
+    @Override
+    public void delete(String categoryId) {
+<span class="nc" id="L25">        log.debug(&quot;Deleting category: id='{}'&quot;, categoryId);</span>
+
+<span class="nc" id="L27">        CategoryId id = CategoryId.of(categoryId);</span>
+
+<span class="nc" id="L29">        Category category = loadCategoryPort.findById(id)</span>
+<span class="nc" id="L30">                .orElseThrow(() -&gt; new CategoryNotFoundException(categoryId));</span>
+
+        // Guard: cannot deactivate a category that has active children
+<span class="nc" id="L33">        List&lt;Category&gt; children = loadCategoryPort.findByParentId(id);</span>
+<span class="nc" id="L34">        boolean hasActiveChildren = children.stream().anyMatch(Category::isActive);</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (hasActiveChildren) {</span>
+<span class="nc" id="L36">            throw new com.bookplus.catalog.domain.exception.DomainException(</span>
+                    &quot;Cannot deactivate category with active sub-categories: &quot; + categoryId);
+        }
+
+<span class="nc" id="L40">        category.deactivate();</span>
+<span class="nc" id="L41">        saveCategoryPort.save(category);</span>
+
+<span class="nc" id="L43">        log.info(&quot;Category deactivated (soft-delete): id={}&quot;, categoryId);</span>
+<span class="nc" id="L44">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

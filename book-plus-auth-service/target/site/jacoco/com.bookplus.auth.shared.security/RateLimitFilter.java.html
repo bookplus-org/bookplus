@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RateLimitFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.shared.security</a> &gt; <span class="el_source">RateLimitFilter.java</span></div><h1>RateLimitFilter.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.shared.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.Set;
+
+/**
+ * Filtro de rate limiting para los endpoints de autenticación sensibles.
+ *
+ * Limita por IP + ruta usando {@link AuthRateLimiter}. Al exceder el límite responde
+ * 429 (Too Many Requests) con cabecera Retry-After, sin llegar al controller. Se ejecuta
+ * antes del filtro JWT.
+ */
+@Component
+@RequiredArgsConstructor
+<span class="nc" id="L25">@Slf4j</span>
+public class RateLimitFilter extends OncePerRequestFilter {
+
+<span class="nc" id="L28">    private static final Set&lt;String&gt; LIMITED_PATHS = Set.of(</span>
+            &quot;/api/v1/auth/login&quot;,
+            &quot;/api/v1/auth/register&quot;,
+            &quot;/api/v1/auth/forgot-password&quot;,
+            &quot;/api/v1/auth/reset-password&quot;);
+
+    private final AuthRateLimiter rateLimiter;
+
+    @Override
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        return !(&quot;POST&quot;.equalsIgnoreCase(request.getMethod())</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">                &amp;&amp; LIMITED_PATHS.contains(request.getRequestURI()));</span>
+    }
+
+    @Override
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain)
+            throws ServletException, IOException {
+
+<span class="nc" id="L48">        String clientKey = clientIp(request) + &quot;:&quot; + request.getRequestURI();</span>
+
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (rateLimiter.tryConsume(clientKey)) {</span>
+<span class="nc" id="L51">            filterChain.doFilter(request, response);</span>
+        } else {
+<span class="nc" id="L53">            log.warn(&quot;Rate limit excedido para {} en {}&quot;, clientIp(request), request.getRequestURI());</span>
+<span class="nc" id="L54">            response.setStatus(429); // Too Many Requests</span>
+<span class="nc" id="L55">            response.setContentType(&quot;application/json&quot;);</span>
+<span class="nc" id="L56">            response.setHeader(&quot;Retry-After&quot;, &quot;60&quot;);</span>
+<span class="nc" id="L57">            response.getWriter().write(</span>
+                    &quot;{\&quot;success\&quot;:false,\&quot;message\&quot;:\&quot;Demasiadas peticiones. Inténtalo de nuevo en un momento.\&quot;}&quot;);
+        }
+<span class="nc" id="L60">    }</span>
+
+    /** Respeta X-Forwarded-For (detrás del gateway) y cae al remote addr si no está. */
+    private String clientIp(HttpServletRequest request) {
+<span class="nc" id="L64">        String xff = request.getHeader(&quot;X-Forwarded-For&quot;);</span>
+<span class="nc bnc" id="L65" title="All 4 branches missed.">        if (xff != null &amp;&amp; !xff.isBlank()) {</span>
+<span class="nc" id="L66">            return xff.split(&quot;,&quot;)[0].trim();</span>
+        }
+<span class="nc" id="L68">        return request.getRemoteAddr();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

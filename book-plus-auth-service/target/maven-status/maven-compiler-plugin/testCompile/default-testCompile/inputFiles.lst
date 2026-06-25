@@ -1,0 +1,9 @@
+/app/src/test/java/com/bookplus/auth/application/usecase/RegisterUserUseCaseImplTest.java
+/app/src/test/java/com/bookplus/auth/architecture/HexagonalArchitectureTest.java
+/app/src/test/java/com/bookplus/auth/config/PasswordEncoderArgon2Test.java
+/app/src/test/java/com/bookplus/auth/domain/model/EmailTest.java
+/app/src/test/java/com/bookplus/auth/domain/model/UserRoleTest.java
+/app/src/test/java/com/bookplus/auth/domain/model/UserTest.java
+/app/src/test/java/com/bookplus/auth/shared/security/AuthRateLimiterTest.java
+/app/src/test/java/com/bookplus/auth/shared/security/lockout/LoginAttemptServiceTest.java
+/app/src/test/java/com/bookplus/auth/shared/validation/StrongPasswordValidatorTest.java

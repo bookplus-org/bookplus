@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PayPalPaymentHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-payment-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.payment.application.payment</a> &gt; <span class="el_source">PayPalPaymentHandler.java</span></div><h1>PayPalPaymentHandler.java</h1><pre class="source lang-java linenums">package com.bookplus.payment.application.payment;
+
+import com.bookplus.payment.domain.model.PaymentMethod;
+import org.springframework.stereotype.Component;
+
+import java.util.Set;
+
+/** Pago con PayPal (simulado): aprueba y genera una referencia PP-XXXX. */
+@Component
+<span class="nc" id="L10">public class PayPalPaymentHandler extends AbstractSimulatedPaymentHandler {</span>
+
+    @Override
+    protected Set&lt;PaymentMethod&gt; supportedMethods() {
+<span class="nc" id="L14">        return Set.of(PaymentMethod.PAYPAL);</span>
+    }
+
+    @Override
+    protected String referencePrefix() {
+<span class="nc" id="L19">        return &quot;PP&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

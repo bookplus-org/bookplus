@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReviewPersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.persistence</a> &gt; <span class="el_source">ReviewPersistenceAdapter.java</span></div><h1>ReviewPersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.persistence;
+
+import com.bookplus.catalog.adapter.out.persistence.mapper.ReviewPersistenceMapper;
+import com.bookplus.catalog.adapter.out.persistence.repository.ReviewJpaRepository;
+import com.bookplus.catalog.domain.model.BookId;
+import com.bookplus.catalog.domain.model.Review;
+import com.bookplus.catalog.domain.port.in.PagedResult;
+import com.bookplus.catalog.domain.port.out.LoadReviewPort;
+import com.bookplus.catalog.domain.port.out.SaveReviewPort;
+import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
+@PersistenceAdapter
+@RequiredArgsConstructor
+public class ReviewPersistenceAdapter implements LoadReviewPort, SaveReviewPort {
+
+    private final ReviewJpaRepository    repository;
+    private final ReviewPersistenceMapper mapper;
+
+    // ── LoadReviewPort ────────────────────────────────────────────────────
+
+    @Override
+    public PagedResult&lt;Review&gt; findByBookId(BookId bookId, int page, int size) {
+<span class="nc" id="L27">        PageRequest pageable = PageRequest.of(page, size,</span>
+<span class="nc" id="L28">                Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;));</span>
+<span class="nc" id="L29">        Page&lt;Review&gt; result = repository</span>
+<span class="nc" id="L30">                .findAllByBookId(bookId.value(), pageable)</span>
+<span class="nc" id="L31">                .map(mapper::toDomain);</span>
+<span class="nc" id="L32">        return new PagedResult&lt;&gt;(</span>
+<span class="nc" id="L33">                result.getContent(),</span>
+<span class="nc" id="L34">                result.getNumber(),</span>
+<span class="nc" id="L35">                result.getSize(),</span>
+<span class="nc" id="L36">                result.getTotalElements(),</span>
+<span class="nc" id="L37">                result.getTotalPages(),</span>
+<span class="nc" id="L38">                result.isFirst(),</span>
+<span class="nc" id="L39">                result.isLast()</span>
+        );
+    }
+
+    @Override
+    public boolean existsByBookIdAndUserId(BookId bookId, String userId) {
+<span class="nc" id="L45">        return repository.existsByBookIdAndUserId(bookId.value(), userId);</span>
+    }
+
+    // ── SaveReviewPort ────────────────────────────────────────────────────
+
+    @Override
+    public Review save(Review review) {
+<span class="nc" id="L52">        return mapper.toDomain(repository.save(mapper.toEntity(review)));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

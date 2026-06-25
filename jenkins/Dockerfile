@@ -10,7 +10,7 @@ RUN apt-get update \
     && chmod a+r /etc/apt/keyrings/docker.asc \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends docker-ce-cli \
+    && apt-get install -y --no-install-recommends docker-ce-cli docker-buildx-plugin \
     && rm -rf /var/lib/apt/lists/*
 USER jenkins
 ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
@@ -24,6 +24,7 @@ RUN jenkins-plugin-cli --plugins \
     junit \
     pipeline-stage-view \
     ansicolor \
+    timestamper \
     ws-cleanup \
     sonar \
     configuration-as-code \
@@ -31,4 +32,5 @@ RUN jenkins-plugin-cli --plugins \
     hashicorp-vault-plugin \
     slack \
     email-ext \
-    pipeline-utility-steps
+    pipeline-utility-steps \
+    github-branch-source

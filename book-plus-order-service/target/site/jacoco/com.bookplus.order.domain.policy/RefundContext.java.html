@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefundContext.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.policy</a> &gt; <span class="el_source">RefundContext.java</span></div><h1>RefundContext.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.policy;
+
+import java.time.Duration;
+import java.time.Instant;
+
+/**
+ * Hechos necesarios para decidir un reembolso.
+ *
+ * Para un producto físico solo importan {@code deliveryType} y el override de admin.
+ * Para un digital, además, cuánto tiempo ha pasado desde la compra y cuánto se ha
+ * &quot;consumido&quot; el libro (si se descargó y el progreso de lectura), datos que viven
+ * en la biblioteca del usuario (catalog-service) y se pasan aquí al evaluar.
+ *
+ * @param deliveryType        &quot;DIGITAL&quot; o &quot;PHYSICAL&quot;
+ * @param purchasedAt         instante de la compra (confirmación de pago)
+ * @param now                 instante de la evaluación
+ * @param downloaded          true si el usuario llegó a descargar/abrir el PDF
+ * @param readProgressPercent porcentaje de lectura registrado (0-100)
+ * @param adminOverride       true si un administrador fuerza el reembolso (cobro doble,
+ *                            archivo defectuoso, etc.) saltándose ventana y consumo
+ */
+<span class="fc" id="L22">public record RefundContext(</span>
+        String  deliveryType,
+        Instant purchasedAt,
+        Instant now,
+        boolean downloaded,
+        int     readProgressPercent,
+        boolean adminOverride
+) {
+<span class="fc bfc" id="L30" title="All 2 branches covered.">    public boolean isPhysical() { return !&quot;DIGITAL&quot;.equalsIgnoreCase(deliveryType); }</span>
+<span class="nc" id="L31">    public boolean isDigital()  { return &quot;DIGITAL&quot;.equalsIgnoreCase(deliveryType); }</span>
+
+    public long daysSincePurchase() {
+<span class="pc bpc" id="L34" title="2 of 4 branches missed.">        if (purchasedAt == null || now == null) return 0;</span>
+<span class="fc" id="L35">        return Duration.between(purchasedAt, now).toDays();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

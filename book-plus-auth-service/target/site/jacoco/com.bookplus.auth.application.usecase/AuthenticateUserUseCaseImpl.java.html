@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticateUserUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.application.usecase</a> &gt; <span class="el_source">AuthenticateUserUseCaseImpl.java</span></div><h1>AuthenticateUserUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.application.usecase;
+
+import com.bookplus.auth.domain.exception.InvalidCredentialsException;
+import com.bookplus.auth.domain.model.User;
+import com.bookplus.auth.domain.port.in.AuthResult;
+import com.bookplus.auth.domain.port.in.AuthenticateUserUseCase;
+import com.bookplus.auth.domain.port.out.*;
+import com.bookplus.auth.shared.annotation.UseCase;
+import com.bookplus.auth.shared.security.JwtService;
+import com.bookplus.auth.shared.security.lockout.LoginAttemptService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Implementación del caso de uso: Autenticar Usuario (Login).
+ */
+@UseCase
+@RequiredArgsConstructor
+<span class="nc" id="L21">@Slf4j</span>
+public class AuthenticateUserUseCaseImpl implements AuthenticateUserUseCase {
+
+    private final LoadUserPort         loadUserPort;
+    private final SaveRefreshTokenPort saveRefreshTokenPort;
+    private final PasswordEncoder      passwordEncoder;
+    private final JwtService           jwtService;
+    private final LoginAttemptService  loginAttempts;
+
+    @Override
+    @Transactional
+    public AuthResult authenticate(AuthenticateCommand command) {
+<span class="nc" id="L33">        log.debug(&quot;Authentication attempt for: {}&quot;, command.usernameOrEmail());</span>
+
+        // Cuenta bloqueada por demasiados intentos fallidos (control por cuenta).
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (loginAttempts.isLocked(command.usernameOrEmail())) {</span>
+<span class="nc" id="L37">            log.warn(&quot;Login bloqueado temporalmente (demasiados fallos): {}&quot;, command.usernameOrEmail());</span>
+<span class="nc" id="L38">            throw new InvalidCredentialsException(); // no revelamos el motivo exacto</span>
+        }
+
+        // Buscar usuario por username o email
+<span class="nc" id="L42">        User user = loadUserPort.findByUsernameOrEmail(command.usernameOrEmail())</span>
+<span class="nc" id="L43">                .orElseThrow(InvalidCredentialsException::new);</span>
+
+        // Verificar contraseña
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (!passwordEncoder.matches(command.rawPassword(), user.getPasswordHash())) {</span>
+<span class="nc" id="L47">            log.warn(&quot;Failed login attempt for user: {}&quot;, command.usernameOrEmail());</span>
+<span class="nc" id="L48">            loginAttempts.recordFailure(command.usernameOrEmail());</span>
+<span class="nc" id="L49">            throw new InvalidCredentialsException();</span>
+        }
+
+        // Verificar cuenta activa
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (!user.isEnabled()) {</span>
+<span class="nc" id="L54">            throw new InvalidCredentialsException(); // No revelamos que la cuenta está desactivada</span>
+        }
+
+        // Login correcto: limpiar contador de fallos.
+<span class="nc" id="L58">        loginAttempts.recordSuccess(command.usernameOrEmail());</span>
+
+        // Generar tokens
+<span class="nc" id="L61">        String accessToken       = jwtService.generateAccessToken(user);</span>
+<span class="nc" id="L62">        String refreshTokenValue = jwtService.generateRefreshTokenValue();</span>
+<span class="nc" id="L63">        var refreshToken = jwtService.buildRefreshToken(</span>
+<span class="nc" id="L64">                user, refreshTokenValue, command.ipAddress(), command.userAgent());</span>
+<span class="nc" id="L65">        saveRefreshTokenPort.save(refreshToken);</span>
+
+<span class="nc" id="L67">        log.info(&quot;User '{}' authenticated successfully&quot;, user.getUsername());</span>
+
+<span class="nc" id="L69">        return new AuthResult(</span>
+                accessToken,
+                refreshTokenValue,
+<span class="nc" id="L72">                jwtService.getAccessTokenExpirationSeconds(),</span>
+<span class="nc" id="L73">                user.getId().toString(),</span>
+<span class="nc" id="L74">                user.getUsername(),</span>
+<span class="nc" id="L75">                user.getEmail().value(),</span>
+<span class="nc" id="L76">                user.getRoles(),</span>
+<span class="nc" id="L77">                user.isEmailVerified()</span>
+        );
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

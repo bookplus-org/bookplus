@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Review.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.domain.model</a> &gt; <span class="el_source">Review.java</span></div><h1>Review.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.domain.model;
+
+import java.time.Instant;
+import java.util.Objects;
+
+/**
+ * Entity — Reseña de un libro.
+ * Pertenece al agregado Book pero se persiste independientemente.
+ */
+public class Review {
+
+    private final ReviewId  id;
+    private final BookId    bookId;
+    private final String    userId;      // referencia al auth-service (desnormalizado)
+    private final String    username;    // desnormalizado para evitar join cross-service
+    private final Rating    rating;
+    private final String    comment;
+    private final boolean   verifiedPurchase;
+    private final Instant   createdAt;
+
+    private Review(ReviewId id, BookId bookId, String userId, String username,
+<span class="fc" id="L22">                   Rating rating, String comment, boolean verifiedPurchase, Instant createdAt) {</span>
+<span class="fc" id="L23">        this.id               = Objects.requireNonNull(id);</span>
+<span class="fc" id="L24">        this.bookId           = Objects.requireNonNull(bookId);</span>
+<span class="fc" id="L25">        this.userId           = Objects.requireNonNull(userId);</span>
+<span class="fc" id="L26">        this.username         = Objects.requireNonNull(username);</span>
+<span class="fc" id="L27">        this.rating           = Objects.requireNonNull(rating);</span>
+<span class="fc" id="L28">        this.comment          = comment;</span>
+<span class="fc" id="L29">        this.verifiedPurchase = verifiedPurchase;</span>
+<span class="fc" id="L30">        this.createdAt        = Objects.requireNonNull(createdAt);</span>
+<span class="fc" id="L31">    }</span>
+
+    public static Review create(BookId bookId, String userId, String username,
+                                Rating rating, String comment, boolean verifiedPurchase) {
+<span class="pc bpc" id="L35" title="2 of 4 branches missed.">        if (comment != null &amp;&amp; comment.length() &gt; 2000) {</span>
+<span class="nc" id="L36">            throw new com.bookplus.catalog.domain.exception.DomainException(</span>
+                    &quot;Review comment must not exceed 2000 characters&quot;);
+        }
+<span class="fc" id="L39">        return new Review(ReviewId.generate(), bookId, userId, username,</span>
+<span class="fc" id="L40">                rating, comment, verifiedPurchase, Instant.now());</span>
+    }
+
+    public static Review reconstitute(ReviewId id, BookId bookId, String userId, String username,
+                                      Rating rating, String comment,
+                                      boolean verifiedPurchase, Instant createdAt) {
+<span class="nc" id="L46">        return new Review(id, bookId, userId, username, rating, comment, verifiedPurchase, createdAt);</span>
+    }
+
+<span class="fc" id="L49">    public ReviewId  getId()              { return id; }</span>
+<span class="nc" id="L50">    public BookId    getBookId()          { return bookId; }</span>
+<span class="nc" id="L51">    public String    getUserId()          { return userId; }</span>
+<span class="nc" id="L52">    public String    getUsername()        { return username; }</span>
+<span class="nc" id="L53">    public Rating    getRating()          { return rating; }</span>
+<span class="nc" id="L54">    public String    getComment()         { return comment; }</span>
+<span class="nc" id="L55">    public boolean   isVerifiedPurchase() { return verifiedPurchase; }</span>
+<span class="nc" id="L56">    public Instant   getCreatedAt()       { return createdAt; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

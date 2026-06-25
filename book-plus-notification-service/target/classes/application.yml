@@ -1,0 +1,76 @@
+server:
+  port: 8087
+  shutdown: graceful
+
+spring:
+  threads:
+    virtual:
+      enabled: true   # Java 21 — virtual threads (Project Loom)
+  application:
+    name: notification-service
+
+  datasource:
+    url:      ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5438/notification_db}
+    username: ${NOTIFICATION_DB_USER:notification_user}
+    password: ${NOTIFICATION_DB_PASS:notification_pass}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # ── MailHog (local SMTP) ───────────────────────────────────────────────
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASS:}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ""
+
+# ── Notification-specific ──────────────────────────────────────────────
+notification:
+  jwt:
+    public-key-base64: ${NOTIFICATION_JWT_PUBLIC_KEY_BASE64}
+  mail:
+    from: ${MAIL_FROM:noreply@bookplus.com}
+  admin-email: ${ADMIN_EMAIL:admin@bookplus.com}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    com.bookplus.notification: INFO
+    org.springframework.security: WARN
+    org.springframework.kafka: WARN

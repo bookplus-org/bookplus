@@ -1,0 +1,6 @@
+/app/src/test/java/com/bookplus/inventory/application/batch/ReservationExpiryServiceTest.java
+/app/src/test/java/com/bookplus/inventory/application/usecase/ConfirmReservationUseCaseImplTest.java
+/app/src/test/java/com/bookplus/inventory/application/usecase/ReserveStockUseCaseImplTest.java
+/app/src/test/java/com/bookplus/inventory/architecture/HexagonalArchitectureTest.java
+/app/src/test/java/com/bookplus/inventory/domain/model/StockReservationTest.java
+/app/src/test/java/com/bookplus/inventory/domain/model/StockTest.java

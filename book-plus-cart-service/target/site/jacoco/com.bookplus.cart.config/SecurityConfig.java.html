@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.config</a> &gt; <span class="el_source">SecurityConfig.java</span></div><h1>SecurityConfig.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.server.resource.authentication.*;
+import org.springframework.security.web.SecurityFilterChain;
+
+import java.security.KeyFactory;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+<span class="nc" id="L23">public class SecurityConfig {</span>
+
+    @Value(&quot;${cart.jwt.public-key-base64}&quot;)
+    private String publicKeyBase64;
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+<span class="nc" id="L30">        http</span>
+<span class="nc" id="L31">            .csrf(csrf -&gt; csrf.disable())</span>
+<span class="nc" id="L32">            .sessionManagement(sm -&gt; sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
+<span class="nc" id="L33">            .authorizeHttpRequests(auth -&gt; auth</span>
+                // Actuator health — public
+<span class="nc" id="L35">                .requestMatchers(&quot;/actuator/health&quot;, &quot;/actuator/info&quot;).permitAll()</span>
+                // OpenAPI docs — public
+<span class="nc" id="L37">                .requestMatchers(&quot;/v3/api-docs/**&quot;, &quot;/swagger-ui/**&quot;, &quot;/swagger-ui.html&quot;).permitAll()</span>
+                // All cart operations require authentication
+<span class="nc" id="L39">                .anyRequest().authenticated()</span>
+            )
+<span class="nc" id="L41">            .oauth2ResourceServer(oauth2 -&gt; oauth2</span>
+<span class="nc" id="L42">                .jwt(jwt -&gt; jwt</span>
+<span class="nc" id="L43">                    .decoder(jwtDecoder())</span>
+<span class="nc" id="L44">                    .jwtAuthenticationConverter(jwtAuthenticationConverter())</span>
+                )
+            );
+
+<span class="nc" id="L48">        return http.build();</span>
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        try {
+<span class="nc" id="L54">            byte[]             decoded = Base64.getDecoder().decode(publicKeyBase64);</span>
+<span class="nc" id="L55">            X509EncodedKeySpec spec    = new X509EncodedKeySpec(decoded);</span>
+<span class="nc" id="L56">            RSAPublicKey       key     = (RSAPublicKey) KeyFactory.getInstance(&quot;RSA&quot;).generatePublic(spec);</span>
+<span class="nc" id="L57">            return NimbusJwtDecoder.withPublicKey(key).build();</span>
+<span class="nc" id="L58">        } catch (Exception ex) {</span>
+<span class="nc" id="L59">            throw new IllegalStateException(&quot;Cannot load RSA public key for cart-service&quot;, ex);</span>
+        }
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+<span class="nc" id="L65">        JwtGrantedAuthoritiesConverter gac = new JwtGrantedAuthoritiesConverter();</span>
+<span class="nc" id="L66">        gac.setAuthoritiesClaimName(&quot;roles&quot;);</span>
+<span class="nc" id="L67">        gac.setAuthorityPrefix(&quot;ROLE_&quot;);</span>
+
+<span class="nc" id="L69">        JwtAuthenticationConverter conv = new JwtAuthenticationConverter();</span>
+<span class="nc" id="L70">        conv.setJwtGrantedAuthoritiesConverter(gac);</span>
+<span class="nc" id="L71">        return conv;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

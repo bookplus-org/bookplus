@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OutboxRelay.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.out.persistence</a> &gt; <span class="el_source">OutboxRelay.java</span></div><h1>OutboxRelay.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.out.persistence;
+
+import com.bookplus.order.adapter.out.persistence.entity.OutboxEventEntity;
+import com.bookplus.order.adapter.out.persistence.repository.OutboxEventJpaRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+
+/**
+ * Outbox Relay — polls PENDING outbox rows and publishes them to Kafka.
+ *
+ * Guarantees:
+ *  - Events are published AT LEAST ONCE (idempotent consumers handle deduplication).
+ *  - If Kafka is down, events remain PENDING and are retried on the next tick.
+ *  - After MAX_RETRIES failures the event is marked FAILED for manual inspection.
+ *  - Published events are cleaned up after 7 days to keep the table lean.
+ *
+ * Runs every 5 seconds by default (configurable via order.outbox.poll-ms).
+ */
+@Component
+@RequiredArgsConstructor
+<span class="nc" id="L31">@Slf4j</span>
+public class OutboxRelay {
+
+    private static final int BATCH_SIZE  = 50;
+    private static final int MAX_RETRIES = 5;
+
+    private final OutboxEventJpaRepository       repository;
+    private final KafkaTemplate&lt;String, String&gt;  kafkaTemplate;
+
+    @Scheduled(fixedDelayString = &quot;${order.outbox.poll-ms:5000}&quot;)
+    @SchedulerLock(name = &quot;outboxRelay&quot;, lockAtMostFor = &quot;PT4M&quot;, lockAtLeastFor = &quot;PT1S&quot;)
+    @Transactional
+    public void publishPendingEvents() {
+<span class="nc" id="L44">        List&lt;OutboxEventEntity&gt; pending = repository.findByStatusOrderByCreatedAtAsc(</span>
+<span class="nc" id="L45">                &quot;PENDING&quot;, PageRequest.of(0, BATCH_SIZE));</span>
+
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (pending.isEmpty()) return;</span>
+
+<span class="nc" id="L49">        log.debug(&quot;Outbox relay: processing {} pending events&quot;, pending.size());</span>
+
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        for (OutboxEventEntity event : pending) {</span>
+            try {
+<span class="nc" id="L53">                kafkaTemplate.send(event.getTopic(), event.getPartitionKey(), event.getPayload())</span>
+<span class="nc" id="L54">                        .get();    // block to confirm broker ack before marking PUBLISHED</span>
+
+<span class="nc" id="L56">                event.setStatus(&quot;PUBLISHED&quot;);</span>
+<span class="nc" id="L57">                event.setPublishedAt(Instant.now());</span>
+<span class="nc" id="L58">                log.debug(&quot;Outbox published: {} → topic={}&quot;, event.getEventType(), event.getTopic());</span>
+
+<span class="nc" id="L60">            } catch (Exception ex) {</span>
+<span class="nc" id="L61">                int retries = event.getRetryCount() + 1;</span>
+<span class="nc" id="L62">                event.setRetryCount(retries);</span>
+<span class="nc" id="L63">                event.setLastError(ex.getMessage());</span>
+
+<span class="nc bnc" id="L65" title="All 2 branches missed.">                if (retries &gt;= MAX_RETRIES) {</span>
+<span class="nc" id="L66">                    event.setStatus(&quot;FAILED&quot;);</span>
+<span class="nc" id="L67">                    log.error(&quot;Outbox event FAILED after {} retries: {} aggregateId={}&quot;,</span>
+<span class="nc" id="L68">                            MAX_RETRIES, event.getEventType(), event.getAggregateId());</span>
+                } else {
+<span class="nc" id="L70">                    log.warn(&quot;Outbox publish failed (attempt {}/{}): {} — {}&quot;,</span>
+<span class="nc" id="L71">                            retries, MAX_RETRIES, event.getEventType(), ex.getMessage());</span>
+                }
+<span class="nc" id="L73">            }</span>
+<span class="nc" id="L74">            repository.save(event);</span>
+<span class="nc" id="L75">        }</span>
+<span class="nc" id="L76">    }</span>
+
+    /** Clean up old PUBLISHED events once per hour */
+    @Scheduled(fixedDelay = 3_600_000)
+    @Transactional
+    public void cleanupPublishedEvents() {
+<span class="nc" id="L82">        Instant cutoff = Instant.now().minus(7, ChronoUnit.DAYS);</span>
+<span class="nc" id="L83">        int deleted = repository.deletePublishedBefore(cutoff);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (deleted &gt; 0) log.info(&quot;Outbox cleanup: deleted {} published events older than 7 days&quot;, deleted);</span>
+<span class="nc" id="L85">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -20,10 +20,15 @@ services:
       GHCR_USER: "${GHCR_USER:-}"
       GHCR_TOKEN: "${GHCR_TOKEN:-}"
       SONAR_TOKEN: "${SONAR_TOKEN:-}"
+      GITHUB_APP_ID: "${GITHUB_APP_ID:-000000}"
+      GITHUB_APP_OWNER: "${GITHUB_APP_OWNER:-bookplus-org}"
       VAULT_ROLE_ID: "${VAULT_ROLE_ID:-}"
       VAULT_SECRET_ID: "${VAULT_SECRET_ID:-}"
     volumes:
       - ./jenkins/casc:/casc:ro
+      # Key de la GitHub App. Por defecto monta el dummy (.example) para que JCasC arranque;
+      # define GITHUB_APP_KEY_FILE en el .env con la ruta a tu .pem REAL (que vive FUERA del repo).
+      - "${GITHUB_APP_KEY_FILE:-./jenkins/casc/github-app.pem.example}:/run/secrets/github-app.pem:ro"
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped

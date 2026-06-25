@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedisConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-cart-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.cart.config</a> &gt; <span class="el_source">RedisConfig.java</span></div><h1>RedisConfig.java</h1><pre class="source lang-java linenums">package com.bookplus.cart.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+@Configuration
+<span class="nc" id="L13">public class RedisConfig {</span>
+
+    /**
+     * Both key and value stored as plain strings.
+     * JSON serialization is handled manually in RedisCartAdapter using ObjectMapper,
+     * which gives us full control over the JSON schema and avoids Spring's
+     * GenericJackson2JsonRedisSerializer adding type metadata into the JSON.
+     */
+    @Bean
+    public RedisTemplate&lt;String, String&gt; redisTemplate(RedisConnectionFactory factory) {
+<span class="nc" id="L23">        RedisTemplate&lt;String, String&gt; template = new RedisTemplate&lt;&gt;();</span>
+<span class="nc" id="L24">        template.setConnectionFactory(factory);</span>
+
+<span class="nc" id="L26">        StringRedisSerializer ser = new StringRedisSerializer();</span>
+<span class="nc" id="L27">        template.setKeySerializer(ser);</span>
+<span class="nc" id="L28">        template.setValueSerializer(ser);</span>
+<span class="nc" id="L29">        template.setHashKeySerializer(ser);</span>
+<span class="nc" id="L30">        template.setHashValueSerializer(ser);</span>
+<span class="nc" id="L31">        template.afterPropertiesSet();</span>
+<span class="nc" id="L32">        return template;</span>
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+<span class="nc" id="L37">        return new ObjectMapper()</span>
+<span class="nc" id="L38">                .registerModule(new JavaTimeModule())</span>
+<span class="nc" id="L39">                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

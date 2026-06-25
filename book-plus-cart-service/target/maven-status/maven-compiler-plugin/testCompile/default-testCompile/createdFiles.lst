@@ -1,0 +1,8 @@
+com/bookplus/cart/application/usecase/CheckoutCartUseCaseImplTest.class
+com/bookplus/cart/shared/idempotency/IdempotencyServiceTest.class
+com/bookplus/cart/shared/idempotency/IdempotencyServiceTest$InMemoryStore.class
+com/bookplus/cart/architecture/HexagonalArchitectureTest.class
+com/bookplus/cart/domain/model/CartTest.class
+com/bookplus/cart/domain/model/MoneyTest.class
+com/bookplus/cart/domain/model/CartItemTest.class
+com/bookplus/cart/application/usecase/AddItemToCartUseCaseImplTest.class

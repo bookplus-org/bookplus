@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefundDecision.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.policy</a> &gt; <span class="el_source">RefundDecision.java</span></div><h1>RefundDecision.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.policy;
+
+/**
+ * Decisión de reembolso emitida por {@link RefundPolicy}: el desenlace y el motivo
+ * legible que lo justifica (para auditoría, emails y la UI de administración).
+ */
+<span class="fc" id="L7">public record RefundDecision(RefundOutcome outcome, String reason) {</span>
+
+<span class="fc" id="L9">    public static RefundDecision cash(String reason)        { return new RefundDecision(RefundOutcome.CASH, reason); }</span>
+<span class="fc" id="L10">    public static RefundDecision storeCredit(String reason) { return new RefundDecision(RefundOutcome.STORE_CREDIT, reason); }</span>
+<span class="fc" id="L11">    public static RefundDecision deny(String reason)        { return new RefundDecision(RefundOutcome.DENY, reason); }</span>
+
+<span class="pc bpc" id="L13" title="1 of 2 branches missed.">    public boolean isCash()        { return outcome == RefundOutcome.CASH; }</span>
+<span class="fc bfc" id="L14" title="All 2 branches covered.">    public boolean isStoreCredit() { return outcome == RefundOutcome.STORE_CREDIT; }</span>
+<span class="pc bpc" id="L15" title="1 of 2 branches missed.">    public boolean isDenied()      { return outcome == RefundOutcome.DENY; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

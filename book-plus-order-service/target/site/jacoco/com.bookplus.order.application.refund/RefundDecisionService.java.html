@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefundDecisionService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.application.refund</a> &gt; <span class="el_source">RefundDecisionService.java</span></div><h1>RefundDecisionService.java</h1><pre class="source lang-java linenums">package com.bookplus.order.application.refund;
+
+import com.bookplus.order.application.coupon.CouponService;
+import com.bookplus.order.domain.policy.RefundContext;
+import com.bookplus.order.domain.policy.RefundDecision;
+import com.bookplus.order.domain.policy.RefundPolicy;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+
+/**
+ * Aplica la {@link RefundPolicy} y materializa su resultado:
+ * &lt;ul&gt;
+ *   &lt;li&gt;CASH → el llamador procede con el reembolso en efectivo (y, si aplica, restock).&lt;/li&gt;
+ *   &lt;li&gt;STORE_CREDIT → emite un cupón por el importe y lo devuelve en la resolución.&lt;/li&gt;
+ *   &lt;li&gt;DENY → no se hace nada; el llamador informa el motivo.&lt;/li&gt;
+ * &lt;/ul&gt;
+ * Mantiene la decisión de negocio fuera del controlador y permite testearla aislada.
+ */
+@Service
+@RequiredArgsConstructor
+public class RefundDecisionService {
+
+    private final CouponService couponService;
+    private final RefundPolicy  policy = RefundPolicy.defaults();
+
+    public RefundResolution resolve(RefundContext context, BigDecimal amount) {
+<span class="fc" id="L29">        RefundDecision decision = policy.decide(context);</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        String storeCreditCode = decision.isStoreCredit()</span>
+<span class="fc" id="L31">                ? couponService.issueStoreCredit(amount)</span>
+<span class="fc" id="L32">                : null;</span>
+<span class="fc" id="L33">        return new RefundResolution(decision, storeCreditCode);</span>
+    }
+
+    /** Resultado de evaluar y materializar un reembolso. */
+<span class="fc" id="L37">    public record RefundResolution(RefundDecision decision, String storeCreditCode) {</span>
+<span class="fc" id="L38">        public boolean isCash()        { return decision.isCash(); }</span>
+<span class="fc" id="L39">        public boolean isStoreCredit() { return decision.isStoreCredit(); }</span>
+<span class="nc" id="L40">        public boolean isDenied()      { return decision.isDenied(); }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetOrderUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.application.usecase</a> &gt; <span class="el_source">GetOrderUseCaseImpl.java</span></div><h1>GetOrderUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.order.application.usecase;
+
+import com.bookplus.order.domain.exception.OrderNotFoundException;
+import com.bookplus.order.domain.model.Order;
+import com.bookplus.order.domain.port.in.GetOrderUseCase;
+import com.bookplus.order.domain.port.out.LoadOrderPort;
+import com.bookplus.order.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
+@UseCase @RequiredArgsConstructor
+public class GetOrderUseCaseImpl implements GetOrderUseCase {
+
+    private final LoadOrderPort loadOrderPort;
+
+    @Override
+    public Order getById(String orderId) {
+<span class="nc" id="L19">        return loadOrderPort.findById(orderId)</span>
+<span class="nc" id="L20">                .orElseThrow(() -&gt; new OrderNotFoundException(orderId));</span>
+    }
+
+    @Override
+    public List&lt;Order&gt; getByUserId(String userId, int page, int size) {
+<span class="nc" id="L25">        return loadOrderPort.findByUserId(userId, page, size);</span>
+    }
+
+    @Override
+    public long countByUserId(String userId) {
+<span class="nc" id="L30">        return loadOrderPort.countByUserId(userId);</span>
+    }
+
+    @Override
+    public List&lt;Order&gt; getAll(com.bookplus.order.domain.model.OrderStatus status, int page, int size) {
+<span class="nc" id="L35">        return loadOrderPort.findAll(status, page, size);</span>
+    }
+
+    @Override
+    public long countAll(com.bookplus.order.domain.model.OrderStatus status) {
+<span class="nc" id="L40">        return loadOrderPort.countAll(status);</span>
+    }
+
+    @Override
+    public List&lt;Order&gt; getShipmentsQueue(String requesterId, boolean isAdmin) {
+<span class="nc" id="L45">        List&lt;Order&gt; all = loadOrderPort.findShipmentsQueue();</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (isAdmin) {</span>
+<span class="nc" id="L47">            return all;</span>
+        }
+        // Repartidor: ve los pedidos sin asignar (disponibles) y los suyos.
+<span class="nc" id="L50">        return all.stream()</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">                .filter(o -&gt; o.getAssignedCourier() == null</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">                        || o.getAssignedCourier().equals(requesterId))</span>
+<span class="nc" id="L53">                .toList();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

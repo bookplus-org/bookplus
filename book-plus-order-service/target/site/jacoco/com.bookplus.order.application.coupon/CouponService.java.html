@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CouponService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.application.coupon</a> &gt; <span class="el_source">CouponService.java</span></div><h1>CouponService.java</h1><pre class="source lang-java linenums">package com.bookplus.order.application.coupon;
+
+import com.bookplus.order.domain.model.Coupon;
+import com.bookplus.order.domain.port.out.CouponPort;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
+/** Valida cupones y calcula el descuento sobre un importe. Depende del puerto, no de JPA. */
+@Service
+@RequiredArgsConstructor
+public class CouponService {
+
+    /** Validez por defecto del crédito en tienda emitido como alternativa al reembolso. */
+    private static final long STORE_CREDIT_VALID_DAYS = 365;
+
+    private final CouponPort couponPort;
+
+    /**
+     * Emite un crédito en tienda como alternativa al reembolso en efectivo: crea un cupón
+     * FIXED por el importe indicado y devuelve su código. Se usa cuando la política decide
+     * STORE_CREDIT (p. ej. un libro digital ya consumido dentro de la ventana).
+     */
+    public String issueStoreCredit(BigDecimal amount) {
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">        BigDecimal value = scale(amount == null ? BigDecimal.ZERO : amount);</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">        if (value.signum() &lt;= 0) {</span>
+<span class="fc" id="L32">            throw new IllegalArgumentException(&quot;El importe del crédito debe ser positivo&quot;);</span>
+        }
+<span class="fc" id="L34">        String code = &quot;CREDIT-&quot; + UUID.randomUUID().toString().substring(0, 8).toUpperCase();</span>
+<span class="fc" id="L35">        couponPort.save(new Coupon(code, &quot;FIXED&quot;, value, null, true,</span>
+<span class="fc" id="L36">                Instant.now().plus(STORE_CREDIT_VALID_DAYS, ChronoUnit.DAYS)));</span>
+<span class="fc" id="L37">        return code;</span>
+    }
+
+    public CouponResult evaluate(String code, BigDecimal amount) {
+<span class="pc bpc" id="L41" title="1 of 4 branches missed.">        if (code == null || code.isBlank()) {</span>
+<span class="fc" id="L42">            return new CouponResult(false, null, BigDecimal.ZERO, scale(amount), null);</span>
+        }
+<span class="fc" id="L44">        Coupon c = couponPort.findByCode(code.trim().toUpperCase()).orElse(null);</span>
+<span class="fc bfc" id="L45" title="All 4 branches covered.">        if (c == null || !c.active()) {</span>
+<span class="fc" id="L46">            return invalid(&quot;Cupón no válido&quot;, amount);</span>
+        }
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (c.isExpired(Instant.now())) {</span>
+<span class="fc" id="L49">            return invalid(&quot;El cupón ha expirado&quot;, amount);</span>
+        }
+<span class="pc bpc" id="L51" title="1 of 4 branches missed.">        if (c.minAmount() != null &amp;&amp; amount.compareTo(c.minAmount()) &lt; 0) {</span>
+<span class="fc" id="L52">            return invalid(&quot;Requiere una compra mínima de &quot; + c.minAmount(), amount);</span>
+        }
+
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        BigDecimal discount = c.isPercent()</span>
+<span class="fc" id="L56">                ? amount.multiply(c.discountValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)</span>
+<span class="fc" id="L57">                : c.discountValue();</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        if (discount.compareTo(amount) &gt; 0) {</span>
+<span class="fc" id="L59">            discount = amount;</span>
+        }
+<span class="fc" id="L61">        discount = scale(discount);</span>
+<span class="fc" id="L62">        return new CouponResult(true, c.code(), discount, scale(amount.subtract(discount)), &quot;Cupón aplicado&quot;);</span>
+    }
+
+    private CouponResult invalid(String message, BigDecimal amount) {
+<span class="fc" id="L66">        return new CouponResult(false, null, BigDecimal.ZERO, scale(amount), message);</span>
+    }
+
+    private static BigDecimal scale(BigDecimal v) {
+<span class="fc" id="L70">        return v.setScale(2, RoundingMode.HALF_UP);</span>
+    }
+
+<span class="fc" id="L73">    public record CouponResult(</span>
+            boolean valid, String code, BigDecimal discount, BigDecimal finalAmount, String message) {}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

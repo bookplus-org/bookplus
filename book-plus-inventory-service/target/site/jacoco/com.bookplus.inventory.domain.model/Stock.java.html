@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Stock.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.domain.model</a> &gt; <span class="el_source">Stock.java</span></div><h1>Stock.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.domain.model;
+
+import com.bookplus.inventory.domain.event.*;
+import com.bookplus.inventory.domain.exception.DomainException;
+import com.bookplus.inventory.domain.exception.InsufficientStockException;
+
+import java.time.Instant;
+import java.util.*;
+
+/**
+ * Aggregate Root — Stock de un libro.
+ *
+ * Invariantes:
+ *   - quantityAvailable &gt;= 0
+ *   - quantityReserved  &gt;= 0
+ *   - quantityTotal = quantityAvailable + quantityReserved
+ *   - No se puede reservar más de lo disponible
+ *   - No se puede reducir a negativo
+ *
+ * Publica Domain Events tras cada operación para que el catalog-service
+ * actualice su stockSnapshot vía Kafka (consistencia eventual).
+ */
+public class Stock {
+
+    private final StockId  id;
+    private final BookId   bookId;
+    private int            quantityTotal;      // stock físico total
+    private int            quantityAvailable;  // total - reservado
+    private int            quantityReserved;   // bloqueado por reservas PENDING
+    private int            lowStockThreshold;  // umbral para alertas
+    private final Instant  createdAt;
+    private Instant        updatedAt;
+    private Long           version;             // bloqueo optimista (lo gestiona JPA)
+
+<span class="fc" id="L35">    private final List&lt;DomainEvent&gt; domainEvents = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L37">    public Long getVersion() { return version; }</span>
+
+    /** Lo usa el adaptador de persistencia para preservar la versión de bloqueo optimista. */
+<span class="nc" id="L40">    public void assignPersistenceVersion(Long version) { this.version = version; }</span>
+
+    // ── Constructor privado ───────────────────────────────────────────────
+
+    private Stock(StockId id, BookId bookId, int quantityTotal, int quantityAvailable,
+                  int quantityReserved, int lowStockThreshold,
+<span class="fc" id="L46">                  Instant createdAt, Instant updatedAt) {</span>
+<span class="fc" id="L47">        this.id                = Objects.requireNonNull(id);</span>
+<span class="fc" id="L48">        this.bookId            = Objects.requireNonNull(bookId);</span>
+<span class="fc" id="L49">        this.quantityTotal     = quantityTotal;</span>
+<span class="fc" id="L50">        this.quantityAvailable = quantityAvailable;</span>
+<span class="fc" id="L51">        this.quantityReserved  = quantityReserved;</span>
+<span class="fc" id="L52">        this.lowStockThreshold = lowStockThreshold;</span>
+<span class="fc" id="L53">        this.createdAt         = Objects.requireNonNull(createdAt);</span>
+<span class="fc" id="L54">        this.updatedAt         = Objects.requireNonNull(updatedAt);</span>
+<span class="fc" id="L55">        assertConsistency();</span>
+<span class="fc" id="L56">    }</span>
+
+    // ── Factory Methods ───────────────────────────────────────────────────
+
+    /** Crea el registro de stock para un libro recién añadido al catálogo. */
+    public static Stock create(BookId bookId, int initialQuantity, int lowStockThreshold) {
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (initialQuantity &lt; 0) {</span>
+<span class="fc" id="L63">            throw new DomainException(&quot;Initial quantity cannot be negative&quot;);</span>
+        }
+<span class="fc" id="L65">        Instant now = Instant.now();</span>
+<span class="fc" id="L66">        Stock stock = new Stock(StockId.generate(), bookId,</span>
+                initialQuantity, initialQuantity, 0,
+                lowStockThreshold, now, now);
+<span class="fc" id="L69">        stock.registerEvent(new StockCreatedEvent(stock.id, bookId, initialQuantity));</span>
+<span class="fc" id="L70">        return stock;</span>
+    }
+
+    public static Stock reconstitute(StockId id, BookId bookId, int quantityTotal,
+                                     int quantityAvailable, int quantityReserved,
+                                     int lowStockThreshold, Instant createdAt, Instant updatedAt) {
+<span class="nc" id="L76">        return new Stock(id, bookId, quantityTotal, quantityAvailable,</span>
+                quantityReserved, lowStockThreshold, createdAt, updatedAt);
+    }
+
+    // ── Comportamientos de Dominio ────────────────────────────────────────
+
+    /**
+     * Agrega stock — entrada de mercancía nueva o devolución.
+     */
+    public StockMovement addStock(int quantity, String referenceId, String notes) {
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (quantity &lt;= 0) throw new DomainException(&quot;Add quantity must be positive&quot;);</span>
+<span class="fc" id="L87">        int before = this.quantityAvailable;</span>
+<span class="fc" id="L88">        this.quantityTotal     += quantity;</span>
+<span class="fc" id="L89">        this.quantityAvailable += quantity;</span>
+<span class="fc" id="L90">        this.updatedAt          = Instant.now();</span>
+
+<span class="fc" id="L92">        registerEvent(new StockUpdatedEvent(id, bookId, this.quantityAvailable, this.quantityReserved));</span>
+<span class="fc" id="L93">        return StockMovement.record(bookId, MovementType.IN, quantity,</span>
+                before, this.quantityAvailable, referenceId, notes);
+    }
+
+    /**
+     * Reserva stock para un pedido — bloquea el stock disponible.
+     */
+    public StockMovement reserve(int quantity, String orderId) {
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">        if (quantity &lt;= 0) throw new DomainException(&quot;Reserve quantity must be positive&quot;);</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        if (quantity &gt; this.quantityAvailable) {</span>
+<span class="fc" id="L103">            throw new InsufficientStockException(bookId, quantity, this.quantityAvailable);</span>
+        }
+<span class="fc" id="L105">        int before = this.quantityAvailable;</span>
+<span class="fc" id="L106">        this.quantityAvailable -= quantity;</span>
+<span class="fc" id="L107">        this.quantityReserved  += quantity;</span>
+<span class="fc" id="L108">        this.updatedAt          = Instant.now();</span>
+
+<span class="fc" id="L110">        registerEvent(new StockUpdatedEvent(id, bookId, this.quantityAvailable, this.quantityReserved));</span>
+<span class="fc" id="L111">        checkLowStock();</span>
+<span class="fc" id="L112">        return StockMovement.record(bookId, MovementType.RESERVED, quantity,</span>
+                before, this.quantityAvailable, orderId, &quot;Reservation for order &quot; + orderId);
+    }
+
+    /**
+     * Confirma la reserva — descuenta definitivamente del stock total.
+     * Se llama cuando el pago es exitoso.
+     */
+    public StockMovement confirmReservation(int quantity, String orderId) {
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">        if (quantity &lt;= 0) throw new DomainException(&quot;Confirm quantity must be positive&quot;);</span>
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        if (quantity &gt; this.quantityReserved) {</span>
+<span class="nc" id="L123">            throw new DomainException(&quot;Cannot confirm more than reserved: requested=&quot;</span>
+                    + quantity + &quot; reserved=&quot; + this.quantityReserved);
+        }
+<span class="fc" id="L126">        int before = this.quantityReserved;</span>
+<span class="fc" id="L127">        this.quantityReserved -= quantity;</span>
+<span class="fc" id="L128">        this.quantityTotal    -= quantity;</span>
+<span class="fc" id="L129">        this.updatedAt         = Instant.now();</span>
+
+<span class="fc" id="L131">        registerEvent(new StockUpdatedEvent(id, bookId, this.quantityAvailable, this.quantityReserved));</span>
+<span class="fc" id="L132">        return StockMovement.record(bookId, MovementType.OUT, quantity,</span>
+                before, this.quantityReserved, orderId, &quot;Confirmed sale for order &quot; + orderId);
+    }
+
+    /**
+     * Libera una reserva — stock vuelve a estar disponible.
+     * Se llama cuando el pedido es cancelado o la reserva expira.
+     */
+    public StockMovement releaseReservation(int quantity, String orderId, String reason) {
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">        if (quantity &lt;= 0) throw new DomainException(&quot;Release quantity must be positive&quot;);</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        if (quantity &gt; this.quantityReserved) {</span>
+<span class="nc" id="L143">            throw new DomainException(&quot;Cannot release more than reserved: requested=&quot;</span>
+                    + quantity + &quot; reserved=&quot; + this.quantityReserved);
+        }
+<span class="fc" id="L146">        int before = this.quantityAvailable;</span>
+<span class="fc" id="L147">        this.quantityReserved  -= quantity;</span>
+<span class="fc" id="L148">        this.quantityAvailable += quantity;</span>
+<span class="fc" id="L149">        this.updatedAt          = Instant.now();</span>
+
+<span class="fc" id="L151">        registerEvent(new StockUpdatedEvent(id, bookId, this.quantityAvailable, this.quantityReserved));</span>
+<span class="fc" id="L152">        return StockMovement.record(bookId, MovementType.UNRESERVED, quantity,</span>
+                before, this.quantityAvailable, orderId, reason);
+    }
+
+    /**
+     * Ajuste manual — corrección de inventario físico.
+     */
+    public StockMovement adjust(int newTotalQuantity, String notes) {
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">        if (newTotalQuantity &lt; this.quantityReserved) {</span>
+<span class="nc" id="L161">            throw new DomainException(</span>
+                    &quot;Adjusted quantity cannot be less than reserved quantity: &quot;
+                    + this.quantityReserved);
+        }
+<span class="fc" id="L165">        int before = this.quantityAvailable;</span>
+<span class="fc" id="L166">        this.quantityTotal     = newTotalQuantity;</span>
+<span class="fc" id="L167">        this.quantityAvailable = newTotalQuantity - this.quantityReserved;</span>
+<span class="fc" id="L168">        this.updatedAt         = Instant.now();</span>
+
+<span class="fc" id="L170">        assertConsistency();</span>
+<span class="fc" id="L171">        registerEvent(new StockUpdatedEvent(id, bookId, this.quantityAvailable, this.quantityReserved));</span>
+<span class="fc" id="L172">        checkLowStock();</span>
+<span class="fc" id="L173">        return StockMovement.record(bookId, MovementType.ADJUSTMENT,</span>
+<span class="fc" id="L174">                Math.abs(this.quantityAvailable - before),</span>
+                before, this.quantityAvailable, null, notes);
+    }
+
+    // ── Domain Events ─────────────────────────────────────────────────────
+
+<span class="fc" id="L180">    private void registerEvent(DomainEvent event) { domainEvents.add(event); }</span>
+
+    public List&lt;DomainEvent&gt; pullDomainEvents() {
+<span class="fc" id="L183">        List&lt;DomainEvent&gt; events = new ArrayList&lt;&gt;(domainEvents);</span>
+<span class="fc" id="L184">        domainEvents.clear();</span>
+<span class="fc" id="L185">        return Collections.unmodifiableList(events);</span>
+    }
+
+    // ── Invariantes ───────────────────────────────────────────────────────
+
+    private void assertConsistency() {
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">        if (quantityAvailable &lt; 0) {</span>
+<span class="nc" id="L192">            throw new DomainException(&quot;Inconsistency: available stock is negative&quot;);</span>
+        }
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">        if (quantityReserved &lt; 0) {</span>
+<span class="nc" id="L195">            throw new DomainException(&quot;Inconsistency: reserved stock is negative&quot;);</span>
+        }
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        if (quantityTotal != quantityAvailable + quantityReserved) {</span>
+<span class="nc" id="L198">            throw new DomainException(</span>
+                    &quot;Inconsistency: total=&quot; + quantityTotal
+                    + &quot; != available=&quot; + quantityAvailable
+                    + &quot; + reserved=&quot; + quantityReserved);
+        }
+<span class="fc" id="L203">    }</span>
+
+    private void checkLowStock() {
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        if (quantityAvailable &lt;= lowStockThreshold) {</span>
+<span class="fc" id="L207">            registerEvent(new LowStockAlertEvent(id, bookId, quantityAvailable, lowStockThreshold));</span>
+        }
+<span class="fc" id="L209">    }</span>
+
+    // ── Queries ────────────────────────────────────────────────────────────
+
+<span class="fc bfc" id="L213" title="All 2 branches covered.">    public boolean isAvailable(int quantity) { return quantityAvailable &gt;= quantity; }</span>
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">    public boolean isOutOfStock()            { return quantityAvailable == 0; }</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">    public boolean isLowStock()              { return quantityAvailable &lt;= lowStockThreshold; }</span>
+
+    // ── Getters ───────────────────────────────────────────────────────────
+
+<span class="nc" id="L219">    public StockId getId()                 { return id; }</span>
+<span class="nc" id="L220">    public BookId  getBookId()             { return bookId; }</span>
+<span class="fc" id="L221">    public int     getQuantityTotal()      { return quantityTotal; }</span>
+<span class="fc" id="L222">    public int     getQuantityAvailable()  { return quantityAvailable; }</span>
+<span class="fc" id="L223">    public int     getQuantityReserved()   { return quantityReserved; }</span>
+<span class="nc" id="L224">    public int     getLowStockThreshold()  { return lowStockThreshold; }</span>
+<span class="nc" id="L225">    public Instant getCreatedAt()          { return createdAt; }</span>
+<span class="nc" id="L226">    public Instant getUpdatedAt()          { return updatedAt; }</span>
+
+    public void setLowStockThreshold(int threshold) {
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        if (threshold &lt; 0) throw new DomainException(&quot;Threshold cannot be negative&quot;);</span>
+<span class="nc" id="L230">        this.lowStockThreshold = threshold;</span>
+<span class="nc" id="L231">    }</span>
+
+    @Override public boolean equals(Object o) {
+<span class="nc bnc" id="L234" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        if (!(o instanceof Stock s)) return false;</span>
+<span class="nc" id="L236">        return id.equals(s.id);</span>
+    }
+<span class="nc" id="L238">    @Override public int hashCode()   { return Objects.hash(id); }</span>
+    @Override public String toString() {
+<span class="nc" id="L240">        return &quot;Stock{bookId=%s, available=%d, reserved=%d}&quot;.formatted(bookId, quantityAvailable, quantityReserved);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

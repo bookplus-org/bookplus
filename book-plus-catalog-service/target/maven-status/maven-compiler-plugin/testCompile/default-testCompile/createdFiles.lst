@@ -1,0 +1,15 @@
+com/bookplus/catalog/domain/model/RatingTest.class
+com/bookplus/catalog/application/usecase/SearchBooksFeatureFlagTest.class
+com/bookplus/catalog/adapter/out/search/ElasticsearchBookAdapterFallbackTest.class
+com/bookplus/catalog/domain/model/ISBNTest.class
+com/bookplus/catalog/config/EtagFilterTest.class
+com/bookplus/catalog/adapter/in/messaging/DigitalAccessRevokedConsumerTest.class
+com/bookplus/catalog/application/usecase/CreateBookUseCaseImplTest.class
+com/bookplus/catalog/domain/model/MoneyTest.class
+com/bookplus/catalog/domain/model/BookTest.class
+com/bookplus/catalog/architecture/HexagonalArchitectureTest.class
+com/bookplus/catalog/domain/model/CategoryTest.class
+com/bookplus/catalog/integration/CatalogSchemaIT.class
+com/bookplus/catalog/adapter/out/cache/TwoLevelCacheAdapterTest.class
+com/bookplus/catalog/domain/model/SlugTest.class
+com/bookplus/catalog/application/usecase/AddReviewUseCaseImplTest.class

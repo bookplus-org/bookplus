@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConfirmReservationUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.application.usecase</a> &gt; <span class="el_source">ConfirmReservationUseCaseImpl.java</span></div><h1>ConfirmReservationUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.application.usecase;
+
+import com.bookplus.inventory.domain.exception.ReservationNotFoundException;
+import com.bookplus.inventory.domain.exception.StockNotFoundException;
+import com.bookplus.inventory.domain.model.*;
+import com.bookplus.inventory.domain.port.in.ConfirmReservationUseCase;
+import com.bookplus.inventory.domain.port.out.*;
+import com.bookplus.inventory.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+<span class="fc" id="L12">@UseCase @RequiredArgsConstructor @Slf4j</span>
+public class ConfirmReservationUseCaseImpl implements ConfirmReservationUseCase {
+
+    private final LoadReservationPort      loadReservationPort;
+    private final SaveReservationPort      saveReservationPort;
+    private final LoadStockPort            loadStockPort;
+    private final SaveStockPort            saveStockPort;
+    private final SaveMovementPort         saveMovementPort;
+    private final DomainEventPublisherPort eventPublisher;
+
+    @Override
+    public void confirm(ConfirmReservationCommand command) {
+<span class="fc" id="L24">        log.debug(&quot;Confirming reservation: id={} orderId={}&quot;, command.reservationId(), command.orderId());</span>
+
+        // 1. Cargar la reserva
+<span class="fc" id="L27">        StockReservation reservation = loadReservationPort</span>
+<span class="fc" id="L28">                .findById(ReservationId.of(command.reservationId()))</span>
+<span class="fc" id="L29">                .orElseThrow(() -&gt; new ReservationNotFoundException(command.reservationId()));</span>
+
+        // 2. Confirmar la reserva en el dominio
+<span class="fc" id="L32">        reservation.confirm();</span>
+
+        // 3. Confirmar en el stock (descuento definitivo)
+<span class="fc" id="L35">        Stock stock = loadStockPort.findByBookId(reservation.getBookId())</span>
+<span class="fc" id="L36">                .orElseThrow(() -&gt; new StockNotFoundException(reservation.getBookId().toString()));</span>
+
+<span class="fc" id="L38">        StockMovement movement = stock.confirmReservation(</span>
+<span class="fc" id="L39">                reservation.getQuantity(), command.orderId());</span>
+
+        // 4. Persistir
+<span class="fc" id="L42">        saveReservationPort.save(reservation);</span>
+<span class="fc" id="L43">        saveStockPort.save(stock);</span>
+<span class="fc" id="L44">        saveMovementPort.save(movement);</span>
+
+        // 5. Publicar eventos
+        try {
+<span class="fc" id="L48">            eventPublisher.publishAll(stock.pullDomainEvents());</span>
+<span class="fc" id="L49">        } catch (Exception ex) {</span>
+<span class="fc" id="L50">            log.error(&quot;Failed to publish events on confirm reservation {}: {}&quot;, command.reservationId(), ex.getMessage());</span>
+<span class="fc" id="L51">        }</span>
+
+<span class="fc" id="L53">        log.info(&quot;Reservation confirmed: id={} orderId={} qty={}&quot;,</span>
+<span class="fc" id="L54">                command.reservationId(), command.orderId(), reservation.getQuantity());</span>
+<span class="fc" id="L55">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

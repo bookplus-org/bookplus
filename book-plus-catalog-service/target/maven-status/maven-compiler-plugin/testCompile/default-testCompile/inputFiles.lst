@@ -1,0 +1,15 @@
+/app/src/test/java/com/bookplus/catalog/adapter/in/messaging/DigitalAccessRevokedConsumerTest.java
+/app/src/test/java/com/bookplus/catalog/adapter/out/cache/TwoLevelCacheAdapterTest.java
+/app/src/test/java/com/bookplus/catalog/adapter/out/search/ElasticsearchBookAdapterFallbackTest.java
+/app/src/test/java/com/bookplus/catalog/application/usecase/AddReviewUseCaseImplTest.java
+/app/src/test/java/com/bookplus/catalog/application/usecase/CreateBookUseCaseImplTest.java
+/app/src/test/java/com/bookplus/catalog/application/usecase/SearchBooksFeatureFlagTest.java
+/app/src/test/java/com/bookplus/catalog/architecture/HexagonalArchitectureTest.java
+/app/src/test/java/com/bookplus/catalog/config/EtagFilterTest.java
+/app/src/test/java/com/bookplus/catalog/domain/model/BookTest.java
+/app/src/test/java/com/bookplus/catalog/domain/model/CategoryTest.java
+/app/src/test/java/com/bookplus/catalog/domain/model/ISBNTest.java
+/app/src/test/java/com/bookplus/catalog/domain/model/MoneyTest.java
+/app/src/test/java/com/bookplus/catalog/domain/model/RatingTest.java
+/app/src/test/java/com/bookplus/catalog/domain/model/SlugTest.java
+/app/src/test/java/com/bookplus/catalog/integration/CatalogSchemaIT.java

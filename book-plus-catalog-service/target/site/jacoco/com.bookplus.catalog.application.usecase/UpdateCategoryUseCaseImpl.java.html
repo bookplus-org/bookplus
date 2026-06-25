@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UpdateCategoryUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.application.usecase</a> &gt; <span class="el_source">UpdateCategoryUseCaseImpl.java</span></div><h1>UpdateCategoryUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.application.usecase;
+
+import com.bookplus.catalog.domain.exception.CategoryNotFoundException;
+import com.bookplus.catalog.domain.model.Category;
+import com.bookplus.catalog.domain.model.CategoryId;
+import com.bookplus.catalog.domain.port.in.UpdateCategoryUseCase;
+import com.bookplus.catalog.domain.port.out.LoadCategoryPort;
+import com.bookplus.catalog.domain.port.out.SaveCategoryPort;
+import com.bookplus.catalog.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@UseCase
+@RequiredArgsConstructor
+<span class="nc" id="L15">@Slf4j</span>
+public class UpdateCategoryUseCaseImpl implements UpdateCategoryUseCase {
+
+    private final LoadCategoryPort loadCategoryPort;
+    private final SaveCategoryPort saveCategoryPort;
+
+    @Override
+    public Category update(String categoryId, UpdateCategoryCommand command) {
+<span class="nc" id="L23">        log.debug(&quot;Updating category: id='{}'&quot;, categoryId);</span>
+
+<span class="nc" id="L25">        Category category = loadCategoryPort.findById(CategoryId.of(categoryId))</span>
+<span class="nc" id="L26">                .orElseThrow(() -&gt; new CategoryNotFoundException(categoryId));</span>
+
+        // Name uniqueness check — skip if name did not change
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        if (!category.getName().equalsIgnoreCase(command.name())) {</span>
+<span class="nc" id="L30">            loadCategoryPort.findByName(command.name()).ifPresent(existing -&gt; {</span>
+<span class="nc" id="L31">                throw new com.bookplus.catalog.domain.exception.DomainException(</span>
+<span class="nc" id="L32">                        &quot;Category name already in use: &quot; + command.name());</span>
+            });
+        }
+
+<span class="nc" id="L36">        category.update(command.name(), command.description(), command.imageUrl());</span>
+
+<span class="nc" id="L38">        Category saved = saveCategoryPort.save(category);</span>
+<span class="nc" id="L39">        log.info(&quot;Category updated: id={} name='{}'&quot;, saved.getId().value(), saved.getName());</span>
+<span class="nc" id="L40">        return saved;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

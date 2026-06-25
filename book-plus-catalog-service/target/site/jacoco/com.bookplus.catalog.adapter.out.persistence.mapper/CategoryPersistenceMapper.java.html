@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CategoryPersistenceMapper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.persistence.mapper</a> &gt; <span class="el_source">CategoryPersistenceMapper.java</span></div><h1>CategoryPersistenceMapper.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.persistence.mapper;
+
+import com.bookplus.catalog.adapter.out.persistence.entity.CategoryEntity;
+import com.bookplus.catalog.domain.model.*;
+import org.springframework.stereotype.Component;
+
+@Component
+<span class="nc" id="L8">public class CategoryPersistenceMapper {</span>
+
+    public Category toDomain(CategoryEntity e) {
+<span class="nc" id="L11">        return Category.reconstitute(</span>
+<span class="nc" id="L12">                CategoryId.of(e.getId()),</span>
+<span class="nc" id="L13">                e.getName(),</span>
+<span class="nc" id="L14">                Slug.of(e.getSlug()),</span>
+<span class="nc" id="L15">                e.getDescription(),</span>
+<span class="nc bnc" id="L16" title="All 2 branches missed.">                e.getParentId() != null ? CategoryId.of(e.getParentId()) : null,</span>
+<span class="nc" id="L17">                e.getImageUrl(),</span>
+<span class="nc" id="L18">                e.isActive(),</span>
+<span class="nc" id="L19">                e.getCreatedAt(),</span>
+<span class="nc" id="L20">                e.getUpdatedAt()</span>
+        );
+    }
+
+    public CategoryEntity toEntity(Category c) {
+<span class="nc" id="L25">        return CategoryEntity.builder()</span>
+<span class="nc" id="L26">                .id(c.getId().value())</span>
+<span class="nc" id="L27">                .name(c.getName())</span>
+<span class="nc" id="L28">                .slug(c.getSlug().value())</span>
+<span class="nc" id="L29">                .description(c.getDescription())</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">                .parentId(c.getParentId() != null ? c.getParentId().value() : null)</span>
+<span class="nc" id="L31">                .imageUrl(c.getImageUrl())</span>
+<span class="nc" id="L32">                .active(c.isActive())</span>
+<span class="nc" id="L33">                .createdAt(c.getCreatedAt())</span>
+<span class="nc" id="L34">                .updatedAt(c.getUpdatedAt())</span>
+<span class="nc" id="L35">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

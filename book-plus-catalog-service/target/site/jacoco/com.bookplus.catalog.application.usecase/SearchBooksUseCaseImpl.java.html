@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SearchBooksUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.application.usecase</a> &gt; <span class="el_source">SearchBooksUseCaseImpl.java</span></div><h1>SearchBooksUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.application.usecase;
+
+import com.bookplus.catalog.domain.model.Book;
+import com.bookplus.catalog.domain.port.in.PagedResult;
+import com.bookplus.catalog.domain.port.in.SearchBooksUseCase;
+import com.bookplus.catalog.domain.port.out.SearchBooksPort;
+import com.bookplus.catalog.shared.annotation.UseCase;
+import com.bookplus.catalog.shared.featureflags.FeatureFlags;
+import org.togglz.core.manager.FeatureManager;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+<span class="fc" id="L13">@UseCase @RequiredArgsConstructor @Slf4j</span>
+public class SearchBooksUseCaseImpl implements SearchBooksUseCase {
+
+    private final SearchBooksPort searchBooksPort;
+    private final FeatureManager  featureManager;
+
+    @Override
+    public PagedResult&lt;Book&gt; search(SearchQuery query) {
+        // Kill-switch (Togglz): si la búsqueda se desactiva en caliente, devolvemos vacío
+        // sin llegar a Elasticsearch (p. ej. para aliviar carga sin desplegar).
+<span class="fc bfc" id="L23" title="All 2 branches covered.">        if (!featureManager.isActive(FeatureFlags.BOOK_SEARCH)) {</span>
+<span class="fc" id="L24">            log.warn(&quot;Feature BOOK_SEARCH desactivada — devolviendo búsqueda vacía&quot;);</span>
+<span class="fc" id="L25">            return new PagedResult&lt;&gt;(java.util.List.of(), query.page(), query.size(), 0, 0, true, true);</span>
+        }
+<span class="fc" id="L27">        log.debug(&quot;Searching books: q='{}' page={} size={}&quot;, query.query(), query.page(), query.size());</span>
+<span class="fc" id="L28">        return searchBooksPort.search(query);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

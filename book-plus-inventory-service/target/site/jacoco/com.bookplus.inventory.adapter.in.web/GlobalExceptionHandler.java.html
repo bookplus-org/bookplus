@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GlobalExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.adapter.in.web</a> &gt; <span class="el_source">GlobalExceptionHandler.java</span></div><h1>GlobalExceptionHandler.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.adapter.in.web;
+
+import com.bookplus.inventory.domain.exception.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.*;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.WebRequest;
+
+import java.net.URI;
+import java.time.Instant;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestControllerAdvice
+<span class="nc" id="L18">@Slf4j</span>
+<span class="nc" id="L19">public class GlobalExceptionHandler {</span>
+
+    private static final String TYPE_BASE = &quot;https://bookplus.com/errors/&quot;;
+
+    @ExceptionHandler(StockNotFoundException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleNotFound(StockNotFoundException ex, WebRequest req) {
+<span class="nc" id="L25">        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(</span>
+<span class="nc" id="L26">                build(HttpStatus.NOT_FOUND, &quot;stock-not-found&quot;, ex.getMessage(), req));</span>
+    }
+
+    @ExceptionHandler(ReservationNotFoundException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleNotFound(ReservationNotFoundException ex, WebRequest req) {
+<span class="nc" id="L31">        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(</span>
+<span class="nc" id="L32">                build(HttpStatus.NOT_FOUND, &quot;reservation-not-found&quot;, ex.getMessage(), req));</span>
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleInsufficientStock(InsufficientStockException ex, WebRequest req) {
+<span class="nc" id="L37">        return ResponseEntity.status(HttpStatus.CONFLICT).body(</span>
+<span class="nc" id="L38">                build(HttpStatus.CONFLICT, &quot;insufficient-stock&quot;, ex.getMessage(), req));</span>
+    }
+
+    @ExceptionHandler(DomainException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleDomain(DomainException ex, WebRequest req) {
+<span class="nc" id="L43">        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(</span>
+<span class="nc" id="L44">                build(HttpStatus.UNPROCESSABLE_ENTITY, &quot;domain-error&quot;, ex.getMessage(), req));</span>
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleValidation(MethodArgumentNotValidException ex, WebRequest req) {
+<span class="nc" id="L49">        Map&lt;String, String&gt; errors = ex.getBindingResult().getFieldErrors().stream()</span>
+<span class="nc" id="L50">                .collect(Collectors.toMap(FieldError::getField,</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">                        fe -&gt; fe.getDefaultMessage() != null ? fe.getDefaultMessage() : &quot;invalid&quot;,</span>
+<span class="nc" id="L52">                        (a, b) -&gt; a));</span>
+<span class="nc" id="L53">        ProblemDetail pd = build(HttpStatus.BAD_REQUEST, &quot;validation-error&quot;, &quot;Validation failed&quot;, req);</span>
+<span class="nc" id="L54">        pd.setProperty(&quot;errors&quot;, errors);</span>
+<span class="nc" id="L55">        return ResponseEntity.badRequest().body(pd);</span>
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleAccessDenied(AccessDeniedException ex, WebRequest req) {
+<span class="nc" id="L60">        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(</span>
+<span class="nc" id="L61">                build(HttpStatus.FORBIDDEN, &quot;access-denied&quot;, &quot;Access denied&quot;, req));</span>
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleGeneral(Exception ex, WebRequest req) {
+<span class="nc" id="L66">        log.error(&quot;Unhandled exception: {}&quot;, ex.getMessage(), ex);</span>
+<span class="nc" id="L67">        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(</span>
+<span class="nc" id="L68">                build(HttpStatus.INTERNAL_SERVER_ERROR, &quot;internal-error&quot;, &quot;An unexpected error occurred&quot;, req));</span>
+    }
+
+    private ProblemDetail build(HttpStatus status, String type, String detail, WebRequest req) {
+<span class="nc" id="L72">        ProblemDetail pd = ProblemDetail.forStatusAndDetail(status, detail);</span>
+<span class="nc" id="L73">        pd.setType(URI.create(TYPE_BASE + type));</span>
+<span class="nc" id="L74">        pd.setProperty(&quot;timestamp&quot;, Instant.now());</span>
+<span class="nc" id="L75">        pd.setProperty(&quot;path&quot;, req.getDescription(false).replace(&quot;uri=&quot;, &quot;&quot;));</span>
+<span class="nc" id="L76">        return pd;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EtagConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.config</a> &gt; <span class="el_source">EtagConfig.java</span></div><h1>EtagConfig.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.config;
+
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.filter.ShallowEtagHeaderFilter;
+
+/**
+ * Caché HTTP condicional (ETag) para las lecturas del catálogo.
+ *
+ * El {@link ShallowEtagHeaderFilter} calcula un hash (ETag) del cuerpo de la respuesta y lo
+ * devuelve en la cabecera {@code ETag}. En la siguiente petición el cliente envía
+ * {@code If-None-Match: &lt;etag&gt;}; si el contenido no cambió, el servidor responde
+ * {@code 304 Not Modified} SIN cuerpo. El cliente reutiliza su copia: se ahorra ancho de
+ * banda y trabajo de serialización, sin tocar la lógica de los controllers.
+ */
+@Configuration
+<span class="nc" id="L18">public class EtagConfig {</span>
+
+    @Bean
+    public FilterRegistrationBean&lt;ShallowEtagHeaderFilter&gt; etagFilter() {
+<span class="nc" id="L22">        FilterRegistrationBean&lt;ShallowEtagHeaderFilter&gt; registration =</span>
+                new FilterRegistrationBean&lt;&gt;(new ShallowEtagHeaderFilter());
+<span class="nc" id="L24">        registration.addUrlPatterns(&quot;/api/v1/books/*&quot;, &quot;/api/v1/categories/*&quot;);</span>
+<span class="nc" id="L25">        registration.setName(&quot;etagFilter&quot;);</span>
+<span class="nc" id="L26">        return registration;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

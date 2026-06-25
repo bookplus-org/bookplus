@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CreateBookUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.application.usecase</a> &gt; <span class="el_source">CreateBookUseCaseImpl.java</span></div><h1>CreateBookUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.application.usecase;
+
+import com.bookplus.catalog.domain.exception.BookAlreadyExistsException;
+import com.bookplus.catalog.domain.exception.CategoryNotFoundException;
+import com.bookplus.catalog.domain.model.*;
+import com.bookplus.catalog.domain.port.in.CreateBookUseCase;
+import com.bookplus.catalog.domain.port.out.*;
+import com.bookplus.catalog.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+
+<span class="fc" id="L15">@UseCase @RequiredArgsConstructor @Slf4j</span>
+public class CreateBookUseCaseImpl implements CreateBookUseCase {
+
+    private final LoadBookPort        loadBookPort;
+    private final SaveBookPort        saveBookPort;
+    private final LoadCategoryPort    loadCategoryPort;
+    private final IndexBookPort       indexBookPort;
+    private final DomainEventPublisherPort eventPublisher;
+
+    @Override
+    @Transactional
+    public Book create(CreateBookCommand cmd) {
+<span class="fc" id="L27">        ISBN isbn = ISBN.of(cmd.isbn());</span>
+
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        if (loadBookPort.existsByIsbn(isbn)) {</span>
+<span class="fc" id="L30">            throw new BookAlreadyExistsException(cmd.isbn());</span>
+        }
+
+<span class="fc" id="L33">        CategoryId categoryId = CategoryId.of(cmd.categoryId());</span>
+<span class="fc" id="L34">        loadCategoryPort.findById(categoryId)</span>
+<span class="fc" id="L35">                .filter(Category::isActive)</span>
+<span class="fc" id="L36">                .orElseThrow(() -&gt; new CategoryNotFoundException(cmd.categoryId()));</span>
+
+<span class="fc" id="L38">        Money price = Money.of(cmd.price(), cmd.currency());</span>
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">        Money discountPrice = cmd.discountPrice() != null</span>
+<span class="pc" id="L40">                ? Money.of(cmd.discountPrice(), cmd.currency()) : null;</span>
+
+<span class="fc" id="L42">        Book book = Book.create(isbn, cmd.title(), cmd.author(), cmd.description(),</span>
+<span class="fc" id="L43">                price, cmd.imageUrl(), cmd.previewUrl(), cmd.publisher(),</span>
+<span class="fc" id="L44">                cmd.publishedDate(), cmd.language(), cmd.pages(), categoryId);</span>
+
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">        if (discountPrice != null) book.applyDiscount(discountPrice);</span>
+
+<span class="fc" id="L48">        Book saved = saveBookPort.save(book);</span>
+<span class="fc" id="L49">        log.info(&quot;Book created: {} — ISBN: {}&quot;, saved.getTitle(), saved.getIsbn());</span>
+
+        // Indexar en Elasticsearch (sync — para que sea buscable inmediatamente)
+<span class="fc" id="L52">        try { indexBookPort.index(saved); }</span>
+<span class="fc" id="L53">        catch (Exception ex) { log.warn(&quot;Elasticsearch indexing failed for book {}: {}&quot;, saved.getId(), ex.getMessage()); }</span>
+
+        // Publicar eventos Kafka async
+<span class="fc" id="L56">        eventPublisher.publishAll(saved.pullDomainEvents());</span>
+
+<span class="fc" id="L58">        return saved;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

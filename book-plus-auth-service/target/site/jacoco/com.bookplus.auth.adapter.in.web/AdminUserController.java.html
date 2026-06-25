@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminUserController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.adapter.in.web</a> &gt; <span class="el_source">AdminUserController.java</span></div><h1>AdminUserController.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.adapter.in.web;
+
+import com.bookplus.auth.domain.model.User;
+import com.bookplus.auth.domain.model.UserId;
+import com.bookplus.auth.domain.model.UserRole;
+import com.bookplus.auth.domain.port.in.AdminUserUseCase;
+import com.bookplus.auth.shared.web.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Adaptador web — gestión administrativa de usuarios.
+ * Protegido en SecurityConfig: /api/v1/admin/** → ROLE_ADMIN o ROLE_SUPERADMIN.
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/admin/users&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Admin Users&quot;, description = &quot;Administración de cuentas de usuario&quot;)
+public class AdminUserController {
+
+    private final AdminUserUseCase adminUserUseCase;
+
+    @GetMapping
+    @Operation(summary = &quot;Listar todos los usuarios&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;List&lt;AdminUserResponse&gt;&gt;&gt; list() {
+<span class="nc" id="L36">        List&lt;AdminUserResponse&gt; users = adminUserUseCase.listUsers().stream()</span>
+<span class="nc" id="L37">                .map(AdminUserResponse::from)</span>
+<span class="nc" id="L38">                .toList();</span>
+<span class="nc" id="L39">        return ResponseEntity.ok(ApiResponse.ok(users));</span>
+    }
+
+    @PostMapping
+    @Operation(summary = &quot;Crear una cuenta de usuario&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;AdminUserResponse&gt;&gt; create(@Valid @RequestBody CreateUserRequest body) {
+<span class="nc" id="L45">        User created = adminUserUseCase.createUser(</span>
+<span class="nc" id="L46">                body.username(), body.email(), body.password(), parseRole(body.role()));</span>
+<span class="nc" id="L47">        return ResponseEntity.ok(ApiResponse.ok(&quot;Usuario creado&quot;, AdminUserResponse.from(created)));</span>
+    }
+
+    @PatchMapping(&quot;/{id}/profile&quot;)
+    @Operation(summary = &quot;Editar nombre de usuario y correo&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;AdminUserResponse&gt;&gt; updateProfile(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateProfileRequest body) {
+<span class="nc" id="L55">        User updated = adminUserUseCase.updateProfile(UserId.of(id), body.username(), body.email());</span>
+<span class="nc" id="L56">        return ResponseEntity.ok(ApiResponse.ok(AdminUserResponse.from(updated)));</span>
+    }
+
+    @PatchMapping(&quot;/{id}/password&quot;)
+    @Operation(summary = &quot;Restablecer la contraseña&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; resetPassword(
+            @PathVariable String id,
+            @Valid @RequestBody ResetPasswordRequest body) {
+<span class="nc" id="L64">        adminUserUseCase.resetPassword(UserId.of(id), body.password());</span>
+<span class="nc" id="L65">        return ResponseEntity.ok(ApiResponse.ok(&quot;Contraseña restablecida&quot;));</span>
+    }
+
+    @PatchMapping(&quot;/{id}/status&quot;)
+    @Operation(summary = &quot;Activar o desactivar una cuenta&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;AdminUserResponse&gt;&gt; setStatus(
+            @PathVariable String id,
+            @RequestBody UpdateStatusRequest body) {
+<span class="nc" id="L73">        User updated = adminUserUseCase.setEnabled(UserId.of(id), body.enabled(), body.reason());</span>
+<span class="nc" id="L74">        return ResponseEntity.ok(ApiResponse.ok(AdminUserResponse.from(updated)));</span>
+    }
+
+    @PatchMapping(&quot;/{id}/roles&quot;)
+    @Operation(summary = &quot;Otorgar o revocar un rol&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;AdminUserResponse&gt;&gt; changeRole(
+            @PathVariable String id,
+            @RequestBody ChangeRoleRequest body) {
+<span class="nc" id="L82">        UserRole role = parseRole(body.role());</span>
+<span class="nc" id="L83">        User updated = adminUserUseCase.changeRole(UserId.of(id), role, body.grant());</span>
+<span class="nc" id="L84">        return ResponseEntity.ok(ApiResponse.ok(AdminUserResponse.from(updated)));</span>
+    }
+
+    private static UserRole parseRole(String raw) {
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        String name = raw == null ? &quot;&quot; : raw.trim().toUpperCase();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (!name.startsWith(&quot;ROLE_&quot;)) {</span>
+<span class="nc" id="L90">            name = &quot;ROLE_&quot; + name;</span>
+        }
+<span class="nc" id="L92">        return UserRole.valueOf(name);</span>
+    }
+
+    // ── DTOs ────────────────────────────────────────────────────────────────
+
+<span class="nc" id="L97">    public record UpdateStatusRequest(boolean enabled, String reason) {}</span>
+
+<span class="nc" id="L99">    public record ChangeRoleRequest(@NotBlank String role, boolean grant) {}</span>
+
+<span class="nc" id="L101">    public record CreateUserRequest(</span>
+            @NotBlank @Size(min = 3, max = 50) String username,
+            @NotBlank @Email String email,
+            @NotBlank @Size(min = 8, max = 72) String password,
+            @NotBlank String role
+    ) {}
+
+<span class="nc" id="L108">    public record UpdateProfileRequest(</span>
+            @NotBlank @Size(min = 3, max = 50) String username,
+            @NotBlank @Email String email
+    ) {}
+
+<span class="nc" id="L113">    public record ResetPasswordRequest(</span>
+            @NotBlank @Size(min = 8, max = 72) String password
+    ) {}
+
+<span class="nc" id="L117">    public record AdminUserResponse(</span>
+            String       id,
+            String       username,
+            String       email,
+            List&lt;String&gt; roles,
+            boolean      enabled,
+            boolean      emailVerified,
+            Instant      createdAt
+    ) {
+        public static AdminUserResponse from(User u) {
+<span class="nc" id="L127">            return new AdminUserResponse(</span>
+<span class="nc" id="L128">                    u.getId().toString(),</span>
+<span class="nc" id="L129">                    u.getUsername(),</span>
+<span class="nc" id="L130">                    u.getEmail().value(),</span>
+<span class="nc" id="L131">                    u.getRoles().stream().map(Enum::name).sorted().toList(),</span>
+<span class="nc" id="L132">                    u.isEnabled(),</span>
+<span class="nc" id="L133">                    u.isEmailVerified(),</span>
+<span class="nc" id="L134">                    u.getCreatedAt()</span>
+            );
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

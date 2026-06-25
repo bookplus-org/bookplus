@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CourierSimulator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.in.scheduler</a> &gt; <span class="el_source">CourierSimulator.java</span></div><h1>CourierSimulator.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.in.scheduler;
+
+import com.bookplus.order.domain.model.Order;
+import com.bookplus.order.domain.model.OrderStatus;
+import com.bookplus.order.domain.port.in.UpdateOrderStatusUseCase;
+import com.bookplus.order.domain.port.out.LoadOrderPort;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+import java.time.Instant;
+
+/**
+ * Courier simulado: imita el webhook de confirmación de entrega de una PAQUETERÍA
+ * EXTERNA, pasando esos pedidos ENVIADO → ENTREGADO automáticamente tras un tiempo.
+ *
+ * No toca los envíos de &quot;reparto propio&quot;: esos los entrega una persona y deben
+ * confirmarse con la prueba real (foto + firma + código), o el propio cliente con
+ * &quot;Confirmar recepción&quot;. Así la entrega automática nunca salta la prueba de entrega.
+ */
+@Component
+@RequiredArgsConstructor
+<span class="nc" id="L25">@Slf4j</span>
+public class CourierSimulator {
+
+<span class="nc" id="L28">    private static final Duration DELIVERY_DELAY = Duration.ofMinutes(3);</span>
+    /** Debe coincidir con el valor del diálogo de envío del frontend (ship-dialog). */
+    private static final String OWN_DELIVERY = &quot;Reparto propio (personal)&quot;;
+
+    private final LoadOrderPort            loadOrderPort;
+    private final UpdateOrderStatusUseCase updateStatusUseCase;
+
+    @Scheduled(fixedDelay = 60_000) // cada minuto
+    public void autoDeliverShippedOrders() {
+<span class="nc" id="L37">        Instant cutoff = Instant.now().minus(DELIVERY_DELAY);</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        for (Order order : loadOrderPort.findByStatus(OrderStatus.SHIPPED)) {</span>
+<span class="nc" id="L39">            String carrier = order.getCarrier();</span>
+<span class="nc bnc" id="L40" title="All 6 branches missed.">            boolean ownDelivery = carrier == null || carrier.isBlank() || OWN_DELIVERY.equals(carrier);</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">            if (ownDelivery) {</span>
+                // Entrega personal: requiere prueba real, no se auto-entrega.
+<span class="nc" id="L43">                continue;</span>
+            }
+<span class="nc bnc" id="L45" title="All 4 branches missed.">            if (order.getUpdatedAt() != null &amp;&amp; order.getUpdatedAt().isBefore(cutoff)) {</span>
+                try {
+                    // La agencia confirma la entrega usando el código del pedido (prueba).
+<span class="nc" id="L48">                    updateStatusUseCase.deliver(order.getId().toString(),</span>
+<span class="nc" id="L49">                            order.getDeliveryCode(), &quot;Confirmado por &quot; + carrier);</span>
+<span class="nc" id="L50">                    log.info(&quot;Courier sim: order {} auto-delivered via {}&quot;, order.getId(), carrier);</span>
+<span class="nc" id="L51">                } catch (Exception ex) {</span>
+<span class="nc" id="L52">                    log.warn(&quot;Courier sim could not deliver {}: {}&quot;, order.getId(), ex.getMessage());</span>
+<span class="nc" id="L53">                }</span>
+            }
+<span class="nc" id="L55">        }</span>
+<span class="nc" id="L56">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

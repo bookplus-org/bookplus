@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PdfPreviewService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web.preview</a> &gt; <span class="el_source">PdfPreviewService.java</span></div><h1>PdfPreviewService.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web.preview;
+
+import com.bookplus.catalog.adapter.out.persistence.entity.BookPreviewEntity;
+import com.bookplus.catalog.adapter.out.persistence.repository.BookJpaRepository;
+import com.bookplus.catalog.adapter.out.persistence.repository.BookPreviewJpaRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.io.ByteArrayOutputStream;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.springframework.http.HttpStatus.*;
+
+/**
+ * Genera y sirve la muestra en PDF de un libro: solo las primeras
+ * {@value #MAX_PREVIEW_PAGES} páginas. El PDF completo nunca se almacena.
+ */
+@Service
+@RequiredArgsConstructor
+<span class="nc" id="L26">@Slf4j</span>
+public class PdfPreviewService {
+
+    private static final int MAX_PREVIEW_PAGES = 12;
+
+    private final BookPreviewJpaRepository previewRepo;
+    private final BookJpaRepository        bookRepo;
+
+    /** Procesa el PDF subido y persiste solo la muestra (primeras N páginas). */
+    public int storePreview(UUID bookId, byte[] pdfBytes) {
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (!bookRepo.existsById(bookId)) {</span>
+<span class="nc" id="L37">            throw new ResponseStatusException(NOT_FOUND, &quot;Libro no encontrado: &quot; + bookId);</span>
+        }
+<span class="nc bnc" id="L39" title="All 4 branches missed.">        if (pdfBytes == null || pdfBytes.length == 0) {</span>
+<span class="nc" id="L40">            throw new ResponseStatusException(BAD_REQUEST, &quot;El archivo PDF está vacío&quot;);</span>
+        }
+
+<span class="nc" id="L43">        try (PDDocument source = Loader.loadPDF(pdfBytes)) {</span>
+<span class="nc" id="L44">            int sourcePages = source.getNumberOfPages();</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">            if (sourcePages == 0) {</span>
+<span class="nc" id="L46">                throw new ResponseStatusException(BAD_REQUEST, &quot;El PDF no tiene páginas&quot;);</span>
+            }
+<span class="nc" id="L48">            int take = Math.min(MAX_PREVIEW_PAGES, sourcePages);</span>
+
+            byte[] sample;
+<span class="nc" id="L51">            try (PDDocument out = new PDDocument();</span>
+<span class="nc" id="L52">                 ByteArrayOutputStream baos = new ByteArrayOutputStream()) {</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                for (int i = 0; i &lt; take; i++) {</span>
+<span class="nc" id="L54">                    out.importPage(source.getPage(i));</span>
+                }
+<span class="nc" id="L56">                out.save(baos);</span>
+<span class="nc" id="L57">                sample = baos.toByteArray();</span>
+            }
+
+<span class="nc" id="L60">            previewRepo.save(BookPreviewEntity.builder()</span>
+<span class="nc" id="L61">                    .bookId(bookId)</span>
+<span class="nc" id="L62">                    .previewPdf(sample)</span>
+<span class="nc" id="L63">                    .pageCount(take)</span>
+<span class="nc" id="L64">                    .sourcePages(sourcePages)</span>
+<span class="nc" id="L65">                    .fullPdf(pdfBytes)        // PDF completo para consulta admin</span>
+<span class="nc" id="L66">                    .fullPages(sourcePages)</span>
+<span class="nc" id="L67">                    .updatedAt(Instant.now())</span>
+<span class="nc" id="L68">                    .build());</span>
+
+<span class="nc" id="L70">            log.info(&quot;Preview generado para libro {}: {}/{} páginas&quot;, bookId, take, sourcePages);</span>
+<span class="nc" id="L71">            return take;</span>
+<span class="nc" id="L72">        } catch (ResponseStatusException ex) {</span>
+<span class="nc" id="L73">            throw ex;</span>
+<span class="nc" id="L74">        } catch (Exception ex) {</span>
+<span class="nc" id="L75">            log.error(&quot;No se pudo procesar el PDF para libro {}: {}&quot;, bookId, ex.getMessage());</span>
+<span class="nc" id="L76">            throw new ResponseStatusException(BAD_REQUEST, &quot;Archivo PDF inválido o dañado&quot;);</span>
+        }
+    }
+
+    public Optional&lt;BookPreviewEntity&gt; getPreview(UUID bookId) {
+<span class="nc" id="L81">        return previewRepo.findById(bookId);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,6 @@
+com/bookplus/inventory/application/usecase/ReserveStockUseCaseImplTest.class
+com/bookplus/inventory/architecture/HexagonalArchitectureTest.class
+com/bookplus/inventory/domain/model/StockReservationTest.class
+com/bookplus/inventory/domain/model/StockTest.class
+com/bookplus/inventory/application/usecase/ConfirmReservationUseCaseImplTest.class
+com/bookplus/inventory/application/batch/ReservationExpiryServiceTest.class

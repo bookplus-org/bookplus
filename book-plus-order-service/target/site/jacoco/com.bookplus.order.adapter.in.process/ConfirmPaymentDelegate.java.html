@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConfirmPaymentDelegate.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.in.process</a> &gt; <span class="el_source">ConfirmPaymentDelegate.java</span></div><h1>ConfirmPaymentDelegate.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.in.process;
+
+import com.bookplus.order.domain.port.in.UpdateOrderStatusUseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.camunda.bpm.engine.delegate.DelegateExecution;
+import org.camunda.bpm.engine.delegate.JavaDelegate;
+import org.springframework.stereotype.Component;
+
+/**
+ * Service task del proceso BPMN &quot;purchaseSaga&quot;: confirma el pago del pedido.
+ * Es un adaptador de entrada: traduce una tarea del motor de procesos (Camunda)
+ * en una llamada al caso de uso de dominio, igual que haría un controlador REST.
+ *
+ * Lee la variable de proceso {@code orderId}.
+ */
+@Component(&quot;confirmPaymentDelegate&quot;)
+@RequiredArgsConstructor
+<span class="fc" id="L19">@Slf4j</span>
+public class ConfirmPaymentDelegate implements JavaDelegate {
+
+    private final UpdateOrderStatusUseCase updateStatusUseCase;
+
+    @Override
+    public void execute(DelegateExecution execution) {
+<span class="fc" id="L26">        String orderId = (String) execution.getVariable(&quot;orderId&quot;);</span>
+<span class="fc" id="L27">        log.info(&quot;[BPMN] Confirmando pago del pedido {}&quot;, orderId);</span>
+<span class="fc" id="L28">        updateStatusUseCase.confirmPayment(orderId);</span>
+<span class="fc" id="L29">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

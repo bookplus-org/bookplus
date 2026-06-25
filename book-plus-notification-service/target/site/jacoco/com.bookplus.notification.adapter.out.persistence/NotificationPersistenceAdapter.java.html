@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NotificationPersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-notification-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.notification.adapter.out.persistence</a> &gt; <span class="el_source">NotificationPersistenceAdapter.java</span></div><h1>NotificationPersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.notification.adapter.out.persistence;
+
+import com.bookplus.notification.adapter.out.persistence.entity.NotificationEntity;
+import com.bookplus.notification.adapter.out.persistence.repository.NotificationJpaRepository;
+import com.bookplus.notification.domain.model.*;
+import com.bookplus.notification.domain.port.out.*;
+import com.bookplus.notification.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
+import java.util.List;
+
+@PersistenceAdapter
+@RequiredArgsConstructor
+public class NotificationPersistenceAdapter implements SaveNotificationPort, LoadNotificationPort {
+
+    private final NotificationJpaRepository repository;
+
+    @Override
+    public Notification save(Notification n) {
+<span class="nc" id="L22">        return toDomain(repository.save(toEntity(n)));</span>
+    }
+
+    @Override
+    public List&lt;Notification&gt; findByUserId(String userId, int page, int size) {
+<span class="nc" id="L27">        return repository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))</span>
+<span class="nc" id="L28">                .stream().map(this::toDomain).toList();</span>
+    }
+
+    @Override
+    public long countByUserId(String userId) {
+<span class="nc" id="L33">        return repository.countByUserId(userId);</span>
+    }
+
+    @Override
+    public List&lt;Notification&gt; findAll(int page, int size) {
+<span class="nc" id="L38">        return repository.findAll(</span>
+<span class="nc" id="L39">                        PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, &quot;createdAt&quot;)))</span>
+<span class="nc" id="L40">                .stream().map(this::toDomain).toList();</span>
+    }
+
+    @Override
+    public long countAll() {
+<span class="nc" id="L45">        return repository.count();</span>
+    }
+
+    // ── Mapping ───────────────────────────────────────────────────────────
+
+    private Notification toDomain(NotificationEntity e) {
+<span class="nc" id="L51">        return Notification.reconstitute(</span>
+<span class="nc" id="L52">                NotificationId.of(e.getId()),</span>
+<span class="nc" id="L53">                e.getUserId(),</span>
+<span class="nc" id="L54">                e.getRecipientEmail(),</span>
+<span class="nc" id="L55">                e.getType(),</span>
+<span class="nc" id="L56">                e.getChannel(),</span>
+<span class="nc" id="L57">                e.getSubject(),</span>
+<span class="nc" id="L58">                e.getBody(),</span>
+<span class="nc" id="L59">                e.getReferenceId(),</span>
+<span class="nc" id="L60">                e.getStatus(),</span>
+<span class="nc" id="L61">                e.getFailureReason(),</span>
+<span class="nc" id="L62">                e.getCreatedAt(),</span>
+<span class="nc" id="L63">                e.getSentAt()</span>
+        );
+    }
+
+    private NotificationEntity toEntity(Notification n) {
+<span class="nc" id="L68">        return NotificationEntity.builder()</span>
+<span class="nc" id="L69">                .id(n.getId().value())</span>
+<span class="nc" id="L70">                .userId(n.getUserId())</span>
+<span class="nc" id="L71">                .recipientEmail(n.getRecipientEmail())</span>
+<span class="nc" id="L72">                .type(n.getType())</span>
+<span class="nc" id="L73">                .channel(n.getChannel())</span>
+<span class="nc" id="L74">                .subject(n.getSubject())</span>
+<span class="nc" id="L75">                .body(n.getBody())</span>
+<span class="nc" id="L76">                .status(n.getStatus())</span>
+<span class="nc" id="L77">                .failureReason(n.getFailureReason())</span>
+<span class="nc" id="L78">                .referenceId(n.getReferenceId())</span>
+<span class="nc" id="L79">                .createdAt(n.getCreatedAt())</span>
+<span class="nc" id="L80">                .sentAt(n.getSentAt())</span>
+<span class="nc" id="L81">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

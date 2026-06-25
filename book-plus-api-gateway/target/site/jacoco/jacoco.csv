@@ -1,0 +1,6 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+book-plus-api-gateway,com.bookplus.gateway,ApiGatewayApplication,5,3,0,0,2,1,1,1,1,1
+book-plus-api-gateway,com.bookplus.gateway.config,SecurityConfig,0,144,0,0,0,21,0,6,0,6
+book-plus-api-gateway,com.bookplus.gateway.config,CorsConfig,0,51,0,0,0,11,0,2,0,2
+book-plus-api-gateway,com.bookplus.gateway.filter,RequestLoggingFilter,64,9,2,0,10,3,3,3,2,3
+book-plus-api-gateway,com.bookplus.gateway.filter,SecurityHeadersFilter,0,58,0,0,0,15,0,4,0,4

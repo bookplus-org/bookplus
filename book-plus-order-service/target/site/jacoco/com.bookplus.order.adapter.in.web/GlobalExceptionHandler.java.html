@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GlobalExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.in.web</a> &gt; <span class="el_source">GlobalExceptionHandler.java</span></div><h1>GlobalExceptionHandler.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.in.web;
+
+import com.bookplus.order.domain.exception.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.*;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.*;
+
+import java.net.URI;
+import java.time.Instant;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestControllerAdvice
+<span class="nc" id="L17">@Slf4j</span>
+<span class="nc" id="L18">public class GlobalExceptionHandler {</span>
+
+    private static final String BASE = &quot;https://bookplus.com/errors/&quot;;
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleNotFound(OrderNotFoundException ex) {
+<span class="nc" id="L24">        return build(HttpStatus.NOT_FOUND, &quot;order-not-found&quot;, &quot;Order Not Found&quot;, ex.getMessage());</span>
+    }
+
+    @ExceptionHandler({OrderNotCancellableException.class, InvalidOrderTransitionException.class})
+    public ResponseEntity&lt;ProblemDetail&gt; handleDomainConflict(DomainException ex) {
+<span class="nc" id="L29">        return build(HttpStatus.CONFLICT, &quot;order-conflict&quot;, &quot;Order State Conflict&quot;, ex.getMessage());</span>
+    }
+
+    @ExceptionHandler(DomainException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleDomain(DomainException ex) {
+<span class="nc" id="L34">        return build(HttpStatus.UNPROCESSABLE_ENTITY, &quot;domain-rule-violation&quot;,</span>
+<span class="nc" id="L35">                &quot;Business Rule Violation&quot;, ex.getMessage());</span>
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleValidation(MethodArgumentNotValidException ex) {
+<span class="nc" id="L40">        Map&lt;String, String&gt; errors = ex.getBindingResult().getFieldErrors().stream()</span>
+<span class="nc" id="L41">                .collect(Collectors.toMap(FieldError::getField,</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">                        fe -&gt; fe.getDefaultMessage() != null ? fe.getDefaultMessage() : &quot;invalid&quot;,</span>
+<span class="nc" id="L43">                        (a, b) -&gt; a));</span>
+<span class="nc" id="L44">        ResponseEntity&lt;ProblemDetail&gt; response = build(HttpStatus.BAD_REQUEST, &quot;validation-error&quot;,</span>
+                &quot;Validation Error&quot;, &quot;Validation failed&quot;);
+<span class="nc" id="L46">        response.getBody().setProperty(&quot;errors&quot;, errors);</span>
+<span class="nc" id="L47">        return response;</span>
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleAccessDenied(AccessDeniedException ex) {
+<span class="nc" id="L52">        return build(HttpStatus.FORBIDDEN, &quot;forbidden&quot;, &quot;Forbidden&quot;, &quot;Access denied&quot;);</span>
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity&lt;ProblemDetail&gt; handleGeneric(Exception ex) {
+<span class="nc" id="L57">        log.error(&quot;Unhandled exception: {}&quot;, ex.getMessage(), ex);</span>
+<span class="nc" id="L58">        return build(HttpStatus.INTERNAL_SERVER_ERROR, &quot;internal-error&quot;,</span>
+                &quot;Internal Server Error&quot;, &quot;An unexpected error occurred&quot;);
+    }
+
+    private ResponseEntity&lt;ProblemDetail&gt; build(HttpStatus status, String type, String title, String detail) {
+<span class="nc" id="L63">        ProblemDetail pd = ProblemDetail.forStatusAndDetail(status, detail);</span>
+<span class="nc" id="L64">        pd.setType(URI.create(BASE + type));</span>
+<span class="nc" id="L65">        pd.setTitle(title);</span>
+<span class="nc" id="L66">        pd.setProperty(&quot;timestamp&quot;, Instant.now());</span>
+<span class="nc" id="L67">        return ResponseEntity.status(status).body(pd);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

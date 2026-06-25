@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JavaMailEmailAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-notification-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.notification.adapter.out.email</a> &gt; <span class="el_source">JavaMailEmailAdapter.java</span></div><h1>JavaMailEmailAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.notification.adapter.out.email;
+
+import com.bookplus.notification.domain.port.out.EmailDeliveryPort;
+import com.bookplus.notification.shared.annotation.PersistenceAdapter;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="nc" id="L15">@Slf4j</span>
+public class JavaMailEmailAdapter implements EmailDeliveryPort {
+
+    private final JavaMailSender mailSender;
+
+    @Value(&quot;${notification.mail.from:noreply@bookplus.com}&quot;)
+    private String fromAddress;
+
+    @Override
+    public void send(String to, String subject, String htmlBody) {
+        try {
+<span class="nc" id="L26">            MimeMessage message = mailSender.createMimeMessage();</span>
+<span class="nc" id="L27">            MimeMessageHelper helper = new MimeMessageHelper(message, true, &quot;UTF-8&quot;);</span>
+<span class="nc" id="L28">            helper.setFrom(fromAddress);</span>
+<span class="nc" id="L29">            helper.setTo(to);</span>
+<span class="nc" id="L30">            helper.setSubject(subject);</span>
+<span class="nc" id="L31">            helper.setText(htmlBody, true);  // true = isHtml</span>
+<span class="nc" id="L32">            mailSender.send(message);</span>
+<span class="nc" id="L33">            log.debug(&quot;Email dispatched to {} subject='{}'&quot;, to, subject);</span>
+<span class="nc" id="L34">        } catch (MessagingException ex) {</span>
+<span class="nc" id="L35">            throw new RuntimeException(&quot;Failed to send email to &quot; + to, ex);</span>
+<span class="nc" id="L36">        }</span>
+<span class="nc" id="L37">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
