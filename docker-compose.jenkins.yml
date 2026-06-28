@@ -10,6 +10,9 @@ services:
     build: ./jenkins
     container_name: bookplus-jenkins
     user: root                         # para usar el socket de Docker del host
+    dns:                               # DNS fijo: evita los "Could not resolve host" recurrentes
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "8080:8080"
       - "50000:50000"
