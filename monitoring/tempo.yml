@@ -1,0 +1,28 @@
+# Grafana Tempo — backend de trazas distribuidas (OpenTelemetry).
+# Recibe spans por OTLP (desde el OTel Collector) y los almacena para consultarlos en Grafana.
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 24h   # retención de trazas (dev)
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks

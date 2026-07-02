@@ -51,19 +51,6 @@ services:
       - "1025:1025"
       - "8025:8025"
 
-  zipkin:
-    image: openzipkin/zipkin:3
-    container_name: bookplus-zipkin
-    networks: [bookplus-net]
-    ports:
-      - "9411:9411"   # Zipkin UI → http://localhost:9411
-    environment:
-      STORAGE_TYPE: mem   # in-memory for dev; swap to elasticsearch in prod
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:9411/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
 
   # ── Secretos: HashiCorp Vault (modo dev) ──────────────────────────────────
   vault:
@@ -153,13 +140,13 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
       # La V2 fue editada (hash admin); el esquema en BD ya está correcto → omitir validación de checksum.
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
-      ZIPKIN_URL: http://zipkin:9411
-      TRACING_SAMPLE_RATE: ${TRACING_SAMPLE_RATE:-1.0}
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
     depends_on:
       auth-postgres: { condition: service_healthy }
       gateway-redis: { condition: service_healthy }
       kafka:         { condition: service_healthy }
-      zipkin:        { condition: service_healthy }
+      otel-collector:        { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
       interval: 30s
@@ -233,13 +220,14 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       CATALOG_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
-      ZIPKIN_URL: http://zipkin:9411
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
     depends_on:
       catalog-postgres:  { condition: service_healthy }
       catalog-redis:     { condition: service_healthy }
       elasticsearch:     { condition: service_healthy }
       kafka:             { condition: service_healthy }
-      zipkin:            { condition: service_healthy }
+      otel-collector:            { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
       interval: 30s
@@ -278,11 +266,12 @@ services:
       INVENTORY_DB_PASS: inventory_pass
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       INVENTORY_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
-      ZIPKIN_URL: http://zipkin:9411
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
     depends_on:
       inventory-postgres: { condition: service_healthy }
       kafka:              { condition: service_healthy }
-      zipkin:             { condition: service_healthy }
+      otel-collector:             { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1"]
       interval: 30s
@@ -313,11 +302,12 @@ services:
       CART_REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       CART_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
-      ZIPKIN_URL: http://zipkin:9411
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
     depends_on:
       cart-redis: { condition: service_healthy }
       kafka:      { condition: service_healthy }
-      zipkin:     { condition: service_healthy }
+      otel-collector:     { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1"]
       interval: 30s
@@ -358,11 +348,12 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       ORDER_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
-      ZIPKIN_URL: http://zipkin:9411
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
     depends_on:
       order-postgres: { condition: service_healthy }
       kafka:          { condition: service_healthy }
-      zipkin:         { condition: service_healthy }
+      otel-collector:         { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health || exit 1"]
       interval: 30s
@@ -402,11 +393,12 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       PAYMENT_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
-      ZIPKIN_URL: http://zipkin:9411
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
     depends_on:
       payment-postgres: { condition: service_healthy }
       kafka:            { condition: service_healthy }
-      zipkin:           { condition: service_healthy }
+      otel-collector:           { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health || exit 1"]
       interval: 30s
@@ -445,7 +437,8 @@ services:
       NOTIFICATION_DB_PASS: notification_pass
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NOTIFICATION_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
-      ZIPKIN_URL: http://zipkin:9411
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
       MAIL_HOST: mailhog
       MAIL_PORT: 1025
       MAIL_FROM: noreply@bookplus.com
@@ -469,6 +462,8 @@ services:
     container_name: bookplus-api-gateway
     networks: [bookplus-net]
     environment:
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
       SERVER_PORT: 8080
       GATEWAY_REDIS_HOST: gateway-redis
       GATEWAY_REDIS_PORT: 6379
@@ -555,11 +550,12 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REPORT_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
-      ZIPKIN_URL: http://zipkin:9411
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
     depends_on:
       report-postgres: { condition: service_healthy }
       kafka:           { condition: service_healthy }
-      zipkin:          { condition: service_healthy }
+      otel-collector:          { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8088/actuator/health || exit 1"]
       interval: 30s
@@ -644,6 +640,7 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
+      - tempo
     restart: unless-stopped
 
   # ── Observabilidad: logs (Loki + Promtail) y OpenTelemetry ────────────────
@@ -668,6 +665,18 @@ services:
     command: -config.file=/etc/promtail/config.yml
     restart: unless-stopped
 
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: bookplus-tempo
+    networks: [bookplus-net]
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ./monitoring/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo API (consultado por Grafana)
+    restart: unless-stopped
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.108.0
     container_name: bookplus-otel-collector
@@ -679,7 +688,7 @@ services:
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP
     depends_on:
-      - zipkin
+      - tempo
     restart: unless-stopped
 
   # ── Gobierno de eventos: Schema Registry (Apicurio) ───────────────────────
@@ -776,4 +785,5 @@ volumes:
   elasticsearch-data:
   prometheus-data:
   grafana-data:
+  tempo-data:
   pactbroker-postgres-data:

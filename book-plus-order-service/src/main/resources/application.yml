@@ -70,9 +70,9 @@ management:
   tracing:
     sampling:
       probability: ${TRACING_SAMPLE_RATE:1.0}
-  zipkin:
+  otlp:                       # OpenTelemetry: exporta spans por OTLP al Collector → Tempo
     tracing:
-      endpoint: ${ZIPKIN_URL:http://localhost:9411}/api/v2/spans
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
 
 # ── Logging — traceId in every line ────────────────────────────────────
 logging:

@@ -12,3 +12,20 @@ datasources:
     access: proxy
     url: http://loki:3100
     editable: true
+  # Trazas distribuidas (OpenTelemetry). Correlación traza→logs: al abrir un span,
+  # Grafana enlaza con los logs de Loki que llevan el mismo traceId.
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
