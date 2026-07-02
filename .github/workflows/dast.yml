@@ -1,0 +1,62 @@
+name: DAST (OWASP ZAP)
+
+# Escaneo de seguridad DINÁMICO (DAST): ZAP ataca la aplicación EN EJECUCIÓN, a diferencia de
+# SonarCloud (SAST, código) y Trivy (SCA, dependencias/imagen). Cierra el triángulo SAST+SCA+DAST.
+# Es lento, así que se ejecuta a demanda y semanalmente (no en cada push).
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 3 * * 1"   # lunes 03:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    name: ZAP baseline scan (API Gateway)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Clave pública JWT de usar y tirar: el gateway la necesita para configurar el resource
+      # server al arrancar. El escaneo es anónimo (no envía JWT), así que una key aleatoria basta.
+      - name: Generar clave pública JWT efímera (DER base64)
+        run: |
+          openssl genrsa -out /tmp/jwt.pem 2048
+          echo "BOOKPLUS_JWT_PUBLIC_KEY_BASE64=$(openssl rsa -in /tmp/jwt.pem -pubout -outform DER 2>/dev/null | base64 -w0)" >> "$GITHUB_ENV"
+
+      - name: Levantar target (gateway + redis)
+        run: docker compose -f docker-compose.dast.yml up -d --build
+
+      - name: Esperar a que el gateway responda
+        run: |
+          for i in $(seq 1 48); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health || echo 000)
+            if [ "$code" != "000" ]; then echo "Gateway responde (HTTP $code)"; exit 0; fi
+            sleep 5
+          done
+          echo "El gateway no respondió a tiempo — logs:"
+          docker compose -f docker-compose.dast.yml logs --tail=120
+          exit 1
+
+      - name: OWASP ZAP Baseline Scan
+        run: |
+          mkdir -p zap-out && cp .zap/rules.tsv zap-out/rules.tsv && chmod -R 777 zap-out
+          # --network host: el contenedor ZAP comparte la red del runner y alcanza localhost:8080.
+          # -a: reglas passive alpha | -I: no falla por warnings (informativo, como Trivy/gate).
+          docker run --network host -v "$(pwd)/zap-out:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:8080 -c rules.tsv \
+              -r zap-report.html -w zap-report.md -a -I || true
+
+      - name: Publicar reporte ZAP como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-dast-report
+          path: zap-out/zap-report.*
+          if-no-files-found: warn
+
+      - name: Parar target
+        if: always()
+        run: docker compose -f docker-compose.dast.yml down -v
