@@ -92,6 +92,8 @@ public class SecurityConfig {
                         // OpenAPI / Actuator
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**",
                                          "/swagger-ui.html", "/actuator/health").permitAll()
+                        // GraphQL — API de agregación de lectura (pública, como los GET REST)
+                        .requestMatchers("/graphql", "/graphiql/**").permitAll()
                         // Admin
                         .requestMatchers("/api/v1/admin/**")
                             .hasAnyRole("EDITOR", "ADMIN", "SUPERADMIN")

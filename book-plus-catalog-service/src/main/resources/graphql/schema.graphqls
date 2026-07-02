@@ -1,0 +1,33 @@
+# Esquema GraphQL del catálogo — API de agregación tipada para el frontend.
+# Permite pedir en UNA sola consulta exactamente los campos que la vista necesita,
+# evitando el over/under-fetching típico de REST.
+
+type Query {
+    "Un libro por su id."
+    book(id: ID!): Book
+    "Listado paginado de libros (con filtros opcionales)."
+    books(page: Int = 0, size: Int = 20, categoryId: ID, author: String): [Book!]!
+}
+
+type Book {
+    id: ID!
+    isbn: String
+    title: String!
+    slug: String
+    author: String
+    description: String
+    price: Float
+    currency: String
+    discountPrice: Float
+    hasDiscount: Boolean
+    imageUrl: String
+    publisher: String
+    language: String
+    pages: Int
+    categoryId: ID
+    active: Boolean
+    inStock: Boolean
+    stockSnapshot: Int
+    averageRating: Float
+    reviewCount: Int
+}

@@ -2,6 +2,12 @@ server:
   port: ${SERVER_PORT:8083}
   shutdown: graceful
 
+# ── gRPC (servidor embebido para llamadas internas servicio-a-servicio) ────────
+# Arranca junto al contexto de Spring; los @GrpcService se registran solos.
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9090}
+
 spring:
   threads:
     virtual:
