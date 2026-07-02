@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StockGrpcService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-inventory-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.inventory.adapter.in.grpc</a> &gt; <span class="el_source">StockGrpcService.java</span></div><h1>StockGrpcService.java</h1><pre class="source lang-java linenums">package com.bookplus.inventory.adapter.in.grpc;
+
+import com.bookplus.inventory.domain.model.Stock;
+import com.bookplus.inventory.domain.port.in.GetStockUseCase;
+import com.bookplus.inventory.grpc.CheckStockRequest;
+import com.bookplus.inventory.grpc.CheckStockResponse;
+import com.bookplus.inventory.grpc.StockServiceGrpc;
+
+import io.grpc.stub.StreamObserver;
+import net.devh.boot.grpc.server.service.GrpcService;
+
+/**
+ * Adaptador de entrada gRPC — expone la consulta de stock por HTTP/2 binario.
+ *
+ * Arquitectura hexagonal: reutiliza el MISMO caso de uso que el adaptador REST
+ * ({@link GetStockUseCase}); el dominio no sabe si lo invocan por REST o por gRPC.
+ * Los stubs {@code StockServiceGrpc}, {@code CheckStockRequest/Response} los genera
+ * protobuf-maven-plugin desde {@code src/main/proto/stock.proto} en tiempo de build.
+ *
+ * {@link GrpcService} (net.devh) registra este bean en el servidor gRPC embebido
+ * (puerto 9090 por defecto) que arranca junto al contexto de Spring.
+ */
+@GrpcService
+public class StockGrpcService extends StockServiceGrpc.StockServiceImplBase {
+
+    private final GetStockUseCase getStockUseCase;
+
+<span class="fc" id="L28">    public StockGrpcService(GetStockUseCase getStockUseCase) {</span>
+<span class="fc" id="L29">        this.getStockUseCase = getStockUseCase;</span>
+<span class="fc" id="L30">    }</span>
+
+    @Override
+    public void checkStock(CheckStockRequest request,
+                           StreamObserver&lt;CheckStockResponse&gt; responseObserver) {
+<span class="fc" id="L35">        Stock stock = getStockUseCase.getByBookId(request.getBookId());</span>
+
+<span class="fc" id="L37">        CheckStockResponse response = CheckStockResponse.newBuilder()</span>
+<span class="fc" id="L38">                .setBookId(request.getBookId())</span>
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">                .setAvailable(stock.getQuantityAvailable() &gt; 0)</span>
+<span class="fc" id="L40">                .setQuantityAvailable(stock.getQuantityAvailable())</span>
+<span class="fc" id="L41">                .setQuantityReserved(stock.getQuantityReserved())</span>
+<span class="fc" id="L42">                .setQuantityTotal(stock.getQuantityTotal())</span>
+<span class="fc" id="L43">                .build();</span>
+
+<span class="fc" id="L45">        responseObserver.onNext(response);</span>
+<span class="fc" id="L46">        responseObserver.onCompleted();</span>
+<span class="fc" id="L47">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

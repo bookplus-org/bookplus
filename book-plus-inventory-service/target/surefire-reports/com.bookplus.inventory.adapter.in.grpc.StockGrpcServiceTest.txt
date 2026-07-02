@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.bookplus.inventory.adapter.in.grpc.StockGrpcServiceTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.599 s -- in com.bookplus.inventory.adapter.in.grpc.StockGrpcServiceTest

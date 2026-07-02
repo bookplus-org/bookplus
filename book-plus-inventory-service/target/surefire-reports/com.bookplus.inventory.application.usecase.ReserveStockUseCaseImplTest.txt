@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.bookplus.inventory.application.usecase.ReserveStockUseCaseImplTest
 -------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.095 s -- in com.bookplus.inventory.application.usecase.ReserveStockUseCaseImplTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.059 s -- in com.bookplus.inventory.application.usecase.ReserveStockUseCaseImplTest

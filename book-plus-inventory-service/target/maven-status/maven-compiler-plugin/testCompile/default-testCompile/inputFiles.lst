@@ -1,6 +1,7 @@
-/app/src/test/java/com/bookplus/inventory/application/batch/ReservationExpiryServiceTest.java
-/app/src/test/java/com/bookplus/inventory/application/usecase/ConfirmReservationUseCaseImplTest.java
-/app/src/test/java/com/bookplus/inventory/application/usecase/ReserveStockUseCaseImplTest.java
-/app/src/test/java/com/bookplus/inventory/architecture/HexagonalArchitectureTest.java
-/app/src/test/java/com/bookplus/inventory/domain/model/StockReservationTest.java
-/app/src/test/java/com/bookplus/inventory/domain/model/StockTest.java
+/w/book-plus-inventory-service/src/test/java/com/bookplus/inventory/adapter/in/grpc/StockGrpcServiceTest.java
+/w/book-plus-inventory-service/src/test/java/com/bookplus/inventory/application/batch/ReservationExpiryServiceTest.java
+/w/book-plus-inventory-service/src/test/java/com/bookplus/inventory/application/usecase/ConfirmReservationUseCaseImplTest.java
+/w/book-plus-inventory-service/src/test/java/com/bookplus/inventory/application/usecase/ReserveStockUseCaseImplTest.java
+/w/book-plus-inventory-service/src/test/java/com/bookplus/inventory/architecture/HexagonalArchitectureTest.java
+/w/book-plus-inventory-service/src/test/java/com/bookplus/inventory/domain/model/StockReservationTest.java
+/w/book-plus-inventory-service/src/test/java/com/bookplus/inventory/domain/model/StockTest.java
