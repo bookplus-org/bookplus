@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.bookplus.order.adapter.in.process.PurchaseSagaDelegatesTest
 -------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.679 s -- in com.bookplus.order.adapter.in.process.PurchaseSagaDelegatesTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.829 s -- in com.bookplus.order.adapter.in.process.PurchaseSagaDelegatesTest

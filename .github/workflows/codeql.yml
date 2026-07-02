@@ -1,0 +1,49 @@
+name: CodeQL
+
+# SAST profundo (análisis estático de seguridad) con CodeQL, el motor de GitHub.
+# Complementa a SonarCloud (calidad) y a Trivy/Dependency-Check (dependencias):
+# CodeQL rastrea flujos de datos (taint tracking) para detectar inyección SQL,
+# XSS, deserialización insegura, path traversal, etc., en el propio código.
+# Los hallazgos aparecen en la pestaña Security → Code scanning.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, master, develop]
+  schedule:
+    - cron: "0 5 * * 1"   # lunes 05:00 (barrido semanal)
+
+permissions:
+  contents: read
+  security-events: write   # subir los resultados (SARIF) a Code scanning
+  actions: read
+
+jobs:
+  analyze:
+    name: Analizar (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # El repo son 10 microservicios Maven independientes (sin pom raíz),
+          # por eso build-mode: none: CodeQL analiza el código sin compilarlo.
+          - language: java-kotlin
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inicializar CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended   # conjunto ampliado de consultas de seguridad
+
+      - name: Análisis CodeQL
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -52,6 +52,8 @@ book-plus-order-service,com.bookplus.order.domain.model,Coupon,0,38,0,4,0,3,0,5,
 book-plus-order-service,com.bookplus.order.domain.model,Money,58,27,5,3,8,6,8,2,4,2
 book-plus-order-service,com.bookplus.order.domain.model,ShippingAddress,25,46,10,10,5,7,10,1,0,1
 book-plus-order-service,com.bookplus.order.domain.model,OrderItem,27,41,2,2,3,12,4,2,2,2
+book-plus-order-service,com.bookplus.order.adapter.out.authz,OpaAuthorizationClient,37,89,6,10,6,23,3,9,0,4
+book-plus-order-service,com.bookplus.order.adapter.out.authz,OpaAuthorizationClient.OpaResponse,6,0,0,0,1,0,1,0,1,0
 book-plus-order-service,com.bookplus.order.application.coupon,CouponService.CouponResult,0,18,0,0,0,1,0,1,0,1
 book-plus-order-service,com.bookplus.order.application.coupon,CouponService,2,151,3,19,0,25,3,12,0,4
 book-plus-order-service,com.bookplus.order.adapter.in.web.sse,OrderChangedAppEvent,12,0,0,0,1,0,1,0,1,0

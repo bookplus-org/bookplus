@@ -94,3 +94,11 @@ camunda:
       schema-update: true
     job-execution:
       enabled: false
+
+# ── Autorizacion externa (Open Policy Agent) — ver OpaAuthorizationClient ─────
+# enabled=false: modo shadow (no bloquea) para rollout gradual. Se activa por env.
+opa:
+  url: ${OPA_URL:http://localhost:8181}
+  decision-path: ${OPA_DECISION_PATH:/v1/data/bookplus/authz/allow}
+  enabled: ${OPA_ENABLED:false}
+  fail-open: ${OPA_FAIL_OPEN:true}

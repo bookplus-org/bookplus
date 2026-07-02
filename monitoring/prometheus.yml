@@ -5,6 +5,17 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Reglas de alerta como codigo (versionadas en el repo).
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+# Prometheus evalua las reglas y envia las alertas que disparan a Alertmanager,
+# que las agrupa, deduplica y (en produccion) las enruta a email/Slack/PagerDuty.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   - job_name: prometheus
     static_configs:

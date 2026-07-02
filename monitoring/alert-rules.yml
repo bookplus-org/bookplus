@@ -1,0 +1,62 @@
+# Reglas de alerta de BookPlus — "alerting as code".
+# Basadas en el método RED (Rate, Errors, Duration) sobre las métricas HTTP de
+# Micrometer/Spring Boot (http_server_requests_seconds_*) más señales de la JVM.
+# Prometheus las evalúa cada 15s y envía a Alertmanager las que cumplen su "for".
+
+groups:
+  - name: bookplus-availability
+    rules:
+      # Un servicio dejó de responder al scrape de métricas.
+      - alert: ServiceDown
+        expr: up{stack="bookplus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio caído: {{ $labels.instance }}"
+          description: "Prometheus no puede scrapear {{ $labels.instance }} desde hace más de 1 minuto."
+
+  - name: bookplus-red
+    rules:
+      # ERRORS — tasa de 5xx por encima del 5% del tráfico del servicio (5 min).
+      - alert: HighErrorRate
+        expr: |
+          sum by (instance) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            /
+          sum by (instance) (rate(http_server_requests_seconds_count[5m]))
+            > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tasa de errores 5xx alta en {{ $labels.instance }}"
+          description: "Más del 5% de las respuestas son 5xx en los últimos 5 minutos."
+
+      # DURATION — latencia p95 por encima de 1s (5 min).
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (instance, le) (rate(http_server_requests_seconds_bucket[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latencia p95 alta en {{ $labels.instance }}"
+          description: "El percentil 95 de latencia HTTP supera 1s durante 5 minutos."
+
+  - name: bookplus-saturation
+    rules:
+      # JVM — uso del heap por encima del 90% de forma sostenida.
+      - alert: JvmHeapHigh
+        expr: |
+          sum by (instance) (jvm_memory_used_bytes{area="heap"})
+            /
+          sum by (instance) (jvm_memory_max_bytes{area="heap"})
+            > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Heap JVM alto en {{ $labels.instance }}"
+          description: "El heap usado supera el 90% del máximo durante 10 minutos (riesgo de OOM/GC)."

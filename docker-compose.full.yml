@@ -620,9 +620,37 @@ services:
     networks: [bookplus-net]
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
+    depends_on:
+      - alertmanager
+    restart: unless-stopped
+
+  # Alertmanager — agrupa/enruta las alertas que dispara Prometheus.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: bookplus-alertmanager
+    networks: [bookplus-net]
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+
+  # ── Autorización como código: Open Policy Agent (ABAC) ────────────────────
+  # OPA corre como servicio de decisión: los microservicios le envían el input
+  # (sujeto+acción+recurso) y OPA responde allow/deny según opa/policies/*.rego.
+  opa:
+    image: openpolicyagent/opa:0.68.0
+    container_name: bookplus-opa
+    networks: [bookplus-net]
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=info", "/policies"]
+    volumes:
+      - ./opa/policies:/policies:ro
+    ports:
+      - "8181:8181"
     restart: unless-stopped
 
   grafana:

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MfaController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.adapter.in.web</a> &gt; <span class="el_source">MfaController.java</span></div><h1>MfaController.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.adapter.in.web;
+
+import com.bookplus.auth.application.mfa.TotpService;
+import com.bookplus.auth.shared.web.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Segundo factor (MFA) por TOTP. Ambas rutas requieren autenticación
+ * (SecurityConfig: anyRequest().authenticated()).
+ *
+ *  - POST /api/v1/auth/mfa/enroll  → genera un secreto y la URI otpauth:// para
+ *    que el usuario la escanee con su app (Google Authenticator, etc.).
+ *  - POST /api/v1/auth/mfa/verify  → comprueba un código de 6 dígitos.
+ *
+ * Nota: la persistencia del secreto por usuario y su exigencia en el login se
+ * apoyan en este bloque; el núcleo criptográfico (RFC 6238) vive en TotpService.
+ */
+@RestController
+@RequestMapping(&quot;/api/v1/auth/mfa&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;MFA (TOTP)&quot;, description = &quot;Two-factor authentication with TOTP&quot;)
+public class MfaController {
+
+    private static final String ISSUER = &quot;BookPlus&quot;;
+
+    private final TotpService totpService;
+
+    @PostMapping(&quot;/enroll&quot;)
+    @Operation(summary = &quot;Generate a TOTP secret and otpauth URI for the current user&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;EnrollResponse&gt;&gt; enroll(Authentication auth) {
+<span class="nc" id="L37">        String secret = totpService.generateSecret();</span>
+<span class="nc" id="L38">        String uri = totpService.otpauthUri(ISSUER, auth.getName(), secret);</span>
+<span class="nc" id="L39">        return ResponseEntity.ok(ApiResponse.ok(new EnrollResponse(secret, uri)));</span>
+    }
+
+    @PostMapping(&quot;/verify&quot;)
+    @Operation(summary = &quot;Verify a 6-digit TOTP code against a secret&quot;)
+    public ResponseEntity&lt;ApiResponse&lt;VerifyResponse&gt;&gt; verify(@RequestBody VerifyRequest body) {
+<span class="nc" id="L45">        boolean valid = totpService.verify(body.secret(), body.code());</span>
+<span class="nc" id="L46">        return ResponseEntity.ok(ApiResponse.ok(new VerifyResponse(valid)));</span>
+    }
+
+<span class="nc" id="L49">    public record EnrollResponse(String secret, String otpauthUri) {}</span>
+
+<span class="nc" id="L51">    public record VerifyRequest(@NotBlank String secret, @NotBlank String code) {}</span>
+
+<span class="nc" id="L53">    public record VerifyResponse(boolean valid) {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

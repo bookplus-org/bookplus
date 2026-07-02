@@ -1,5 +1,6 @@
 com/bookplus/order/adapter/in/process/PurchaseSagaDelegatesTest.class
 com/bookplus/order/contract/CartCheckedOutContractTest.class
+com/bookplus/order/adapter/out/authz/OpaAuthorizationClientTest.class
 com/bookplus/order/domain/model/OrderTest.class
 com/bookplus/order/shared/metrics/OrderMetricsTest.class
 com/bookplus/order/application/usecase/CancelOrderUseCaseImplTest.class

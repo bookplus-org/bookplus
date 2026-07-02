@@ -1,0 +1,30 @@
+# Configuración de Gitleaks — escaneo de secretos (claves, tokens, contraseñas)
+# en el código y en TODO el historial de git. Extiende el conjunto de reglas
+# por defecto y añade allowlist para falsos positivos conocidos del proyecto.
+
+title = "BookPlus Gitleaks config"
+
+[extend]
+useDefault = true   # parte de las ~150 reglas oficiales (AWS, GCP, JWT, PK, etc.)
+
+[allowlist]
+description = "Falsos positivos conocidos (ejemplos, claves de test, placeholders)"
+
+# Rutas que contienen material de ejemplo/desarrollo, NO secretos reales.
+paths = [
+  '''\.gitleaks\.toml''',
+  '''.*\.example$''',
+  '''jenkins/casc/github-app\.pem\.example''',
+  '''.*/src/test/.*''',              # claves y tokens usados solo en tests
+  '''.*/application-test\.ya?ml''',
+  '''.*README.*''',
+  '''.*\.md$''',                     # documentación con ejemplos
+]
+
+# Cadenas concretas que son placeholders/valores de desarrollo, no secretos.
+regexes = [
+  '''(catalog|inventory|order|payment|auth|cart)_(user|pass)''',  # credenciales dev de compose
+  '''changeit''',
+  '''CHANGE_ME''',
+  '''your-.*-here''',
+]

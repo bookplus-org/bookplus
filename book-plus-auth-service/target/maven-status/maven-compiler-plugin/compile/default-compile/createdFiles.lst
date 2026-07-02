@@ -16,9 +16,12 @@ com/bookplus/auth/adapter/out/kafka/KafkaEventPublisherAdapter.class
 com/bookplus/auth/adapter/out/persistence/entity/RoleEntity.class
 com/bookplus/auth/adapter/in/web/AdminUserController$CreateUserRequest.class
 com/bookplus/auth/adapter/out/persistence/entity/RefreshTokenEntity$RefreshTokenEntityBuilder.class
+com/bookplus/auth/application/mfa/TotpService.class
 com/bookplus/auth/shared/security/JwtConfig$RsaKeyProperties.class
 com/bookplus/auth/shared/annotation/WebAdapter.class
+com/bookplus/auth/adapter/in/web/MfaController$VerifyRequest.class
 com/bookplus/auth/domain/port/out/EmailVerificationPort.class
+com/bookplus/auth/adapter/in/web/MfaController$VerifyResponse.class
 com/bookplus/auth/application/usecase/RegisterUserUseCaseImpl.class
 com/bookplus/auth/adapter/out/persistence/repository/RefreshTokenJpaRepository.class
 com/bookplus/auth/application/usecase/ForgotPasswordUseCaseImpl.class
@@ -92,6 +95,7 @@ com/bookplus/auth/adapter/in/web/dto/request/RegisterRequest.class
 com/bookplus/auth/adapter/out/persistence/entity/PasswordResetTokenEntity$PasswordResetTokenEntityBuilder.class
 com/bookplus/auth/domain/port/in/AccountUseCase.class
 com/bookplus/auth/shared/security/JwtConfig.class
+com/bookplus/auth/adapter/in/web/MfaController$EnrollResponse.class
 com/bookplus/auth/domain/event/UserRegisteredEvent.class
 com/bookplus/auth/domain/port/out/EmailNotificationPort.class
 com/bookplus/auth/domain/model/UserId.class
@@ -108,3 +112,4 @@ com/bookplus/auth/domain/port/out/SaveRefreshTokenPort.class
 com/bookplus/auth/domain/port/out/DomainEventPublisherPort.class
 com/bookplus/auth/adapter/out/persistence/entity/PasswordResetTokenEntity.class
 com/bookplus/auth/domain/port/in/AdminUserUseCase.class
+com/bookplus/auth/adapter/in/web/MfaController.class

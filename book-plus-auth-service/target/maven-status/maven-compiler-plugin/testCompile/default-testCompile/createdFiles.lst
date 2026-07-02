@@ -5,6 +5,7 @@ com/bookplus/auth/shared/security/lockout/LoginAttemptServiceTest$InMemoryStore.
 com/bookplus/auth/domain/model/UserRoleTest.class
 com/bookplus/auth/config/PasswordEncoderArgon2Test.class
 com/bookplus/auth/shared/security/AuthRateLimiterTest.class
+com/bookplus/auth/application/mfa/TotpServiceTest.class
 com/bookplus/auth/shared/validation/StrongPasswordValidatorTest.class
 com/bookplus/auth/domain/model/UserTest$DeactivateTests.class
 com/bookplus/auth/architecture/HexagonalArchitectureTest.class

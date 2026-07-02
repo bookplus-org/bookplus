@@ -2,12 +2,14 @@ com/bookplus/order/adapter/in/scheduler/CourierSimulator.class
 com/bookplus/order/adapter/in/web/OrderController.class
 com/bookplus/order/application/usecase/UpdateOrderStatusUseCaseImpl.class
 com/bookplus/order/domain/event/OrderPaymentConfirmedEvent.class
+com/bookplus/order/adapter/out/authz/OpaAuthorizationClient$OpaResponse.class
 com/bookplus/order/domain/exception/OrderNotCancellableException.class
 com/bookplus/order/adapter/in/web/DeliveryProofController.class
 com/bookplus/order/adapter/in/web/AdminCouponController$CouponResponse.class
 com/bookplus/order/adapter/in/web/CouponController$ValidateCouponRequest.class
 com/bookplus/order/application/coupon/CouponService$CouponResult.class
 com/bookplus/order/adapter/in/web/sse/OrderSseHub.class
+com/bookplus/order/adapter/out/authz/OpaAuthorizationClient.class
 com/bookplus/order/adapter/in/web/sse/OrderSseController.class
 com/bookplus/order/adapter/out/persistence/OrderPersistenceAdapter.class
 com/bookplus/order/adapter/out/messaging/KafkaEventPublisherAdapter.class

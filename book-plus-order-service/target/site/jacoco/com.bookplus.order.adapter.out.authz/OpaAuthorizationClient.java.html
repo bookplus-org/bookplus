@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OpaAuthorizationClient.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.out.authz</a> &gt; <span class="el_source">OpaAuthorizationClient.java</span></div><h1>OpaAuthorizationClient.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.out.authz;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Punto de aplicación (PEP) de autorización contra Open Policy Agent.
+ *
+ * En vez de codificar reglas de &quot;quién puede hacer qué&quot; dentro del servicio,
+ * este cliente envía a OPA un input {sujeto, acción, recurso} y OPA responde
+ * allow/deny evaluando las políticas Rego (opa/policies/authz.rego). La lógica
+ * de autorización queda así desacoplada, versionada y testeada aparte.
+ *
+ * Modo de despliegue seguro:
+ *  - {@code opa.enabled=false} (por defecto): &quot;shadow mode&quot;, no bloquea nada;
+ *    útil para desplegar y observar antes de aplicar (rollout gradual).
+ *  - {@code opa.fail-open=true}: si OPA no responde, no se bloquea al usuario
+ *    (evita caídas por indisponibilidad de OPA). En un entorno de alta seguridad
+ *    se pondría fail-open=false (denegar ante duda).
+ */
+@Component
+public class OpaAuthorizationClient {
+
+<span class="fc" id="L32">    private static final Logger log = LoggerFactory.getLogger(OpaAuthorizationClient.class);</span>
+
+    private final RestClient restClient;
+    private final String decisionPath;
+    private final boolean enabled;
+    private final boolean failOpen;
+
+    public OpaAuthorizationClient(
+            @Value(&quot;${opa.url:http://localhost:8181}&quot;) String opaUrl,
+            @Value(&quot;${opa.decision-path:/v1/data/bookplus/authz/allow}&quot;) String decisionPath,
+            @Value(&quot;${opa.enabled:false}&quot;) boolean enabled,
+<span class="fc" id="L43">            @Value(&quot;${opa.fail-open:true}&quot;) boolean failOpen) {</span>
+<span class="fc" id="L44">        this.restClient = RestClient.builder().baseUrl(opaUrl).build();</span>
+<span class="fc" id="L45">        this.decisionPath = decisionPath;</span>
+<span class="fc" id="L46">        this.enabled = enabled;</span>
+<span class="fc" id="L47">        this.failOpen = failOpen;</span>
+<span class="fc" id="L48">    }</span>
+
+    /**
+     * Decide si {@code subjectId} (con sus {@code roles}) puede ejecutar
+     * {@code action} sobre {@code resource}. Devuelve true/false.
+     */
+    public boolean isAllowed(String subjectId, Collection&lt;String&gt; roles,
+                             String action, Map&lt;String, Object&gt; resource) {
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (!enabled) {</span>
+<span class="fc" id="L57">            return true; // shadow mode: no se aplica autorización externa</span>
+        }
+<span class="fc" id="L59">        Map&lt;String, Object&gt; body = Map.of(&quot;input&quot;, buildInput(subjectId, roles, action, resource));</span>
+        try {
+<span class="fc" id="L61">            OpaResponse resp = restClient.post()</span>
+<span class="fc" id="L62">                    .uri(decisionPath)</span>
+<span class="fc" id="L63">                    .contentType(MediaType.APPLICATION_JSON)</span>
+<span class="fc" id="L64">                    .body(body)</span>
+<span class="nc" id="L65">                    .retrieve()</span>
+<span class="nc" id="L66">                    .body(OpaResponse.class);</span>
+<span class="nc bnc" id="L67" title="All 4 branches missed.">            boolean allow = resp != null &amp;&amp; Boolean.TRUE.equals(resp.result());</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            if (!allow) {</span>
+<span class="nc" id="L69">                log.info(&quot;OPA denegó acción '{}' del sujeto '{}' sobre recurso {}&quot;,</span>
+                        action, subjectId, resource);
+            }
+<span class="nc" id="L72">            return allow;</span>
+<span class="fc" id="L73">        } catch (Exception ex) {</span>
+<span class="fc" id="L74">            log.warn(&quot;OPA no disponible ({}). Aplicando fail-open={}&quot;, ex.getMessage(), failOpen);</span>
+<span class="fc" id="L75">            return failOpen;</span>
+        }
+    }
+
+    /** Construye el documento de entrada que espera la política (función pura, testeable). */
+    static Map&lt;String, Object&gt; buildInput(String subjectId, Collection&lt;String&gt; roles,
+                                          String action, Map&lt;String, Object&gt; resource) {
+<span class="fc" id="L82">        return Map.of(</span>
+<span class="fc" id="L83">                &quot;subject&quot;, Map.of(</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">                        &quot;id&quot;, subjectId == null ? &quot;&quot; : subjectId,</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">                        &quot;roles&quot;, roles == null ? List.of() : List.copyOf(roles)),</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">                &quot;action&quot;, action == null ? &quot;&quot; : action,</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">                &quot;resource&quot;, resource == null ? Map.of() : resource);</span>
+    }
+
+    /** Respuesta de la Data API de OPA: {&quot;result&quot;: true|false}. */
+<span class="nc" id="L91">    record OpaResponse(Boolean result) {</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

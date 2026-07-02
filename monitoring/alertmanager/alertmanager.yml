@@ -1,0 +1,27 @@
+# Alertmanager — recibe las alertas de Prometheus, las agrupa/deduplica y las
+# enruta a un receptor. En dev el receptor es "null" (solo se ven en la UI 9093);
+# en producción se activaría email/Slack/PagerDuty rellenando un receiver real.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  # Agrupa por nombre de alerta y servicio para no inundar de notificaciones.
+  group_by: ["alertname", "instance"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+  receiver: default
+
+receivers:
+  - name: default
+    # En producción, por ejemplo:
+    # slack_configs:
+    #   - api_url: ${SLACK_WEBHOOK_URL}
+    #     channel: "#bookplus-alertas"
+
+# Silencia alertas de warning si ya hay una critical del mismo servicio.
+inhibit_rules:
+  - source_matchers: ['severity = "critical"']
+    target_matchers: ['severity = "warning"']
+    equal: ["instance"]

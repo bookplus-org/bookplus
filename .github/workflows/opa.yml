@@ -1,0 +1,36 @@
+name: OPA Policy
+
+# "Policy as code gate": valida y prueba las políticas de autorización (Rego)
+# en cada cambio. Si una regla de authz.rego se rompe, el pipeline falla aquí,
+# antes de que una política defectuosa llegue a ejecución.
+
+on:
+  push:
+    branches: [main]
+    paths: ["opa/**", ".github/workflows/opa.yml"]
+  pull_request:
+    paths: ["opa/**", ".github/workflows/opa.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  policy-test:
+    name: Validar y probar políticas OPA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 0.68.0
+
+      - name: Formato (opa fmt)
+        run: opa fmt --list --diff opa/policies
+
+      - name: Chequeo estático (opa check)
+        run: opa check opa/policies
+
+      - name: Pruebas de política (opa test)
+        run: opa test opa/policies -v
