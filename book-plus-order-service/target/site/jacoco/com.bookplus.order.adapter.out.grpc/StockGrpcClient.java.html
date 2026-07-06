@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StockGrpcClient.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.out.grpc</a> &gt; <span class="el_source">StockGrpcClient.java</span></div><h1>StockGrpcClient.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.out.grpc;
+
+import com.bookplus.inventory.grpc.CheckStockRequest;
+import com.bookplus.inventory.grpc.CheckStockResponse;
+import com.bookplus.inventory.grpc.StockServiceGrpc;
+
+import io.grpc.Channel;
+import io.grpc.ManagedChannelBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Cliente gRPC del order-service hacia el StockService del inventory-service.
+ *
+ * Completa el RPC interno de punta a punta: en vez de una llamada REST/JSON,
+ * order consulta la disponibilidad de stock por gRPC (HTTP/2 binario, contrato
+ * Protobuf compartido en src/main/proto/stock.proto). Contract-first: los stubs
+ * {@code StockServiceGrpc} los genera protobuf-maven-plugin en el build.
+ *
+ * El constructor productivo abre un canal hacia {@code inventory.grpc.host:port};
+ * el constructor de paquete acepta un {@link Channel} arbitrario para poder
+ * probar el cliente con un canal in-process (sin red).
+ */
+@Component
+public class StockGrpcClient {
+
+<span class="fc" id="L31">    private static final Logger log = LoggerFactory.getLogger(StockGrpcClient.class);</span>
+
+    private final StockServiceGrpc.StockServiceBlockingStub stub;
+
+    public StockGrpcClient(
+            @Value(&quot;${inventory.grpc.host:localhost}&quot;) String host,
+            @Value(&quot;${inventory.grpc.port:9090}&quot;) int port) {
+<span class="nc" id="L38">        this(ManagedChannelBuilder.forAddress(host, port).usePlaintext().build());</span>
+<span class="nc" id="L39">        log.info(&quot;Cliente gRPC de stock apuntando a {}:{}&quot;, host, port);</span>
+<span class="nc" id="L40">    }</span>
+
+<span class="fc" id="L42">    StockGrpcClient(Channel channel) {</span>
+<span class="fc" id="L43">        this.stub = StockServiceGrpc.newBlockingStub(channel);</span>
+<span class="fc" id="L44">    }</span>
+
+    /**
+     * Consulta la disponibilidad de un libro por gRPC.
+     *
+     * @return disponibilidad mapeada a un objeto de dominio ligero del order-service.
+     */
+    public StockAvailability checkStock(String bookId) {
+<span class="fc" id="L52">        CheckStockResponse resp = stub</span>
+<span class="fc" id="L53">                .withDeadlineAfter(2, TimeUnit.SECONDS)</span>
+<span class="fc" id="L54">                .checkStock(CheckStockRequest.newBuilder().setBookId(bookId).build());</span>
+<span class="fc" id="L55">        return new StockAvailability(</span>
+<span class="fc" id="L56">                resp.getBookId(),</span>
+<span class="fc" id="L57">                resp.getAvailable(),</span>
+<span class="fc" id="L58">                resp.getQuantityAvailable());</span>
+    }
+
+    /** Vista de disponibilidad que expone el cliente al resto del order-service. */
+<span class="fc" id="L62">    public record StockAvailability(String bookId, boolean available, int quantityAvailable) {</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

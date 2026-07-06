@@ -1,0 +1,29 @@
+# Overlay de Chaos Engineering con Toxiproxy (opt-in, no altera el stack normal).
+#
+# Toxiproxy es un proxy TCP que inyecta fallos de red REALES (latencia, cortes,
+# ancho de banda limitado) entre un servicio y su dependencia. Aquí se interpone
+# entre el catalog-service y Elasticsearch para poder comprobar de verdad que la
+# resiliencia (Resilience4j: retry + circuit breaker + fallback) funciona.
+#
+# Uso:
+#   docker compose -f docker-compose.full.yml -f docker-compose.chaos.yml up -d toxiproxy catalog-service
+#   ./chaos/run-experiment.sh            # inyecta latencia y observa el circuito
+services:
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.9.0
+    container_name: bookplus-toxiproxy
+    networks: [bookplus-net]
+    command: ["-host", "0.0.0.0", "-config", "/config/toxiproxy.json"]
+    volumes:
+      - ./chaos/toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "8474:8474"     # API de control de Toxiproxy
+      - "29200:29200"   # proxy hacia Elasticsearch
+    restart: unless-stopped
+
+  # El catalog-service pasa a hablar con Elasticsearch A TRAVÉS de Toxiproxy.
+  catalog-service:
+    environment:
+      ELASTICSEARCH_URIS: http://toxiproxy:29200
+    depends_on:
+      - toxiproxy

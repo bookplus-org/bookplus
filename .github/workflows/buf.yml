@@ -1,0 +1,36 @@
+name: Buf gRPC Contracts
+
+# Gobernanza de los contratos Protobuf/gRPC: valida estilo (buf lint) y detecta
+# cambios INCOMPATIBLES respecto a main (buf breaking). Así un .proto no puede
+# romper a los clientes sin que el pipeline lo señale.
+
+on:
+  push:
+    branches: [main]
+    paths: ["**/*.proto", "buf.yaml", ".github/workflows/buf.yml"]
+  pull_request:
+    paths: ["**/*.proto", "buf.yaml", ".github/workflows/buf.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  buf:
+    name: Lint y breaking-change de .proto
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # necesario para comparar contra main (breaking)
+
+      - name: Instalar Buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.45.0"
+
+      - name: Lint de estilo
+        run: buf lint
+
+      - name: Detección de cambios incompatibles (contra main)
+        run: buf breaking --against ".git#branch=main,subdir=."
+        continue-on-error: true   # informativo en la primera adopción

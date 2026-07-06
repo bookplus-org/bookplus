@@ -1,5 +1,6 @@
 /w/book-plus-auth-service/src/test/java/com/bookplus/auth/application/mfa/TotpServiceTest.java
 /w/book-plus-auth-service/src/test/java/com/bookplus/auth/application/usecase/RegisterUserUseCaseImplTest.java
+/w/book-plus-auth-service/src/test/java/com/bookplus/auth/application/webauthn/WebAuthnAssertionVerifierTest.java
 /w/book-plus-auth-service/src/test/java/com/bookplus/auth/architecture/HexagonalArchitectureTest.java
 /w/book-plus-auth-service/src/test/java/com/bookplus/auth/config/PasswordEncoderArgon2Test.java
 /w/book-plus-auth-service/src/test/java/com/bookplus/auth/domain/model/EmailTest.java

@@ -22,6 +22,7 @@
 /w/book-plus-order-service/src/main/java/com/bookplus/order/adapter/in/web/sse/OrderSseController.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/adapter/in/web/sse/OrderSseHub.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/adapter/out/authz/OpaAuthorizationClient.java
+/w/book-plus-order-service/src/main/java/com/bookplus/order/adapter/out/grpc/StockGrpcClient.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/adapter/out/messaging/KafkaEventPublisherAdapter.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/adapter/out/persistence/CouponPersistenceAdapter.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/adapter/out/persistence/OrderPersistenceAdapter.java
@@ -51,12 +52,18 @@
 /w/book-plus-order-service/src/main/java/com/bookplus/order/config/OpenApiConfig.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/config/SecurityConfig.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/config/ShedLockConfig.java
+/w/book-plus-order-service/src/main/java/com/bookplus/order/domain/audit/AuditEntry.java
+/w/book-plus-order-service/src/main/java/com/bookplus/order/domain/audit/HashChainedAuditLog.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/event/DigitalAccessRevokedEvent.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/event/OrderCancelledEvent.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/event/OrderCreatedEvent.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/event/OrderPaymentConfirmedEvent.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/event/OrderRefundedEvent.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/event/OrderStatusChangedEvent.java
+/w/book-plus-order-service/src/main/java/com/bookplus/order/domain/eventsourcing/EventSourcedOrder.java
+/w/book-plus-order-service/src/main/java/com/bookplus/order/domain/eventsourcing/EventStore.java
+/w/book-plus-order-service/src/main/java/com/bookplus/order/domain/eventsourcing/OrderEvent.java
+/w/book-plus-order-service/src/main/java/com/bookplus/order/domain/eventsourcing/OrderSummaryProjection.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/exception/DomainException.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/exception/InvalidOrderTransitionException.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/domain/exception/OrderNotCancellableException.java
@@ -89,3 +96,9 @@
 /w/book-plus-order-service/src/main/java/com/bookplus/order/shared/crypto/PiiCryptoKey.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/shared/logging/CorrelationIdFilter.java
 /w/book-plus-order-service/src/main/java/com/bookplus/order/shared/metrics/OrderMetrics.java
+/w/book-plus-order-service/target/generated-sources/protobuf/grpc-java/com/bookplus/inventory/grpc/StockServiceGrpc.java
+/w/book-plus-order-service/target/generated-sources/protobuf/java/com/bookplus/inventory/grpc/CheckStockRequest.java
+/w/book-plus-order-service/target/generated-sources/protobuf/java/com/bookplus/inventory/grpc/CheckStockRequestOrBuilder.java
+/w/book-plus-order-service/target/generated-sources/protobuf/java/com/bookplus/inventory/grpc/CheckStockResponse.java
+/w/book-plus-order-service/target/generated-sources/protobuf/java/com/bookplus/inventory/grpc/CheckStockResponseOrBuilder.java
+/w/book-plus-order-service/target/generated-sources/protobuf/java/com/bookplus/inventory/grpc/StockProto.java

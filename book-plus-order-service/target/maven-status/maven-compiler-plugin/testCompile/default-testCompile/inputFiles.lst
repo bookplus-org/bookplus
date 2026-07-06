@@ -1,5 +1,6 @@
 /w/book-plus-order-service/src/test/java/com/bookplus/order/adapter/in/process/PurchaseSagaDelegatesTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/adapter/out/authz/OpaAuthorizationClientTest.java
+/w/book-plus-order-service/src/test/java/com/bookplus/order/adapter/out/grpc/StockGrpcClientTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/adapter/out/persistence/OrderAuditTrailIntegrationTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/application/coupon/CouponServiceEvaluateTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/application/coupon/CouponServiceStoreCreditTest.java
@@ -9,6 +10,8 @@
 /w/book-plus-order-service/src/test/java/com/bookplus/order/application/usecase/UpdateOrderStatusUseCaseImplTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/architecture/HexagonalArchitectureTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/contract/CartCheckedOutContractTest.java
+/w/book-plus-order-service/src/test/java/com/bookplus/order/domain/audit/HashChainedAuditLogTest.java
+/w/book-plus-order-service/src/test/java/com/bookplus/order/domain/eventsourcing/OrderEventSourcingTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/domain/model/OrderTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/domain/policy/RefundPolicyTest.java
 /w/book-plus-order-service/src/test/java/com/bookplus/order/shared/crypto/CryptoConverterTest.java

@@ -1,0 +1,27 @@
+# Perfil "vault-dynamic" — el auth-service obtiene las credenciales de PostgreSQL
+# DINÁMICAMENTE de Vault (motor "database"): usuario y contraseña temporales que
+# Vault genera al arrancar y renueva/rota mediante el lease. No hay contraseñas
+# de BD en configuración ni en variables de entorno.
+#
+# Activar con: SPRING_PROFILES_ACTIVE=vault-dynamic
+# Requisitos: el contenedor vault-db-init debe haber configurado database/roles/auth-role.
+spring:
+  config:
+    import: "vault://"
+  cloud:
+    vault:
+      uri: ${VAULT_URI:http://vault:8200}
+      token: ${VAULT_TOKEN:bookplus-root}
+      fail-fast: true
+      # KV se desactiva aquí; solo usamos el backend de base de datos.
+      kv:
+        enabled: false
+      database:
+        enabled: true
+        role: auth-role                 # rol de Vault que emite las credenciales
+        backend: database
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+  # La URL sigue siendo fija; SOLO usuario y contraseña vienen de Vault.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:auth-postgres}:${DB_PORT:5432}/${DB_NAME:auth_db}

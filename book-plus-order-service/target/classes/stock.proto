@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+// Contrato gRPC del inventory-service (contract-first).
+// El .proto es la ÚNICA fuente de verdad: protobuf-maven-plugin genera desde aquí
+// los stubs Java (mensajes + StockServiceGrpc) en target/generated-sources.
+// Comunicación interna servicio-a-servicio de alto rendimiento (HTTP/2 binario),
+// pensada para que order/cart consulten stock sin pasar por REST/JSON.
+
+option java_multiple_files = true;
+option java_package = "com.bookplus.inventory.grpc";
+option java_outer_classname = "StockProto";
+
+package bookplus.inventory;
+
+// Servicio de consulta de stock.
+service StockService {
+  // Comprueba la disponibilidad de un libro por su id.
+  rpc CheckStock (CheckStockRequest) returns (CheckStockResponse);
+}
+
+message CheckStockRequest {
+  string book_id = 1;
+}
+
+message CheckStockResponse {
+  string book_id            = 1;
+  bool   available          = 2;  // quantityAvailable > 0
+  int32  quantity_available = 3;
+  int32  quantity_reserved  = 4;
+  int32  quantity_total     = 5;
+}

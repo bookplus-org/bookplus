@@ -1,6 +1,8 @@
+com/bookplus/auth/application/webauthn/WebAuthnAssertionVerifierTest.class
 com/bookplus/auth/application/usecase/RegisterUserUseCaseImplTest.class
 com/bookplus/auth/domain/model/UserTest$CreateTests.class
 com/bookplus/auth/domain/model/EmailTest.class
+com/bookplus/auth/application/webauthn/WebAuthnAssertionVerifierTest$Fixture.class
 com/bookplus/auth/shared/security/lockout/LoginAttemptServiceTest$InMemoryStore.class
 com/bookplus/auth/domain/model/UserRoleTest.class
 com/bookplus/auth/config/PasswordEncoderArgon2Test.class

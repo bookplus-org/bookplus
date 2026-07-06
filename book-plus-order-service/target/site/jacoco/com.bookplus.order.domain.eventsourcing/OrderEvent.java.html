@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.eventsourcing</a> &gt; <span class="el_source">OrderEvent.java</span></div><h1>OrderEvent.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.eventsourcing;
+
+import java.time.Instant;
+
+/**
+ * Eventos de dominio del agregado Pedido para el modelo de Event Sourcing.
+ *
+ * En Event Sourcing el estado NO se guarda como una fila mutable, sino como la
+ * secuencia inmutable de hechos que le ocurrieron. El estado actual se obtiene
+ * &quot;reproduciendo&quot; (folding) estos eventos desde el principio. Esto da un
+ * historial de auditoría perfecto y la capacidad de reconstruir el estado a
+ * cualquier punto del tiempo.
+ *
+ * Interfaz sellada (sealed): el compilador conoce todas las variantes, lo que
+ * permite un {@code switch} exhaustivo al aplicarlas.
+ */
+public sealed interface OrderEvent {
+
+    String orderId();
+
+    Instant occurredAt();
+
+    /** El pedido fue creado. */
+<span class="fc" id="L24">    record OrderPlaced(String orderId, String customerId, Instant occurredAt) implements OrderEvent {}</span>
+
+    /** Se añadió una línea al pedido. */
+<span class="fc" id="L27">    record ItemAdded(String orderId, String bookId, int quantity, long unitPriceCents, Instant occurredAt)</span>
+            implements OrderEvent {}
+
+    /** El pedido fue pagado. */
+<span class="fc" id="L31">    record OrderPaid(String orderId, Instant occurredAt) implements OrderEvent {}</span>
+
+    /** El pedido fue cancelado. */
+<span class="nc" id="L34">    record OrderCancelled(String orderId, String reason, Instant occurredAt) implements OrderEvent {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

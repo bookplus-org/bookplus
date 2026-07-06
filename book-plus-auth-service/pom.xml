@@ -194,6 +194,15 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Fija querydsl-bom desde Maven Central. Evita que Maven intente resolverlo
+                 desde repo.spring.io (que ahora responde 401) al procesar el BOM de Spring Cloud. -->
+            <dependency>
+                <groupId>com.querydsl</groupId>
+                <artifactId>querydsl-bom</artifactId>
+                <version>5.0.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>

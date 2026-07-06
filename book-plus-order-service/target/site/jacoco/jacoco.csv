@@ -35,6 +35,17 @@ book-plus-order-service,com.bookplus.order.adapter.in.web.dto,DeliverOrderReques
 book-plus-order-service,com.bookplus.order.adapter.in.scheduler,CourierSimulator,79,0,14,0,17,0,9,0,2,0
 book-plus-order-service,com.bookplus.order.shared.crypto,PiiCryptoKey,6,43,7,5,0,16,5,3,0,2
 book-plus-order-service,com.bookplus.order.shared.crypto,CryptoConverter,7,105,0,4,2,23,0,6,0,4
+book-plus-order-service,com.bookplus.order.domain.audit,HashChainedAuditLog,11,150,2,10,2,27,2,11,0,7
+book-plus-order-service,com.bookplus.order.domain.audit,AuditEntry,0,24,0,0,0,1,0,1,0,1
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,OrderEvent.OrderCancelled,12,0,0,0,1,0,1,0,1,0
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,EventStore.InMemory,0,30,0,0,0,5,0,4,0,4
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,OrderEvent.OrderPlaced,0,12,0,0,0,1,0,1,0,1
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,OrderSummaryProjection,29,117,2,4,4,21,2,6,0,4
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,OrderEvent.ItemAdded,0,18,0,0,0,1,0,1,0,1
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,OrderSummaryProjection.OrderSummary,0,18,0,0,0,1,0,1,0,1
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,EventSourcedOrder.Status,0,21,0,0,0,1,0,1,0,1
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,OrderEvent.OrderPaid,0,9,0,0,0,1,0,1,0,1
+book-plus-order-service,com.bookplus.order.domain.eventsourcing,EventSourcedOrder,47,210,8,12,8,47,9,19,3,14
 book-plus-order-service,com.bookplus.order.adapter.out.persistence.entity,CustomRevisionEntity,17,0,0,0,5,0,5,0,5,0
 book-plus-order-service,com.bookplus.order.adapter.in.process,CancelOrderDelegate,0,32,0,2,0,7,0,3,0,2
 book-plus-order-service,com.bookplus.order.adapter.in.process,ConfirmPaymentDelegate,0,19,0,0,0,5,0,2,0,2
@@ -59,12 +70,33 @@ book-plus-order-service,com.bookplus.order.application.coupon,CouponService,2,15
 book-plus-order-service,com.bookplus.order.adapter.in.web.sse,OrderChangedAppEvent,12,0,0,0,1,0,1,0,1,0
 book-plus-order-service,com.bookplus.order.adapter.in.web.sse,OrderSseController,58,0,10,0,11,0,7,0,2,0
 book-plus-order-service,com.bookplus.order.adapter.in.web.sse,OrderSseHub,169,0,14,0,35,0,17,0,10,0
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.StockServiceBlockingStub,0,20,0,0,0,5,0,3,0,3
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.StockServiceBaseDescriptorSupplier,7,3,0,0,2,1,2,1,2,1
+book-plus-order-service,com.bookplus.inventory.grpc,CheckStockRequest.new AbstractParser() {...},33,3,0,0,11,1,1,1,1,1
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.StockServiceImplBase,0,6,0,0,0,2,0,2,0,2
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.new AbstractStub.StubFactory() {...},0,9,0,0,0,2,0,2,0,2
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.new AbstractStub.StubFactory() {...},9,0,0,0,2,0,2,0,2,0
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.new AbstractStub.StubFactory() {...},9,0,0,0,2,0,2,0,2,0
+book-plus-order-service,com.bookplus.inventory.grpc,CheckStockRequest,254,68,22,4,69,22,38,9,25,9
+book-plus-order-service,com.bookplus.inventory.grpc,CheckStockResponse.new AbstractParser() {...},33,3,0,0,11,1,1,1,1,1
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.StockServiceFileDescriptorSupplier,0,3,0,0,0,1,0,1,0,1
+book-plus-order-service,com.bookplus.inventory.grpc,CheckStockResponse,413,98,46,4,108,28,52,11,27,11
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.AsyncService,4,0,0,0,2,0,1,0,1,0
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.StockServiceStub,21,0,0,0,6,0,3,0,3,0
+book-plus-order-service,com.bookplus.inventory.grpc,CheckStockResponse.Builder,396,140,41,8,119,43,57,9,30,9
+book-plus-order-service,com.bookplus.inventory.grpc,CheckStockRequest.Builder,244,56,25,4,75,19,37,5,22,5
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.MethodHandlers,11,20,1,1,3,8,2,2,1,2
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.StockServiceMethodDescriptorSupplier,6,6,0,0,1,3,1,1,1,1
+book-plus-order-service,com.bookplus.inventory.grpc,StockProto,69,0,0,0,12,0,4,0,4,0
+book-plus-order-service,com.bookplus.inventory.grpc,StockServiceGrpc.StockServiceFutureStub,20,0,0,0,5,0,3,0,3,0
 book-plus-order-service,com.bookplus.order.shared.logging,CorrelationIdFilter,0,29,1,3,0,9,1,3,0,2
 book-plus-order-service,com.bookplus.order.adapter.out.persistence,CouponPersistenceAdapter,50,0,0,0,13,0,3,0,3,0
 book-plus-order-service,com.bookplus.order.adapter.out.persistence,OutboxRelay,147,0,8,0,29,0,7,0,3,0
 book-plus-order-service,com.bookplus.order.adapter.out.persistence,OutboxEventAdapter,83,0,4,0,21,0,4,0,2,0
 book-plus-order-service,com.bookplus.order.adapter.out.persistence,OrderPersistenceAdapter,133,0,4,0,19,0,10,0,8,0
 book-plus-order-service,com.bookplus.order.adapter.out.persistence,OrderPersistenceMapper,251,0,0,0,90,0,5,0,5,0
+book-plus-order-service,com.bookplus.order.adapter.out.grpc,StockGrpcClient,14,33,0,0,3,11,1,3,1,3
+book-plus-order-service,com.bookplus.order.adapter.out.grpc,StockGrpcClient.StockAvailability,0,12,0,0,0,1,0,1,0,1
 book-plus-order-service,com.bookplus.order.shared.metrics,OrderMetrics,4,36,2,2,0,15,2,2,0,2
 book-plus-order-service,com.bookplus.order.adapter.out.messaging,KafkaEventPublisherAdapter,120,0,6,0,21,0,6,0,3,0
 book-plus-order-service,com.bookplus.order,OrderServiceApplication,8,0,0,0,3,0,2,0,2,0

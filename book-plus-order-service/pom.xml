@@ -29,11 +29,55 @@
         <!-- Generado (Lombok/DTOs) y arranque: fuera de la cobertura para no distorsionar. -->
         <sonar.exclusions>**/dto/**,**/config/**,**/*Application.java</sonar.exclusions>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <!-- gRPC (cliente e2e hacia inventory) — alineado con inventory-service -->
+        <grpc.version>1.61.1</grpc.version>
+        <protobuf.version>3.25.1</protobuf.version>
+        <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
+        <os-plugin.version>1.7.1</os-plugin.version>
         <!-- Grupos JUnit excluidos del `mvn test`. Para correr los IT: -Dexcluded.groups= -->
         <excluded.groups>integration</excluded.groups>
     </properties>
 
     <dependencies>
+        <!-- ── gRPC: cliente que llama al StockService de inventory (contract-first) ── -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>annotations-api</artifactId>
+            <version>6.0.53</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-inprocess</artifactId>
+            <version>${grpc.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing</artifactId>
+            <version>${grpc.version}</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -181,6 +225,14 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Fija querydsl-bom desde Maven Central (repo.spring.io responde 401). -->
+            <dependency>
+                <groupId>com.querydsl</groupId>
+                <artifactId>querydsl-bom</artifactId>
+                <version>5.0.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
@@ -199,7 +251,33 @@
     </dependencyManagement>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-plugin.version}</version>
+            </extension>
+        </extensions>
         <plugins>
+            <!-- Genera los stubs gRPC del cliente desde src/main/proto/stock.proto. -->
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>${protobuf-plugin.version}</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Excluye los tests @Tag("integration") del `mvn test` normal.
                  Se ejecutan aparte con: mvn test -Dgroups=integration (requiere Docker). -->
             <plugin>

@@ -102,3 +102,9 @@ opa:
   decision-path: ${OPA_DECISION_PATH:/v1/data/bookplus/authz/allow}
   enabled: ${OPA_ENABLED:false}
   fail-open: ${OPA_FAIL_OPEN:true}
+
+# ── Cliente gRPC hacia inventory (consulta de stock e2e) ──────────────────────
+inventory:
+  grpc:
+    host: ${INVENTORY_GRPC_HOST:localhost}
+    port: ${INVENTORY_GRPC_PORT:9090}

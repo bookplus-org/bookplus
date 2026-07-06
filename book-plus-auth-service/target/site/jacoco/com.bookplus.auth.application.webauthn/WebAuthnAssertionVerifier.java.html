@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WebAuthnAssertionVerifier.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-auth-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.auth.application.webauthn</a> &gt; <span class="el_source">WebAuthnAssertionVerifier.java</span></div><h1>WebAuthnAssertionVerifier.java</h1><pre class="source lang-java linenums">package com.bookplus.auth.application.webauthn;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.util.Arrays;
+
+/**
+ * Verificación del lado servidor de una aserción WebAuthn / FIDO2 (passkeys).
+ *
+ * WebAuthn es autenticación RESISTENTE A PHISHING: en lugar de una contraseña (o
+ * un TOTP que se puede teclear en un sitio falso), el autenticador del usuario
+ * (llave de seguridad, Touch ID, Windows Hello) firma un reto con una clave
+ * privada que nunca sale del dispositivo, y el servidor verifica la firma con la
+ * clave pública registrada. El &quot;origin&quot; va firmado, así que una web falsa no
+ * puede reutilizar la firma.
+ *
+ * Esta clase implementa el núcleo de verificación de la fase de login (assertion):
+ *  1) clientDataJSON: type=webauthn.get, challenge y origin esperados;
+ *  2) authenticatorData: rpIdHash correcto y flag &quot;User Present&quot;;
+ *  3) firma ECDSA (P-256) sobre  authenticatorData || SHA-256(clientDataJSON).
+ * Todo con JDK puro (java.security), sin librerías externas.
+ */
+@Service
+<span class="fc" id="L32">public class WebAuthnAssertionVerifier {</span>
+
+<span class="fc" id="L34">    private static final Logger log = LoggerFactory.getLogger(WebAuthnAssertionVerifier.class);</span>
+
+<span class="fc" id="L36">    private final ObjectMapper mapper = new ObjectMapper();</span>
+
+    /**
+     * @param publicKey            clave pública EC (P-256) registrada del credencial
+     * @param authenticatorData    bytes de authenticatorData devueltos por el autenticador
+     * @param clientDataJson       bytes de clientDataJSON
+     * @param signature            firma (DER) sobre authenticatorData||hash(clientData)
+     * @param expectedChallengeB64 reto esperado, en base64url (como aparece en clientDataJSON)
+     * @param expectedOrigin       origin esperado (p. ej. https://bookplus.example)
+     * @param rpId                 Relying Party ID (dominio), p. ej. bookplus.example
+     * @return true si la aserción es válida
+     */
+    public boolean verify(PublicKey publicKey, byte[] authenticatorData, byte[] clientDataJson,
+                          byte[] signature, String expectedChallengeB64,
+                          String expectedOrigin, String rpId) {
+        try {
+            // 1) clientDataJSON
+<span class="fc" id="L53">            JsonNode cd = mapper.readTree(clientDataJson);</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">            if (!&quot;webauthn.get&quot;.equals(cd.path(&quot;type&quot;).asText())) return fail(&quot;type != webauthn.get&quot;);</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">            if (!expectedChallengeB64.equals(cd.path(&quot;challenge&quot;).asText())) return fail(&quot;challenge no coincide&quot;);</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">            if (!expectedOrigin.equals(cd.path(&quot;origin&quot;).asText())) return fail(&quot;origin no coincide&quot;);</span>
+
+            // 2) authenticatorData: rpIdHash (32 bytes) + flags (1) + signCount (4) + ...
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">            if (authenticatorData.length &lt; 37) return fail(&quot;authenticatorData demasiado corto&quot;);</span>
+<span class="fc" id="L60">            byte[] expectedRpIdHash = sha256(rpId.getBytes(StandardCharsets.UTF_8));</span>
+<span class="fc" id="L61">            byte[] actualRpIdHash = Arrays.copyOfRange(authenticatorData, 0, 32);</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            if (!MessageDigest.isEqual(expectedRpIdHash, actualRpIdHash)) return fail(&quot;rpIdHash no coincide&quot;);</span>
+<span class="fc" id="L63">            byte flags = authenticatorData[32];</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">            if ((flags &amp; 0x01) == 0) return fail(&quot;flag User Present no activado&quot;);</span>
+
+            // 3) firma sobre authenticatorData || SHA-256(clientDataJSON)
+<span class="fc" id="L67">            byte[] clientDataHash = sha256(clientDataJson);</span>
+<span class="fc" id="L68">            byte[] signedData = concat(authenticatorData, clientDataHash);</span>
+<span class="fc" id="L69">            Signature ecdsa = Signature.getInstance(&quot;SHA256withECDSA&quot;);</span>
+<span class="fc" id="L70">            ecdsa.initVerify(publicKey);</span>
+<span class="fc" id="L71">            ecdsa.update(signedData);</span>
+<span class="fc" id="L72">            return ecdsa.verify(signature);</span>
+<span class="nc" id="L73">        } catch (Exception e) {</span>
+<span class="nc" id="L74">            return fail(&quot;excepción: &quot; + e.getMessage());</span>
+        }
+    }
+
+    private boolean fail(String reason) {
+<span class="fc" id="L79">        log.debug(&quot;Verificación WebAuthn fallida: {}&quot;, reason);</span>
+<span class="fc" id="L80">        return false;</span>
+    }
+
+    private static byte[] sha256(byte[] data) throws Exception {
+<span class="fc" id="L84">        return MessageDigest.getInstance(&quot;SHA-256&quot;).digest(data);</span>
+    }
+
+    private static byte[] concat(byte[] a, byte[] b) {
+<span class="fc" id="L88">        byte[] out = Arrays.copyOf(a, a.length + b.length);</span>
+<span class="fc" id="L89">        System.arraycopy(b, 0, out, a.length, b.length);</span>
+<span class="fc" id="L90">        return out;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

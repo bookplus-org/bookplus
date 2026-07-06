@@ -1,0 +1,19 @@
+version: v2
+
+# Gobernanza de los contratos gRPC (.proto) con Buf. La fuente de verdad es el
+# proto del inventory-service; el order-service usa una copia para generar su
+# cliente. Buf valida estilo (lint) y detecta cambios incompatibles (breaking).
+modules:
+  - path: book-plus-inventory-service/src/main/proto
+
+lint:
+  use:
+    - STANDARD
+  # Excepciones acordes al layout actual del proyecto:
+  except:
+    - PACKAGE_VERSION_SUFFIX     # el package (bookplus.inventory) no lleva sufijo vN
+    - PACKAGE_DIRECTORY_MATCH    # el .proto no vive en un árbol que refleje el package
+
+breaking:
+  use:
+    - FILE                        # detecta cambios incompatibles a nivel de fichero

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EventStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.eventsourcing</a> &gt; <span class="el_source">EventStore.java</span></div><h1>EventStore.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.eventsourcing;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Almacén de eventos (event store) append-only: guarda la secuencia inmutable de
+ * eventos por agregado y permite recuperarla para reconstruir el estado.
+ *
+ * La interfaz es un PUERTO de dominio; en producción su adaptador escribiría en
+ * una tabla append-only (o Kafka / EventStoreDB). Aquí se incluye una
+ * implementación en memoria, suficiente para las pruebas y para demostrar el
+ * patrón sin acoplarse a infraestructura.
+ */
+public interface EventStore {
+
+    /** Añade eventos al final del flujo del agregado (nunca se modifican los previos). */
+    void append(String aggregateId, List&lt;OrderEvent&gt; events);
+
+    /** Devuelve el historial completo del agregado, en orden. */
+    List&lt;OrderEvent&gt; load(String aggregateId);
+
+    /** Implementación en memoria (thread-safe) para pruebas y demostración. */
+<span class="fc" id="L26">    final class InMemory implements EventStore {</span>
+
+<span class="fc" id="L28">        private final Map&lt;String, List&lt;OrderEvent&gt;&gt; streams = new ConcurrentHashMap&lt;&gt;();</span>
+
+        @Override
+        public void append(String aggregateId, List&lt;OrderEvent&gt; events) {
+<span class="fc" id="L32">            streams.computeIfAbsent(aggregateId, k -&gt; new ArrayList&lt;&gt;()).addAll(events);</span>
+<span class="fc" id="L33">        }</span>
+
+        @Override
+        public List&lt;OrderEvent&gt; load(String aggregateId) {
+<span class="fc" id="L37">            return List.copyOf(streams.getOrDefault(aggregateId, List.of()));</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

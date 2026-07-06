@@ -37,6 +37,7 @@
 /w/book-plus-auth-service/src/main/java/com/bookplus/auth/application/usecase/RefreshTokenUseCaseImpl.java
 /w/book-plus-auth-service/src/main/java/com/bookplus/auth/application/usecase/RegisterUserUseCaseImpl.java
 /w/book-plus-auth-service/src/main/java/com/bookplus/auth/application/usecase/ResetPasswordUseCaseImpl.java
+/w/book-plus-auth-service/src/main/java/com/bookplus/auth/application/webauthn/WebAuthnAssertionVerifier.java
 /w/book-plus-auth-service/src/main/java/com/bookplus/auth/config/KafkaConfig.java
 /w/book-plus-auth-service/src/main/java/com/bookplus/auth/config/OpenApiConfig.java
 /w/book-plus-auth-service/src/main/java/com/bookplus/auth/config/SecurityConfig.java

@@ -53,6 +53,7 @@ com/bookplus/auth/domain/exception/UserNotFoundException.class
 com/bookplus/auth/adapter/out/persistence/repository/EmailVerificationTokenJpaRepository.class
 com/bookplus/auth/adapter/in/web/dto/response/AuthResponse.class
 com/bookplus/auth/application/usecase/ResetPasswordUseCaseImpl.class
+com/bookplus/auth/application/webauthn/WebAuthnAssertionVerifier.class
 com/bookplus/auth/adapter/in/web/VerificationController.class
 com/bookplus/auth/domain/model/Email.class
 com/bookplus/auth/adapter/out/persistence/repository/UserJpaRepository.class
