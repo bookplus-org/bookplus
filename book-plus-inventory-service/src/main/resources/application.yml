@@ -7,6 +7,10 @@ server:
 grpc:
   server:
     port: ${GRPC_SERVER_PORT:9090}
+    # Health check gRPC estandar y Server Reflection (permite a grpcurl / clientes
+    # descubrir el servicio sin el .proto). Utiles para operacion y depuracion.
+    health-service-enabled: true
+    reflection-service-enabled: true
 
 spring:
   threads:
