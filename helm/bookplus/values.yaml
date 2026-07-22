@@ -1,0 +1,172 @@
+# Valores del chart (topologia y env de las apps de BookPlus)
+image:
+  registry: ghcr.io/bookplus-org
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: '1'
+    memory: 1Gi
+ingress:
+  enabled: true
+  className: nginx
+  host: bookplus.example
+services:
+- name: api-gateway
+  port: 8080
+  spring: true
+  env:
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+    GATEWAY_REDIS_HOST: gateway-redis
+    GATEWAY_REDIS_PORT: '6379'
+    SPRING_CLOUD_GATEWAY_FILTER_REQUEST_RATE_LIMITER_DENY_EMPTY_KEY: 'false'
+    GATEWAY_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    CORS_ALLOWED_ORIGINS: http://localhost:4200
+    AUTH_SERVICE_URL: http://auth-service:8081
+    CATALOG_SERVICE_URL: http://catalog-service:8082
+    INVENTORY_SERVICE_URL: http://inventory-service:8083
+    CART_SERVICE_URL: http://cart-service:8084
+    ORDER_SERVICE_URL: http://order-service:8085
+    PAYMENT_SERVICE_URL: http://payment-service:8086
+    NOTIFICATION_SERVICE_URL: http://notification-service:8087
+    REPORT_SERVICE_URL: http://report-service:8088
+    ADMIN_BFF_URL: http://admin-bff:8089
+- name: auth-service
+  port: 8081
+  spring: true
+  env:
+    DB_HOST: auth-postgres
+    DB_PORT: '5432'
+    DB_NAME: auth_db
+    DB_USER: auth_user
+    DB_PASS: auth_pass
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    REDIS_HOST: gateway-redis
+    REDIS_PORT: '6379'
+    MAIL_HOST: mailhog
+    MAIL_PORT: '1025'
+    APP_SECURITY_JWT_PRIVATE_KEY: REPLACE_WITH_BASE64_VALUE
+    APP_SECURITY_JWT_PUBLIC_KEY: REPLACE_WITH_BASE64_VALUE
+    FRONTEND_URL: http://localhost:4200
+    SPRING_JPA_HIBERNATE_DDL_AUTO: none
+    SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+- name: catalog-service
+  port: 8082
+  spring: true
+  env:
+    CATALOG_DB_URL: jdbc:postgresql://catalog-postgres:5432/catalog_db
+    CATALOG_DB_USER: catalog_user
+    CATALOG_DB_PASS: catalog_pass
+    CATALOG_REDIS_HOST: catalog-redis
+    CATALOG_REDIS_PORT: '6379'
+    REDIS_HOST: catalog-redis
+    REDIS_PORT: '6379'
+    ELASTICSEARCH_HOST: elasticsearch
+    ELASTICSEARCH_PORT: '9200'
+    ELASTICSEARCH_URIS: http://elasticsearch:9200
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    CATALOG_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    SPRING_JPA_HIBERNATE_DDL_AUTO: none
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+- name: inventory-service
+  port: 8083
+  spring: true
+  env:
+    INVENTORY_DB_URL: jdbc:postgresql://inventory-postgres:5432/inventory_db?stringtype=unspecified
+    INVENTORY_DB_USER: inventory_user
+    INVENTORY_DB_PASS: inventory_pass
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    INVENTORY_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+- name: cart-service
+  port: 8084
+  spring: true
+  env:
+    CART_REDIS_HOST: cart-redis
+    CART_REDIS_PORT: '6379'
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    CART_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+- name: order-service
+  port: 8085
+  spring: true
+  env:
+    ORDER_DB_URL: jdbc:postgresql://order-postgres:5432/order_db?stringtype=unspecified
+    ORDER_DB_USER: order_user
+    ORDER_DB_PASS: order_pass
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ORDER_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    SPRING_JPA_HIBERNATE_DDL_AUTO: none
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+    INVENTORY_GRPC_HOST: inventory-service
+    INVENTORY_GRPC_PORT: '9090'
+- name: payment-service
+  port: 8086
+  spring: true
+  env:
+    PAYMENT_DB_URL: jdbc:postgresql://payment-postgres:5432/payment_db?stringtype=unspecified
+    PAYMENT_DB_USER: payment_user
+    PAYMENT_DB_PASS: payment_pass
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    PAYMENT_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    SPRING_JPA_HIBERNATE_DDL_AUTO: none
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+- name: notification-service
+  port: 8087
+  spring: true
+  env:
+    NOTIFICATION_DB_URL: jdbc:postgresql://notification-postgres:5432/notification_db?stringtype=unspecified
+    NOTIFICATION_DB_USER: notification_user
+    NOTIFICATION_DB_PASS: notification_pass
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    NOTIFICATION_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+    MAIL_HOST: mailhog
+    MAIL_PORT: '1025'
+    MAIL_FROM: noreply@bookplus.com
+    ADMIN_EMAIL: admin@bookplus.com
+- name: report-service
+  port: 8088
+  spring: true
+  env:
+    REPORT_DB_URL: jdbc:postgresql://report-postgres:5432/report_db
+    REPORT_DB_USER: report_user
+    REPORT_DB_PASS: report_pass
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    REPORT_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    SPRING_JPA_HIBERNATE_DDL_AUTO: none
+    MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+- name: admin-bff
+  port: 8089
+  spring: true
+  env:
+    ADMIN_BFF_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+    CATALOG_SERVICE_URL: http://catalog-service:8082
+    INVENTORY_SERVICE_URL: http://inventory-service:8083
+    ORDER_SERVICE_URL: http://order-service:8085
+    PAYMENT_SERVICE_URL: http://payment-service:8086
+    NOTIFICATION_SERVICE_URL: http://notification-service:8087
+    REPORT_SERVICE_URL: http://report-service:8088
+    AUTH_SERVICE_URL: http://auth-service:8081
+- name: frontend
+  port: 80
+  spring: false
+  env: {}

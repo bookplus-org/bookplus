@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cart-service-config
+  labels:
+    app.kubernetes.io/name: cart-service
+    app.kubernetes.io/part-of: bookplus
+data:
+  CART_REDIS_HOST: cart-redis
+  CART_REDIS_PORT: '6379'
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cart-service-secret
+  labels:
+    app.kubernetes.io/name: cart-service
+    app.kubernetes.io/part-of: bookplus
+type: Opaque
+stringData:
+  CART_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  labels:
+    app.kubernetes.io/name: cart-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cart-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cart-service
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: cart-service
+        image: ghcr.io/bookplus-org/cart-service:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8084
+          name: http
+        envFrom:
+        - configMapRef:
+            name: cart-service-config
+        - secretRef:
+            name: cart-service-secret
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          periodSeconds: 15
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          periodSeconds: 10
+          initialDelaySeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-service
+  labels:
+    app.kubernetes.io/name: cart-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: cart-service
+  ports:
+  - port: 8084
+    targetPort: 8084
+    name: http

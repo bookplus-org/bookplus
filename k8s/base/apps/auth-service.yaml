@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: bookplus
+data:
+  DB_HOST: auth-postgres
+  DB_PORT: '5432'
+  DB_NAME: auth_db
+  DB_USER: auth_user
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  REDIS_HOST: gateway-redis
+  REDIS_PORT: '6379'
+  MAIL_HOST: mailhog
+  MAIL_PORT: '1025'
+  FRONTEND_URL: http://localhost:4200
+  SPRING_JPA_HIBERNATE_DDL_AUTO: none
+  SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-service-secret
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: bookplus
+type: Opaque
+stringData:
+  DB_PASS: auth_pass
+  APP_SECURITY_JWT_PRIVATE_KEY: REPLACE_WITH_BASE64_VALUE
+  APP_SECURITY_JWT_PUBLIC_KEY: REPLACE_WITH_BASE64_VALUE
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auth-service
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: auth-service
+        image: ghcr.io/bookplus-org/auth-service:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+          name: http
+        envFrom:
+        - configMapRef:
+            name: auth-service-config
+        - secretRef:
+            name: auth-service-secret
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          periodSeconds: 15
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          periodSeconds: 10
+          initialDelaySeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: auth-service
+  ports:
+  - port: 8081
+    targetPort: 8081
+    name: http

@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: bookplus
+data:
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+  GATEWAY_REDIS_HOST: gateway-redis
+  GATEWAY_REDIS_PORT: '6379'
+  SPRING_CLOUD_GATEWAY_FILTER_REQUEST_RATE_LIMITER_DENY_EMPTY_KEY: 'false'
+  CORS_ALLOWED_ORIGINS: http://localhost:4200
+  AUTH_SERVICE_URL: http://auth-service:8081
+  CATALOG_SERVICE_URL: http://catalog-service:8082
+  INVENTORY_SERVICE_URL: http://inventory-service:8083
+  CART_SERVICE_URL: http://cart-service:8084
+  ORDER_SERVICE_URL: http://order-service:8085
+  PAYMENT_SERVICE_URL: http://payment-service:8086
+  NOTIFICATION_SERVICE_URL: http://notification-service:8087
+  REPORT_SERVICE_URL: http://report-service:8088
+  ADMIN_BFF_URL: http://admin-bff:8089
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-gateway-secret
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: bookplus
+type: Opaque
+stringData:
+  GATEWAY_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api-gateway
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: api-gateway
+        image: ghcr.io/bookplus-org/api-gateway:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        envFrom:
+        - configMapRef:
+            name: api-gateway-config
+        - secretRef:
+            name: api-gateway-secret
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          periodSeconds: 15
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          periodSeconds: 10
+          initialDelaySeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: api-gateway
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http

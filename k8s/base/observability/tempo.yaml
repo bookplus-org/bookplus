@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-config
+  labels:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/part-of: bookplus
+data:
+  tempo.yaml: "# Grafana Tempo \u2014 backend de trazas distribuidas (OpenTelemetry).\n\
+    # Recibe spans por OTLP (desde el OTel Collector) y los almacena para consultarlos\
+    \ en Grafana.\nserver:\n  http_listen_port: 3200\n\ndistributor:\n  receivers:\n\
+    \    otlp:\n      protocols:\n        grpc:\n          endpoint: 0.0.0.0:4317\n\
+    \        http:\n          endpoint: 0.0.0.0:4318\n\ningester:\n  max_block_duration:\
+    \ 5m\n\ncompactor:\n  compaction:\n    block_retention: 24h   # retenci\xF3n de\
+    \ trazas (dev)\n\nstorage:\n  trace:\n    backend: local\n    wal:\n      path:\
+    \ /var/tempo/wal\n    local:\n      path: /var/tempo/blocks\n"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tempo
+  labels:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: tempo
+        image: grafana/tempo:2.6.0
+        ports:
+        - containerPort: 3200
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        args:
+        - -config.file=/etc/tempo/tempo.yaml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/tempo
+      volumes:
+      - name: config
+        configMap:
+          name: tempo-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  labels:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: tempo
+  ports:
+  - port: 3200
+    targetPort: 3200
+    name: http

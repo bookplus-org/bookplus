@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-service-config
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: bookplus
+data:
+  NOTIFICATION_DB_URL: jdbc:postgresql://notification-postgres:5432/notification_db?stringtype=unspecified
+  NOTIFICATION_DB_USER: notification_user
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+  MAIL_HOST: mailhog
+  MAIL_PORT: '1025'
+  MAIL_FROM: noreply@bookplus.com
+  ADMIN_EMAIL: admin@bookplus.com
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notification-service-secret
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: bookplus
+type: Opaque
+stringData:
+  NOTIFICATION_DB_PASS: notification_pass
+  NOTIFICATION_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification-service
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: notification-service
+        image: ghcr.io/bookplus-org/notification-service:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8087
+          name: http
+        envFrom:
+        - configMapRef:
+            name: notification-service-config
+        - secretRef:
+            name: notification-service-secret
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8087
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8087
+          periodSeconds: 15
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8087
+          periodSeconds: 10
+          initialDelaySeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: notification-service
+  ports:
+  - port: 8087
+    targetPort: 8087
+    name: http

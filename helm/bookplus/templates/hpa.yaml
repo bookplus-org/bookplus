@@ -1,0 +1,29 @@
+{{- $g := . }}
+{{- if .Values.autoscaling.enabled }}
+{{- range .Values.services }}
+{{- if .spring }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .name }}-hpa
+  labels:
+    app.kubernetes.io/name: {{ .name }}
+    {{- include "bookplus.labels" $g | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .name }}
+  minReplicas: {{ $g.Values.autoscaling.minReplicas }}
+  maxReplicas: {{ $g.Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $g.Values.autoscaling.targetCPUUtilizationPercentage }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

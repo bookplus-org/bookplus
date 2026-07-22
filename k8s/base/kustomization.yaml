@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bookplus
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+resources:
+- namespace.yaml
+- apps/api-gateway.yaml
+- apps/auth-service.yaml
+- apps/catalog-service.yaml
+- apps/inventory-service.yaml
+- apps/cart-service.yaml
+- apps/order-service.yaml
+- apps/payment-service.yaml
+- apps/notification-service.yaml
+- apps/report-service.yaml
+- apps/admin-bff.yaml
+- apps/frontend.yaml
+- infra/auth-postgres.yaml
+- infra/catalog-postgres.yaml
+- infra/inventory-postgres.yaml
+- infra/order-postgres.yaml
+- infra/payment-postgres.yaml
+- infra/notification-postgres.yaml
+- infra/report-postgres.yaml
+- infra/gateway-redis.yaml
+- infra/catalog-redis.yaml
+- infra/cart-redis.yaml
+- infra/kafka.yaml
+- infra/elasticsearch.yaml
+- infra/vault.yaml
+- infra/schema-registry.yaml
+- infra/mailhog.yaml
+- observability/prometheus.yaml
+- observability/alertmanager.yaml
+- observability/otel-collector.yaml
+- observability/tempo.yaml
+- observability/loki.yaml
+- observability/grafana.yaml
+- ingress.yaml

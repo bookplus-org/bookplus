@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: bookplus
+data:
+  prometheus.yml: "# Prometheus \u2014 configuraci\xF3n de scraping para BookPlus.\n\
+    # Cada microservicio expone sus m\xE9tricas en /actuator/prometheus (Micrometer).\n\
+    # Los nombres de host son los nombres de servicio de docker-compose (red bookplus-net).\n\
+    global:\n  scrape_interval: 15s\n  evaluation_interval: 15s\n\n# Reglas de alerta\
+    \ como codigo (versionadas en el repo).\nrule_files:\n  - /etc/prometheus/alert-rules.yml\n\
+    \n# Prometheus evalua las reglas y envia las alertas que disparan a Alertmanager,\n\
+    # que las agrupa, deduplica y (en produccion) las enruta a email/Slack/PagerDuty.\n\
+    alerting:\n  alertmanagers:\n    - static_configs:\n        - targets: [\"alertmanager:9093\"\
+    ]\n\nscrape_configs:\n  - job_name: prometheus\n    static_configs:\n      - targets:\
+    \ [\"localhost:9090\"]\n\n  - job_name: bookplus-services\n    metrics_path: /actuator/prometheus\n\
+    \    static_configs:\n      - targets:\n          - \"api-gateway:8080\"\n   \
+    \       - \"auth-service:8081\"\n          - \"catalog-service:8082\"\n      \
+    \    - \"inventory-service:8083\"\n          - \"cart-service:8084\"\n       \
+    \   - \"order-service:8085\"\n          - \"payment-service:8086\"\n         \
+    \ - \"notification-service:8087\"\n          - \"report-service:8088\"\n     \
+    \   labels:\n          stack: bookplus\n"
+  alert-rules.yml: "# Reglas de alerta de BookPlus \u2014 \"alerting as code\".\n\
+    # Basadas en el m\xE9todo RED (Rate, Errors, Duration) sobre las m\xE9tricas HTTP\
+    \ de\n# Micrometer/Spring Boot (http_server_requests_seconds_*) m\xE1s se\xF1\
+    ales de la JVM.\n# Prometheus las eval\xFAa cada 15s y env\xEDa a Alertmanager\
+    \ las que cumplen su \"for\".\n\ngroups:\n  - name: bookplus-availability\n  \
+    \  rules:\n      # Un servicio dej\xF3 de responder al scrape de m\xE9tricas.\n\
+    \      - alert: ServiceDown\n        expr: up{stack=\"bookplus\"} == 0\n     \
+    \   for: 1m\n        labels:\n          severity: critical\n        annotations:\n\
+    \          summary: \"Servicio ca\xEDdo: {{ $labels.instance }}\"\n          description:\
+    \ \"Prometheus no puede scrapear {{ $labels.instance }} desde hace m\xE1s de 1\
+    \ minuto.\"\n\n  - name: bookplus-red\n    rules:\n      # ERRORS \u2014 tasa\
+    \ de 5xx por encima del 5% del tr\xE1fico del servicio (5 min).\n      - alert:\
+    \ HighErrorRate\n        expr: |\n          sum by (instance) (rate(http_server_requests_seconds_count{status=~\"\
+    5..\"}[5m]))\n            /\n          sum by (instance) (rate(http_server_requests_seconds_count[5m]))\n\
+    \            > 0.05\n        for: 5m\n        labels:\n          severity: warning\n\
+    \        annotations:\n          summary: \"Tasa de errores 5xx alta en {{ $labels.instance\
+    \ }}\"\n          description: \"M\xE1s del 5% de las respuestas son 5xx en los\
+    \ \xFAltimos 5 minutos.\"\n\n      # DURATION \u2014 latencia p95 por encima de\
+    \ 1s (5 min).\n      - alert: HighLatencyP95\n        expr: |\n          histogram_quantile(0.95,\n\
+    \            sum by (instance, le) (rate(http_server_requests_seconds_bucket[5m]))\n\
+    \          ) > 1\n        for: 5m\n        labels:\n          severity: warning\n\
+    \        annotations:\n          summary: \"Latencia p95 alta en {{ $labels.instance\
+    \ }}\"\n          description: \"El percentil 95 de latencia HTTP supera 1s durante\
+    \ 5 minutos.\"\n\n  - name: bookplus-saturation\n    rules:\n      # JVM \u2014\
+    \ uso del heap por encima del 90% de forma sostenida.\n      - alert: JvmHeapHigh\n\
+    \        expr: |\n          sum by (instance) (jvm_memory_used_bytes{area=\"heap\"\
+    })\n            /\n          sum by (instance) (jvm_memory_max_bytes{area=\"heap\"\
+    })\n            > 0.9\n        for: 10m\n        labels:\n          severity:\
+    \ warning\n        annotations:\n          summary: \"Heap JVM alto en {{ $labels.instance\
+    \ }}\"\n          description: \"El heap usado supera el 90% del m\xE1ximo durante\
+    \ 10 minutos (riesgo de OOM/GC).\"\n"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.54.1
+        ports:
+        - containerPort: 9090
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: http

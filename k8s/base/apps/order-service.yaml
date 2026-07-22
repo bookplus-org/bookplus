@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: bookplus
+data:
+  ORDER_DB_URL: jdbc:postgresql://order-postgres:5432/order_db?stringtype=unspecified
+  ORDER_DB_USER: order_user
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SPRING_JPA_HIBERNATE_DDL_AUTO: none
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: '1.0'
+  INVENTORY_GRPC_HOST: inventory-service
+  INVENTORY_GRPC_PORT: '9090'
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: order-service-secret
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: bookplus
+type: Opaque
+stringData:
+  ORDER_DB_PASS: order_pass
+  ORDER_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: order-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: order-service
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: order-service
+        image: ghcr.io/bookplus-org/order-service:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8085
+          name: http
+        envFrom:
+        - configMapRef:
+            name: order-service-config
+        - secretRef:
+            name: order-service-secret
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8085
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8085
+          periodSeconds: 15
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8085
+          periodSeconds: 10
+          initialDelaySeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: order-service
+  ports:
+  - port: 8085
+    targetPort: 8085
+    name: http

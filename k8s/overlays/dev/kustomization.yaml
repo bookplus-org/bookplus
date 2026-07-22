@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Entorno de desarrollo: 1 replica por servicio, sin autoescalado (HPA).
+namespace: bookplus-dev
+resources:
+  - ../../base
+labels:
+  - includeSelectors: false
+    pairs:
+      environment: dev
+patches:
+  # Sampling de trazas al 100% y CORS del front local (solo dev).
+  - target: { kind: ConfigMap, name: api-gateway-config }
+    patch: |
+      - op: replace
+        path: /data/CORS_ALLOWED_ORIGINS
+        value: http://localhost:4200

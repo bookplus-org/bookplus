@@ -1,0 +1,16 @@
+{{- range .Values.services }}
+{{- if .env }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .name }}-config
+  labels:
+    app.kubernetes.io/name: {{ .name }}
+    {{- include "bookplus.labels" $ | nindent 4 }}
+data:
+  {{- range $k, $v := .env }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}

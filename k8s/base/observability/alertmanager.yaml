@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: bookplus
+data:
+  alertmanager.yml: "# Alertmanager \u2014 recibe las alertas de Prometheus, las agrupa/deduplica\
+    \ y las\n# enruta a un receptor. En dev el receptor es \"null\" (solo se ven en\
+    \ la UI 9093);\n# en producci\xF3n se activar\xEDa email/Slack/PagerDuty rellenando\
+    \ un receiver real.\n\nglobal:\n  resolve_timeout: 5m\n\nroute:\n  # Agrupa por\
+    \ nombre de alerta y servicio para no inundar de notificaciones.\n  group_by:\
+    \ [\"alertname\", \"instance\"]\n  group_wait: 30s\n  group_interval: 5m\n  repeat_interval:\
+    \ 3h\n  receiver: default\n\nreceivers:\n  - name: default\n    # En producci\xF3\
+    n, por ejemplo:\n    # slack_configs:\n    #   - api_url: ${SLACK_WEBHOOK_URL}\n\
+    \    #     channel: \"#bookplus-alertas\"\n\n# Silencia alertas de warning si\
+    \ ya hay una critical del mismo servicio.\ninhibit_rules:\n  - source_matchers:\
+    \ ['severity = \"critical\"']\n    target_matchers: ['severity = \"warning\"']\n\
+    \    equal: [\"instance\"]\n"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alertmanager
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.27.0
+        ports:
+        - containerPort: 9093
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        args:
+        - --config.file=/etc/alertmanager/alertmanager.yml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alertmanager
+      volumes:
+      - name: config
+        configMap:
+          name: alertmanager-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: alertmanager
+  ports:
+  - port: 9093
+    targetPort: 9093
+    name: http

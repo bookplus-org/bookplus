@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-bff-config
+  labels:
+    app.kubernetes.io/name: admin-bff
+    app.kubernetes.io/part-of: bookplus
+data:
+  CATALOG_SERVICE_URL: http://catalog-service:8082
+  INVENTORY_SERVICE_URL: http://inventory-service:8083
+  ORDER_SERVICE_URL: http://order-service:8085
+  PAYMENT_SERVICE_URL: http://payment-service:8086
+  NOTIFICATION_SERVICE_URL: http://notification-service:8087
+  REPORT_SERVICE_URL: http://report-service:8088
+  AUTH_SERVICE_URL: http://auth-service:8081
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-bff-secret
+  labels:
+    app.kubernetes.io/name: admin-bff
+    app.kubernetes.io/part-of: bookplus
+type: Opaque
+stringData:
+  ADMIN_BFF_JWT_PUBLIC_KEY_BASE64: REPLACE_WITH_BASE64_VALUE
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-bff
+  labels:
+    app.kubernetes.io/name: admin-bff
+    app.kubernetes.io/part-of: bookplus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: admin-bff
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: admin-bff
+        app.kubernetes.io/part-of: bookplus
+    spec:
+      containers:
+      - name: admin-bff
+        image: ghcr.io/bookplus-org/admin-bff:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8089
+          name: http
+        envFrom:
+        - configMapRef:
+            name: admin-bff-config
+        - secretRef:
+            name: admin-bff-secret
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8089
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8089
+          periodSeconds: 15
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8089
+          periodSeconds: 10
+          initialDelaySeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-bff
+  labels:
+    app.kubernetes.io/name: admin-bff
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    app.kubernetes.io/name: admin-bff
+  ports:
+  - port: 8089
+    targetPort: 8089
+    name: http
