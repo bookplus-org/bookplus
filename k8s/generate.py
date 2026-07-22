@@ -60,10 +60,12 @@ for name,(port,spring) in APPS.items():
        "readinessProbe":{"httpGet":{"path":hp,"port":port},"periodSeconds":10,"initialDelaySeconds":10}}
     docs.append({"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":name,"labels":L(name)},
        "spec":{"replicas":1,"selector":{"matchLabels":{"app.kubernetes.io/name":name}},
-               "template":{"metadata":{"labels":L(name)},"spec":{"containers":[c]}}}})
+               "template":{"metadata":{"labels":L(name)},"spec":{"serviceAccountName":"bookplus-app","containers":[c]}}}})
     sp=[{"port":port,"targetPort":port,"name":"http"}]
     if name=="inventory-service": sp.append({"port":9090,"targetPort":9090,"name":"grpc"})
-    docs.append({"apiVersion":"v1","kind":"Service","metadata":{"name":name,"labels":L(name)},"spec":{"selector":{"app.kubernetes.io/name":name},"ports":sp}})
+    svc_labels=dict(L(name)); 
+    if spring: svc_labels["bookplus.io/metrics"]="true"
+    docs.append({"apiVersion":"v1","kind":"Service","metadata":{"name":name,"labels":svc_labels},"spec":{"selector":{"app.kubernetes.io/name":name},"ports":sp}})
     write(f"apps/{name}.yaml",docs); resources.append(f"apps/{name}.yaml")
     if spring:
         write(f"hpa/{name}.yaml",[{"apiVersion":"autoscaling/v2","kind":"HorizontalPodAutoscaler",
@@ -216,6 +218,96 @@ write("ingress.yaml",[{"apiVersion":"networking.k8s.io/v1","kind":"Ingress","met
       {"path":"/graphql","pathType":"Prefix","backend":{"service":{"name":"api-gateway","port":{"number":8080}}}},
       {"path":"/","pathType":"Prefix","backend":{"service":{"name":"frontend","port":{"number":80}}}}]}}]}}])
 resources.append("ingress.yaml")
+
+# ---------- RBAC (mínimo privilegio) ----------
+write("rbac.yaml",[
+  {"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"bookplus-app","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+   "automountServiceAccountToken":False},   # las apps no llaman al API de K8s
+  {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role","metadata":{"name":"bookplus-app-read","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+   "rules":[{"apiGroups":[""],"resources":["configmaps","endpoints","services"],"verbs":["get","list","watch"]}]},
+  {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"RoleBinding","metadata":{"name":"bookplus-app-read","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+   "roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"bookplus-app-read"},
+   "subjects":[{"kind":"ServiceAccount","name":"bookplus-app","namespace":NS}]}])
+resources.append("rbac.yaml")
+
+# ---------- Promtail (DaemonSet: 1 pod por nodo, envia logs a Loki) ----------
+pt_cfg=readf("promtail-config.yml") or "server: { http_listen_port: 9080 }\nclients: [{url: http://loki:3100/loki/api/v1/push}]\n"
+write("observability/promtail.yaml",[
+  {"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"promtail","labels":L("promtail")}},
+  {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"ClusterRole","metadata":{"name":"promtail","labels":L("promtail")},
+   "rules":[{"apiGroups":[""],"resources":["pods","nodes","services"],"verbs":["get","list","watch"]}]},
+  {"apiVersion":"rbac.authorization.k8s.io/v1","kind":"ClusterRoleBinding","metadata":{"name":"promtail","labels":L("promtail")},
+   "roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"ClusterRole","name":"promtail"},
+   "subjects":[{"kind":"ServiceAccount","name":"promtail","namespace":NS}]},
+  {"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"promtail-config","labels":L("promtail")},"data":{"promtail.yaml":pt_cfg}},
+  {"apiVersion":"apps/v1","kind":"DaemonSet","metadata":{"name":"promtail","labels":L("promtail")},
+   "spec":{"selector":{"matchLabels":{"app.kubernetes.io/name":"promtail"}},
+     "template":{"metadata":{"labels":L("promtail")},"spec":{"serviceAccountName":"promtail",
+       "containers":[{"name":"promtail","image":"grafana/promtail:3.1.1","args":["-config.file=/etc/promtail/promtail.yaml"],
+          "volumeMounts":[{"name":"config","mountPath":"/etc/promtail"},
+                          {"name":"varlog","mountPath":"/var/log","readOnly":True},
+                          {"name":"pods","mountPath":"/var/log/pods","readOnly":True}],
+          "resources":{"requests":{"cpu":"50m","memory":"64Mi"},"limits":{"cpu":"200m","memory":"128Mi"}}}],
+       "volumes":[{"name":"config","configMap":{"name":"promtail-config"}},
+                  {"name":"varlog","hostPath":{"path":"/var/log"}},
+                  {"name":"pods","hostPath":{"path":"/var/log/pods"}}]}}}}])
+resources.append("observability/promtail.yaml")
+
+# ---------- Políticas: NetworkPolicy + PodDisruptionBudget ----------
+netpol=[
+  {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"name":"default-deny-ingress","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+   "spec":{"podSelector":{},"policyTypes":["Ingress"]}},                       # niega todo el trafico entrante por defecto
+  {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"name":"allow-same-namespace","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+   "spec":{"podSelector":{},"policyTypes":["Ingress"],"ingress":[{"from":[{"podSelector":{}}]}]}},   # permite trafico entre pods del namespace
+  {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"name":"allow-ingress-to-gateway","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+   "spec":{"podSelector":{"matchLabels":{"app.kubernetes.io/name":"api-gateway"}},"policyTypes":["Ingress"],
+           "ingress":[{"ports":[{"protocol":"TCP","port":8080}]}]}}]          # deja entrar al gateway desde el Ingress Controller
+write("policies/network-policies.yaml",netpol)
+
+pdbs=[{"apiVersion":"policy/v1","kind":"PodDisruptionBudget","metadata":{"name":f"{n}-pdb","labels":L(n)},
+       "spec":{"minAvailable":1,"selector":{"matchLabels":{"app.kubernetes.io/name":n}}}}
+      for n in APPS if APPS[n][1]]   # 1 pod minimo durante mantenimientos (solo apps spring)
+write("policies/pdb.yaml",pdbs)
+
+open(os.path.join(BASE,"policies","kustomization.yaml"),"w").write(yaml.safe_dump({
+  "apiVersion":"kustomize.config.k8s.io/v1beta1","kind":"Kustomization","namespace":NS,
+  "resources":["network-policies.yaml","pdb.yaml"]},sort_keys=False))
+
+# ---------- Backups de Postgres (CronJob batch) ----------
+dbs=["auth","catalog","inventory","order","payment","notification","report"]
+backup_secret={"apiVersion":"v1","kind":"Secret","metadata":{"name":"backup-secret","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+  "type":"Opaque","stringData":{f"{d.upper()}_PASS": envmap(f"{d}-postgres").get("POSTGRES_PASSWORD",f"{d}_pass") for d in dbs}}
+backup_pvc={"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"name":"postgres-backups","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+  "spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}
+script=("set -e; TS=$(date +%F_%H%M); "
+        + "".join(f"PGPASSWORD=${{{d.upper()}_PASS}} pg_dump -h {d}-postgres -U {d}_user {d}_db > /backups/{d}-$TS.sql; " for d in dbs)
+        + "echo backup OK $TS; find /backups -name '*.sql' -mtime +7 -delete")
+cron={"apiVersion":"batch/v1","kind":"CronJob","metadata":{"name":"postgres-backup","labels":{"app.kubernetes.io/part-of":"bookplus"}},
+  "spec":{"schedule":"0 2 * * *","concurrencyPolicy":"Forbid","successfulJobsHistoryLimit":3,"failedJobsHistoryLimit":3,
+    "jobTemplate":{"spec":{"template":{"spec":{"restartPolicy":"OnFailure",
+      "containers":[{"name":"pgdump","image":"postgres:16-alpine",
+        "command":["/bin/sh","-c",script],
+        "envFrom":[{"secretRef":{"name":"backup-secret"}}],
+        "volumeMounts":[{"name":"backups","mountPath":"/backups"}],
+        "resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"cpu":"500m","memory":"256Mi"}}}],
+      "volumes":[{"name":"backups","persistentVolumeClaim":{"claimName":"postgres-backups"}}]}}}}}}
+write("infra/postgres-backup.yaml",[backup_secret,backup_pvc,cron]); resources.append("infra/postgres-backup.yaml")
+
+# ---------- Prometheus Operator (ServiceMonitor + PrometheusRule) ----------
+# Van en un directorio APARTE: requieren el Prometheus Operator instalado (CRDs).
+OP=os.path.join(ROOT,"k8s","monitoring-operator"); os.makedirs(OP,exist_ok=True)
+sm={"apiVersion":"monitoring.coreos.com/v1","kind":"ServiceMonitor",
+  "metadata":{"name":"bookplus-apps","namespace":NS,"labels":{"app.kubernetes.io/part-of":"bookplus"}},
+  "spec":{"selector":{"matchLabels":{"bookplus.io/metrics":"true"}},
+          "endpoints":[{"port":"http","path":"/actuator/prometheus","interval":"15s"}]}}
+pr={"apiVersion":"monitoring.coreos.com/v1","kind":"PrometheusRule",
+  "metadata":{"name":"bookplus-alerts","namespace":NS,"labels":{"app.kubernetes.io/part-of":"bookplus"}},
+  "spec":{"groups":[{"name":"bookplus-red","rules":[
+     {"alert":"HighErrorRate","expr":"sum by (instance) (rate(http_server_requests_seconds_count{status=~\"5..\"}[5m])) / sum by (instance) (rate(http_server_requests_seconds_count[5m])) > 0.05","for":"5m","labels":{"severity":"warning"}},
+     {"alert":"ServiceDown","expr":"up{stack=\"bookplus\"} == 0","for":"1m","labels":{"severity":"critical"}}]}]}}
+open(os.path.join(OP,"servicemonitor.yaml"),"w").write(yaml.safe_dump(sm,sort_keys=False)+"---\n"+yaml.safe_dump(pr,sort_keys=False))
+open(os.path.join(OP,"kustomization.yaml"),"w").write(yaml.safe_dump({"apiVersion":"kustomize.config.k8s.io/v1beta1","kind":"Kustomization","namespace":NS,"resources":["servicemonitor.yaml"]},sort_keys=False))
+open(os.path.join(OP,"README.md"),"w").write("# Prometheus Operator (opcional)\n\nEstos recursos (ServiceMonitor, PrometheusRule) son CRDs del **Prometheus Operator**.\nRequieren tenerlo instalado (p. ej. kube-prometheus-stack). No van en la base para no\nfallar en clústeres sin el operador.\n\n```bash\nkubectl apply -k k8s/monitoring-operator\n```\n")
 
 # ---------- kustomization (base) ----------
 open(os.path.join(BASE,"kustomization.yaml"),"w").write(yaml.safe_dump({

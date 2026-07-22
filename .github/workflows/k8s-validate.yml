@@ -1,0 +1,53 @@
+name: K8s Manifests
+
+# Valida los manifiestos de Kubernetes en cada cambio: renderiza los overlays con
+# Kustomize y comprueba el esquema con kubeconform; además hace lint del Helm chart.
+# Así ningún YAML roto entra al repo (cierre del círculo GitOps).
+
+on:
+  push:
+    branches: [main]
+    paths: ["k8s/**", "helm/**", ".github/workflows/k8s-validate.yml"]
+  pull_request:
+    paths: ["k8s/**", "helm/**", ".github/workflows/k8s-validate.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Kustomize + kubeconform + Helm lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar kustomize, kubeconform y helm
+        uses: yokawasa/action-setup-kube-tools@v0.11.2
+        with:
+          kustomize: "5.4.3"
+          kubeconform: "0.6.7"
+          helm: "3.15.4"
+
+      - name: Validar overlay dev
+        run: |
+          kustomize build k8s/overlays/dev \
+            | kubeconform -strict -summary -ignore-missing-schemas \
+                -kubernetes-version 1.29.0
+
+      - name: Validar overlay prod
+        run: |
+          kustomize build k8s/overlays/prod \
+            | kubeconform -strict -summary -ignore-missing-schemas \
+                -kubernetes-version 1.29.0
+
+      - name: Validar recursos del Prometheus Operator (CRDs)
+        run: |
+          kustomize build k8s/monitoring-operator \
+            | kubeconform -summary -ignore-missing-schemas
+
+      - name: Helm lint y template
+        run: |
+          helm lint helm/bookplus
+          helm template bookplus helm/bookplus \
+            | kubeconform -strict -summary -ignore-missing-schemas \
+                -kubernetes-version 1.29.0

@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bookplus-apps
+  namespace: bookplus
+  labels:
+    app.kubernetes.io/part-of: bookplus
+spec:
+  selector:
+    matchLabels:
+      bookplus.io/metrics: 'true'
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: bookplus-alerts
+  namespace: bookplus
+  labels:
+    app.kubernetes.io/part-of: bookplus
+spec:
+  groups:
+  - name: bookplus-red
+    rules:
+    - alert: HighErrorRate
+      expr: sum by (instance) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+        / sum by (instance) (rate(http_server_requests_seconds_count[5m])) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+    - alert: ServiceDown
+      expr: up{stack="bookplus"} == 0
+      for: 1m
+      labels:
+        severity: critical

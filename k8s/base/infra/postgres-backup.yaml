@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-secret
+  labels:
+    app.kubernetes.io/part-of: bookplus
+type: Opaque
+stringData:
+  AUTH_PASS: auth_pass
+  CATALOG_PASS: catalog_pass
+  INVENTORY_PASS: inventory_pass
+  ORDER_PASS: order_pass
+  PAYMENT_PASS: payment_pass
+  NOTIFICATION_PASS: notification_pass
+  REPORT_PASS: report_pass
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backups
+  labels:
+    app.kubernetes.io/part-of: bookplus
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  labels:
+    app.kubernetes.io/part-of: bookplus
+spec:
+  schedule: 0 2 * * *
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: pgdump
+            image: postgres:16-alpine
+            command:
+            - /bin/sh
+            - -c
+            - set -e; TS=$(date +%F_%H%M); PGPASSWORD=${AUTH_PASS} pg_dump -h auth-postgres
+              -U auth_user auth_db > /backups/auth-$TS.sql; PGPASSWORD=${CATALOG_PASS}
+              pg_dump -h catalog-postgres -U catalog_user catalog_db > /backups/catalog-$TS.sql;
+              PGPASSWORD=${INVENTORY_PASS} pg_dump -h inventory-postgres -U inventory_user
+              inventory_db > /backups/inventory-$TS.sql; PGPASSWORD=${ORDER_PASS}
+              pg_dump -h order-postgres -U order_user order_db > /backups/order-$TS.sql;
+              PGPASSWORD=${PAYMENT_PASS} pg_dump -h payment-postgres -U payment_user
+              payment_db > /backups/payment-$TS.sql; PGPASSWORD=${NOTIFICATION_PASS}
+              pg_dump -h notification-postgres -U notification_user notification_db
+              > /backups/notification-$TS.sql; PGPASSWORD=${REPORT_PASS} pg_dump -h
+              report-postgres -U report_user report_db > /backups/report-$TS.sql;
+              echo backup OK $TS; find /backups -name '*.sql' -mtime +7 -delete
+            envFrom:
+            - secretRef:
+                name: backup-secret
+            volumeMounts:
+            - name: backups
+              mountPath: /backups
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 256Mi
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: postgres-backups

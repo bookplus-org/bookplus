@@ -5,6 +5,7 @@ namespace: bookplus
 resources:
   - ../../base
   - ../../base/hpa
+  - ../../base/policies
 labels:
   - includeSelectors: false
     pairs:

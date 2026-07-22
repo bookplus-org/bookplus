@@ -45,6 +45,7 @@ spec:
         app.kubernetes.io/name: admin-bff
         app.kubernetes.io/part-of: bookplus
     spec:
+      serviceAccountName: bookplus-app
       containers:
       - name: admin-bff
         image: ghcr.io/bookplus-org/admin-bff:1.0.0
@@ -91,6 +92,7 @@ metadata:
   labels:
     app.kubernetes.io/name: admin-bff
     app.kubernetes.io/part-of: bookplus
+    bookplus.io/metrics: 'true'
 spec:
   selector:
     app.kubernetes.io/name: admin-bff

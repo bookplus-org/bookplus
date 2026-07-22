@@ -53,6 +53,7 @@ spec:
         app.kubernetes.io/name: api-gateway
         app.kubernetes.io/part-of: bookplus
     spec:
+      serviceAccountName: bookplus-app
       containers:
       - name: api-gateway
         image: ghcr.io/bookplus-org/api-gateway:1.0.0
@@ -99,6 +100,7 @@ metadata:
   labels:
     app.kubernetes.io/name: api-gateway
     app.kubernetes.io/part-of: bookplus
+    bookplus.io/metrics: 'true'
 spec:
   selector:
     app.kubernetes.io/name: api-gateway

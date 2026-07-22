@@ -38,3 +38,6 @@ resources:
 - observability/loki.yaml
 - observability/grafana.yaml
 - ingress.yaml
+- rbac.yaml
+- observability/promtail.yaml
+- infra/postgres-backup.yaml

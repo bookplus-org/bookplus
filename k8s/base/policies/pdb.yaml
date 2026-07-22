@@ -1,0 +1,138 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service-pdb
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: catalog-service-pdb
+  labels:
+    app.kubernetes.io/name: catalog-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: inventory-service-pdb
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: inventory-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cart-service-pdb
+  labels:
+    app.kubernetes.io/name: cart-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cart-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order-service-pdb
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: order-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  labels:
+    app.kubernetes.io/name: payment-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payment-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service-pdb
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: report-service-pdb
+  labels:
+    app.kubernetes.io/name: report-service
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: report-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: admin-bff-pdb
+  labels:
+    app.kubernetes.io/name: admin-bff
+    app.kubernetes.io/part-of: bookplus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: admin-bff
