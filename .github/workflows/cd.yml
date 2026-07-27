@@ -5,11 +5,20 @@ name: CD
 #      (ghcr.io). No requiere secretos extra: usa el GITHUB_TOKEN del repo.
 #   2) deploy: (opcional) se conecta por SSH a tu servidor y actualiza el stack
 #      con docker-compose.deploy.yml. Se activa solo si defines los secretos SSH.
+#
+# IMPORTANTE — el CD va encadenado al CI: en push a main/master arranca solo
+# cuando el workflow "CI" (tests + Quality Gate de SonarCloud) termina en ÉXITO.
+# Si la Quality Gate falla, el CI queda en rojo y este workflow NO construye ni
+# publica ninguna imagen. Los tags de versión (release) y el disparo manual
+# siguen disponibles como vías de despliegue explícitas.
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]     # nombre del workflow en ci.yml (name: CI)
+    types: [completed]
     branches: [main, master]
-    tags: ["v*"]
+  push:
+    tags: ["v*"]          # releases por tag (se cortan desde main ya validado)
   workflow_dispatch: {}   # permite lanzarlo a mano desde la pestaña Actions
 
 permissions:
@@ -22,6 +31,12 @@ jobs:
   build-push:
     name: Build & push ${{ matrix.image }}
     runs-on: ubuntu-latest
+    # Solo se construye si: (a) CI terminó en éxito (encadenado), (b) es un tag de
+    # release, o (c) disparo manual. Si el CI (Quality Gate incluida) falló, no entra.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +53,16 @@ jobs:
           - { image: bookplus-admin-bff,           context: book-plus-admin-bff }
           - { image: bookplus-frontend,            context: book-plus-frontend }
     steps:
+      # Bajo workflow_run, el checkout por defecto apunta a la rama por defecto;
+      # forzamos el commit exacto que disparó el CI (head_sha) para construir la
+      # imagen del código realmente validado. En push/dispatch cae a github.sha.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve commit SHA
+        id: sha
+        run: echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Lowercase owner
         id: owner
@@ -68,7 +92,7 @@ jobs:
           provenance: false
           tags: |
             ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.image }}:latest
-            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.image }}:${{ github.sha }}
+            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.image }}:${{ steps.sha.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

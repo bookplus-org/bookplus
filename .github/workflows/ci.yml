@@ -109,12 +109,17 @@ jobs:
       - name: Analyze (SonarCloud / SonarQube)
         if: ${{ env.SONAR_TOKEN != '' }}
         working-directory: ${{ matrix.service }}
+        # sonar.qualitygate.wait=true → Maven espera el veredicto de la Quality Gate
+        # y DEVUELVE ERROR si la gate falla. Es el equivalente en GitHub Actions al
+        # `waitForQualityGate abortPipeline: true` de Jenkins: un job rojo aquí impide,
+        # vía el encadenado workflow_run, que el CD construya/publique imágenes.
         run: |
           ORG_FLAG=""
           if [ -n "$SONAR_ORGANIZATION" ]; then ORG_FLAG="-Dsonar.organization=$SONAR_ORGANIZATION"; fi
           mvn -B clean test sonar:sonar \
             -Dsonar.host.url=$SONAR_HOST_URL \
             -Dsonar.token=$SONAR_TOKEN \
+            -Dsonar.qualitygate.wait=true \
             $ORG_FLAG
       - name: Skip note
         if: ${{ env.SONAR_TOKEN == '' }}
