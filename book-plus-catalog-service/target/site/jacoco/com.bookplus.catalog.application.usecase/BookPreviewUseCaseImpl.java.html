@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookPreviewUseCaseImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.application.usecase</a> &gt; <span class="el_source">BookPreviewUseCaseImpl.java</span></div><h1>BookPreviewUseCaseImpl.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.application.usecase;
+
+import com.bookplus.catalog.domain.exception.BookNotFoundException;
+import com.bookplus.catalog.domain.exception.InvalidPdfException;
+import com.bookplus.catalog.domain.model.BookId;
+import com.bookplus.catalog.domain.model.BookPreview;
+import com.bookplus.catalog.domain.port.in.BookPreviewUseCase;
+import com.bookplus.catalog.domain.port.out.BookPreviewPort;
+import com.bookplus.catalog.domain.port.out.LoadBookPort;
+import com.bookplus.catalog.shared.annotation.UseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+
+import java.io.ByteArrayOutputStream;
+import java.time.Instant;
+import java.util.Optional;
+
+/**
+ * Genera y sirve la muestra en PDF de un libro: solo las primeras {@value #MAX_PREVIEW_PAGES}
+ * páginas. El recorte con PDFBox es lógica de aplicación; la persistencia va tras un puerto.
+ */
+@UseCase
+@RequiredArgsConstructor
+<span class="nc" id="L26">@Slf4j</span>
+public class BookPreviewUseCaseImpl implements BookPreviewUseCase {
+
+    private static final int MAX_PREVIEW_PAGES = 12;
+
+    private final BookPreviewPort bookPreviewPort;
+    private final LoadBookPort     loadBookPort;
+
+    @Override
+    public int storePreview(String bookId, byte[] pdfBytes) {
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (loadBookPort.findById(BookId.of(bookId)).isEmpty()) {</span>
+<span class="nc" id="L37">            throw new BookNotFoundException(bookId);</span>
+        }
+<span class="nc bnc" id="L39" title="All 4 branches missed.">        if (pdfBytes == null || pdfBytes.length == 0) {</span>
+<span class="nc" id="L40">            throw new InvalidPdfException(&quot;El archivo PDF está vacío&quot;);</span>
+        }
+
+<span class="nc" id="L43">        try (PDDocument source = Loader.loadPDF(pdfBytes)) {</span>
+<span class="nc" id="L44">            int sourcePages = source.getNumberOfPages();</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">            if (sourcePages == 0) {</span>
+<span class="nc" id="L46">                throw new InvalidPdfException(&quot;El PDF no tiene páginas&quot;);</span>
+            }
+<span class="nc" id="L48">            int take = Math.min(MAX_PREVIEW_PAGES, sourcePages);</span>
+
+            byte[] sample;
+<span class="nc" id="L51">            try (PDDocument out = new PDDocument();</span>
+<span class="nc" id="L52">                 ByteArrayOutputStream baos = new ByteArrayOutputStream()) {</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                for (int i = 0; i &lt; take; i++) {</span>
+<span class="nc" id="L54">                    out.importPage(source.getPage(i));</span>
+                }
+<span class="nc" id="L56">                out.save(baos);</span>
+<span class="nc" id="L57">                sample = baos.toByteArray();</span>
+            }
+
+<span class="nc" id="L60">            bookPreviewPort.save(new BookPreview(</span>
+<span class="nc" id="L61">                    bookId, sample, take, sourcePages, pdfBytes, sourcePages, Instant.now()));</span>
+
+<span class="nc" id="L63">            log.info(&quot;Preview generado para libro {}: {}/{} páginas&quot;, bookId, take, sourcePages);</span>
+<span class="nc" id="L64">            return take;</span>
+<span class="nc" id="L65">        } catch (InvalidPdfException ex) {</span>
+<span class="nc" id="L66">            throw ex;</span>
+<span class="nc" id="L67">        } catch (Exception ex) {</span>
+<span class="nc" id="L68">            log.error(&quot;No se pudo procesar el PDF para libro {}: {}&quot;, bookId, ex.getMessage());</span>
+<span class="nc" id="L69">            throw new InvalidPdfException(&quot;Archivo PDF inválido o dañado&quot;);</span>
+        }
+    }
+
+    @Override
+    public Optional&lt;BookPreview&gt; getPreview(String bookId) {
+<span class="nc" id="L75">        return bookPreviewPort.findByBookId(bookId);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

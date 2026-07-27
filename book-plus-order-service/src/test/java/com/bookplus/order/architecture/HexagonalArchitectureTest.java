@@ -58,4 +58,16 @@ class HexagonalArchitectureTest {
                     .should().resideInAPackage("..adapter.out.persistence.entity..")
                     .allowEmptyShould(true)
                     .as("Las @Entity de JPA viven en el adaptador de persistencia");
+
+    /**
+     * Ningún adaptador de entrada (controladores web ni consumidores Kafka) debe hablar con la
+     * persistencia directamente: debe pasar por un puerto (caso de uso o puerto de salida). Esto
+     * obliga a que la lógica de negocio y el acceso a datos vivan detrás de un puerto, no dentro
+     * del adaptador de entrada.
+     */
+    @ArchTest
+    static final ArchRule los_adaptadores_de_entrada_no_acceden_a_persistencia =
+            noClasses().that().resideInAPackage("..adapter.in..")
+                    .should().dependOnClassesThat().resideInAPackage("..adapter.out.persistence..")
+                    .as("Los adaptadores de entrada deben pasar por un puerto, no por JPA/repositorios");
 }

@@ -33,7 +33,7 @@ public class CouponService {
         }
         String code = "CREDIT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         couponPort.save(new Coupon(code, "FIXED", value, null, true,
-                Instant.now().plus(STORE_CREDIT_VALID_DAYS, ChronoUnit.DAYS)));
+                Instant.now().plus(STORE_CREDIT_VALID_DAYS, ChronoUnit.DAYS), Instant.now()));
         return code;
     }
 

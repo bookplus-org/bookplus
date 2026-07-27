@@ -9,6 +9,14 @@ spring:
   application:
     name: catalog-service
 
+  # ── GraphQL — API de agregación (schema en classpath:graphql/**) ───────────
+  graphql:
+    graphiql:
+      enabled: true   # IDE interactivo en /graphiql (dev)
+    schema:
+      printer:
+        enabled: true
+
   # ── Multipart (subida de PDF para vista previa) ────────────────────────────
   servlet:
     multipart:

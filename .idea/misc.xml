@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="MavenProjectsManager">
+    <option name="originalFiles">
+      <list>
+        <option value="$PROJECT_DIR$/book-plus-admin-bff/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-api-gateway/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-auth-service/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-cart-service/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-catalog-service/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-inventory-service/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-notification-service/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-order-service/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-payment-service/pom.xml" />
+        <option value="$PROJECT_DIR$/book-plus-report-service/pom.xml" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_26" project-jdk-name="21" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>

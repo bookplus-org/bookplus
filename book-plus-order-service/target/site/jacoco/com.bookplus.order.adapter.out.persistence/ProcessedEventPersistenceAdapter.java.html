@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProcessedEventPersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.out.persistence</a> &gt; <span class="el_source">ProcessedEventPersistenceAdapter.java</span></div><h1>ProcessedEventPersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.out.persistence;
+
+import com.bookplus.order.adapter.out.persistence.entity.ProcessedEventEntity;
+import com.bookplus.order.adapter.out.persistence.repository.ProcessedEventJpaRepository;
+import com.bookplus.order.domain.port.out.ProcessedEventPort;
+import com.bookplus.order.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+
+/**
+ * Implementa {@link ProcessedEventPort} sobre JPA (tabla processed_events).
+ * markIfNew participa en la transacción del consumidor (MANDATORY): la marca se confirma
+ * atómicamente con los cambios de negocio; si el consumidor falla, se revierte y Kafka reentrega.
+ */
+@PersistenceAdapter
+@RequiredArgsConstructor
+<span class="nc" id="L22">@Slf4j</span>
+public class ProcessedEventPersistenceAdapter implements ProcessedEventPort {
+
+    private final ProcessedEventJpaRepository repository;
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean markIfNew(String eventId, String topic) {
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        if (repository.existsByEventIdAndTopic(eventId, topic)) {</span>
+<span class="nc" id="L31">            return false;</span>
+        }
+        try {
+<span class="nc" id="L34">            repository.save(ProcessedEventEntity.builder()</span>
+<span class="nc" id="L35">                    .eventId(eventId)</span>
+<span class="nc" id="L36">                    .topic(topic)</span>
+<span class="nc" id="L37">                    .build());</span>
+<span class="nc" id="L38">            return true;</span>
+<span class="nc" id="L39">        } catch (DataIntegrityViolationException ex) {</span>
+            // Carrera: otra instancia insertó la misma fila de forma concurrente.
+<span class="nc" id="L41">            log.info(&quot;Idempotency race skip: eventId={} topic={}&quot;, eventId, topic);</span>
+<span class="nc" id="L42">            return false;</span>
+        }
+    }
+
+    @Override
+    @Transactional
+    public int deleteOlderThan(Instant cutoff) {
+<span class="nc" id="L49">        return repository.deleteOlderThan(cutoff);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

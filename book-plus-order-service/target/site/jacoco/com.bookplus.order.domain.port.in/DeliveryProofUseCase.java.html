@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DeliveryProofUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.port.in</a> &gt; <span class="el_source">DeliveryProofUseCase.java</span></div><h1>DeliveryProofUseCase.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.port.in;
+
+import com.bookplus.order.domain.model.DeliveryProof;
+import com.bookplus.order.domain.model.Order;
+
+import java.util.Optional;
+
+/**
+ * Caso de uso de prueba de entrega: valida el código, marca el pedido como entregado y
+ * persiste la prueba (foto + firma). El controlador solo se ocupa del HTTP/multipart.
+ */
+public interface DeliveryProofUseCase {
+
+    /** Marca el pedido entregado con el código y guarda la prueba. Devuelve el pedido actualizado. */
+    Order deliverWithProof(DeliverProofCommand command);
+
+    /** Recupera la prueba de un pedido (foto/firma), si existe. */
+    Optional&lt;DeliveryProof&gt; getProof(String orderId);
+
+<span class="nc" id="L20">    record DeliverProofCommand(</span>
+            String orderId,
+            String deliveryCode,
+            String receivedBy,
+            String deliveredBy,
+            byte[] photo,
+            String photoContentType,
+            byte[] signature,
+            String signatureContentType
+    ) {}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

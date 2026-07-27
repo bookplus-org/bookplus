@@ -1,11 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LibraryController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web</a> &gt; <span class="el_source">LibraryController.java</span></div><h1>LibraryController.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web;
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LibraryController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.in.web</a> &gt; <span class="el_source">LibraryController.java</span></div><h1>LibraryController.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.in.web;
 
 import com.bookplus.catalog.adapter.in.web.dto.BookResponse;
-import com.bookplus.catalog.adapter.in.web.preview.PdfPreviewService;
-import com.bookplus.catalog.adapter.out.persistence.entity.UserPurchaseEntity;
-import com.bookplus.catalog.adapter.out.persistence.repository.UserPurchaseJpaRepository;
-import com.bookplus.catalog.domain.model.BookId;
-import com.bookplus.catalog.domain.port.out.LoadBookPort;
+import com.bookplus.catalog.domain.port.in.LibraryUseCase;
+import com.bookplus.catalog.domain.port.in.LibraryUseCase.ConsumptionFacts;
 import com.bookplus.catalog.shared.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -18,12 +15,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
  * Biblioteca del usuario: libros comprados (acceso al PDF completo).
  * Ruta en el gateway: /api/v1/library/** → catalog-service (requiere auth).
+ *
+ * Controlador delgado: resuelve el JWT/roles (seguridad) y delega en {@link LibraryUseCase}.
  */
 @RestController
 @RequestMapping(&quot;/api/v1/library&quot;)
@@ -32,20 +30,14 @@ import java.util.UUID;
 @SecurityRequirement(name = &quot;bearerAuth&quot;)
 public class LibraryController {
 
-    private final UserPurchaseJpaRepository purchaseRepo;
-    private final PdfPreviewService         previewService;
-    private final LoadBookPort              loadBookPort;
+    private final LibraryUseCase libraryUseCase;
 
     @GetMapping
     @Operation(summary = &quot;List books I purchased&quot;)
     public ResponseEntity&lt;ApiResponse&lt;List&lt;BookResponse&gt;&gt;&gt; myLibrary(@AuthenticationPrincipal Jwt jwt) {
-<span class="nc" id="L42">        List&lt;BookResponse&gt; books = purchaseRepo.findByUserIdAndActiveTrueOrderByPurchasedAtDesc(jwt.getSubject())</span>
-<span class="nc" id="L43">                .stream()</span>
-<span class="nc" id="L44">                .map(p -&gt; loadBookPort.findById(BookId.of(p.getBookId().toString())).orElse(null))</span>
-<span class="nc" id="L45">                .filter(Objects::nonNull)</span>
-<span class="nc" id="L46">                .map(BookResponse::from)</span>
-<span class="nc" id="L47">                .toList();</span>
-<span class="nc" id="L48">        return ResponseEntity.ok(ApiResponse.ok(books));</span>
+<span class="nc" id="L38">        List&lt;BookResponse&gt; books = libraryUseCase.listPurchasedBooks(jwt.getSubject())</span>
+<span class="nc" id="L39">                .stream().map(BookResponse::from).toList();</span>
+<span class="nc" id="L40">        return ResponseEntity.ok(ApiResponse.ok(books));</span>
     }
 
     @GetMapping(&quot;/{bookId}/book.pdf&quot;)
@@ -53,32 +45,15 @@ public class LibraryController {
     public ResponseEntity&lt;byte[]&gt; download(
             @AuthenticationPrincipal Jwt jwt, @PathVariable UUID bookId) {
 
-<span class="nc" id="L56">        boolean admin = hasAdminRole(jwt);</span>
-<span class="nc" id="L57">        boolean owner = purchaseRepo.existsByUserIdAndBookIdAndActiveTrue(jwt.getSubject(), bookId);</span>
-<span class="nc bnc" id="L58" title="All 4 branches missed.">        if (!admin &amp;&amp; !owner) {</span>
-<span class="nc" id="L59">            throw new ResponseStatusException(HttpStatus.FORBIDDEN, &quot;No tienes acceso a este libro&quot;);</span>
-        }
-
-        // Marcar como descargado (relevante para la política de reembolsos de digitales).
-<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (owner) {</span>
-<span class="nc" id="L64">            purchaseRepo.findByUserIdAndBookId(jwt.getSubject(), bookId).ifPresent(p -&gt; {</span>
-<span class="nc bnc" id="L65" title="All 2 branches missed.">                if (!p.isDownloaded()) {</span>
-<span class="nc" id="L66">                    p.setDownloaded(true);</span>
-<span class="nc" id="L67">                    purchaseRepo.save(p);</span>
-                }
-<span class="nc" id="L69">            });</span>
-        }
-
-<span class="nc" id="L72">        return previewService.getPreview(bookId)</span>
-<span class="nc bnc" id="L73" title="All 2 branches missed.">                .filter(p -&gt; p.getFullPdf() != null)</span>
-<span class="nc" id="L74">                .map(p -&gt; ResponseEntity.ok()</span>
-<span class="nc" id="L75">                        .contentType(MediaType.APPLICATION_PDF)</span>
-<span class="nc" id="L76">                        .header(HttpHeaders.CONTENT_DISPOSITION, &quot;inline; filename=\&quot;book.pdf\&quot;&quot;)</span>
-<span class="nc" id="L77">                        .header(&quot;X-Total-Pages&quot;,</span>
-<span class="nc bnc" id="L78" title="All 2 branches missed.">                                p.getFullPages() == null ? &quot;&quot; : String.valueOf(p.getFullPages()))</span>
-<span class="nc" id="L79">                        .cacheControl(CacheControl.noCache())</span>
-<span class="nc" id="L80">                        .body(p.getFullPdf()))</span>
-<span class="nc" id="L81">                .orElseGet(() -&gt; ResponseEntity.noContent().build());</span>
+<span class="nc" id="L48">        return libraryUseCase.downloadFullPdf(jwt.getSubject(), bookId.toString(), hasAdminRole(jwt))</span>
+<span class="nc" id="L49">                .map(pdf -&gt; ResponseEntity.ok()</span>
+<span class="nc" id="L50">                        .contentType(MediaType.APPLICATION_PDF)</span>
+<span class="nc" id="L51">                        .header(HttpHeaders.CONTENT_DISPOSITION, &quot;inline; filename=\&quot;book.pdf\&quot;&quot;)</span>
+<span class="nc" id="L52">                        .header(&quot;X-Total-Pages&quot;,</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                                pdf.totalPages() == null ? &quot;&quot; : String.valueOf(pdf.totalPages()))</span>
+<span class="nc" id="L54">                        .cacheControl(CacheControl.noCache())</span>
+<span class="nc" id="L55">                        .body(pdf.bytes()))</span>
+<span class="nc" id="L56">                .orElseGet(() -&gt; ResponseEntity.noContent().build());</span>
     }
 
     @PutMapping(&quot;/{bookId}/progress&quot;)
@@ -87,19 +62,8 @@ public class LibraryController {
             @AuthenticationPrincipal Jwt jwt, @PathVariable UUID bookId,
             @RequestParam(&quot;percent&quot;) int percent) {
 
-<span class="nc" id="L90">        int clamped = Math.max(0, Math.min(100, percent));</span>
-<span class="nc" id="L91">        UserPurchaseEntity purchase = purchaseRepo</span>
-<span class="nc" id="L92">                .findByUserIdAndBookId(jwt.getSubject(), bookId)</span>
-<span class="nc" id="L93">                .filter(UserPurchaseEntity::isActive)</span>
-<span class="nc" id="L94">                .orElseThrow(() -&gt; new ResponseStatusException(HttpStatus.FORBIDDEN, &quot;No tienes acceso a este libro&quot;));</span>
-
-        // El progreso solo avanza (evita que un reset baje el umbral de &quot;consumido&quot;).
-<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (clamped &gt; purchase.getReadProgress()) {</span>
-<span class="nc" id="L98">            purchase.setReadProgress(clamped);</span>
-<span class="nc" id="L99">            purchase.setDownloaded(true);</span>
-<span class="nc" id="L100">            purchaseRepo.save(purchase);</span>
-        }
-<span class="nc" id="L102">        return ResponseEntity.ok(ApiResponse.ok(purchase.getReadProgress()));</span>
+<span class="nc" id="L65">        int progress = libraryUseCase.updateProgress(jwt.getSubject(), bookId.toString(), percent);</span>
+<span class="nc" id="L66">        return ResponseEntity.ok(ApiResponse.ok(progress));</span>
     }
 
     @GetMapping(&quot;/admin/consumption&quot;)
@@ -109,30 +73,28 @@ public class LibraryController {
             @RequestParam String userId,
             @RequestParam UUID bookId) {
 
-<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (!hasAdminRole(jwt)) {</span>
-<span class="nc" id="L113">            throw new ResponseStatusException(HttpStatus.FORBIDDEN, &quot;Solo administración&quot;);</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if (!hasAdminRole(jwt)) {</span>
+<span class="nc" id="L77">            throw new ResponseStatusException(HttpStatus.FORBIDDEN, &quot;Solo administración&quot;);</span>
         }
-<span class="nc" id="L115">        ConsumptionResponse facts = purchaseRepo.findByUserIdAndBookId(userId, bookId)</span>
-<span class="nc" id="L116">                .map(p -&gt; new ConsumptionResponse(p.isDownloaded(), p.getReadProgress(), p.isActive()))</span>
-<span class="nc" id="L117">                .orElseGet(() -&gt; new ConsumptionResponse(false, 0, false));</span>
-<span class="nc" id="L118">        return ResponseEntity.ok(ApiResponse.ok(facts));</span>
+<span class="nc" id="L79">        ConsumptionFacts f = libraryUseCase.getConsumption(userId, bookId.toString());</span>
+<span class="nc" id="L80">        return ResponseEntity.ok(ApiResponse.ok(</span>
+<span class="nc" id="L81">                new ConsumptionResponse(f.downloaded(), f.readProgress(), f.active())));</span>
     }
 
     /** Hechos de consumo de un libro por un usuario, para la política de reembolsos. */
-<span class="nc" id="L122">    public record ConsumptionResponse(boolean downloaded, int readProgress, boolean active) {}</span>
+<span class="nc" id="L85">    public record ConsumptionResponse(boolean downloaded, int readProgress, boolean active) {}</span>
 
-    @SuppressWarnings(&quot;unchecked&quot;)
     private boolean hasAdminRole(Jwt jwt) {
-<span class="nc" id="L126">        Object roles = jwt.getClaim(&quot;roles&quot;);</span>
-<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (roles instanceof List&lt;?&gt; list) {</span>
-<span class="nc bnc" id="L128" title="All 2 branches missed.">            for (Object r : list) {</span>
-<span class="nc" id="L129">                String s = String.valueOf(r);</span>
-<span class="nc bnc" id="L130" title="All 6 branches missed.">                if (&quot;ROLE_EDITOR&quot;.equals(s) || &quot;ROLE_ADMIN&quot;.equals(s) || &quot;ROLE_SUPERADMIN&quot;.equals(s)) {</span>
-<span class="nc" id="L131">                    return true;</span>
+<span class="nc" id="L88">        Object roles = jwt.getClaim(&quot;roles&quot;);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (roles instanceof List&lt;?&gt; list) {</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            for (Object r : list) {</span>
+<span class="nc" id="L91">                String s = String.valueOf(r);</span>
+<span class="nc bnc" id="L92" title="All 6 branches missed.">                if (&quot;ROLE_EDITOR&quot;.equals(s) || &quot;ROLE_ADMIN&quot;.equals(s) || &quot;ROLE_SUPERADMIN&quot;.equals(s)) {</span>
+<span class="nc" id="L93">                    return true;</span>
                 }
-<span class="nc" id="L133">            }</span>
+<span class="nc" id="L95">            }</span>
         }
-<span class="nc" id="L135">        return false;</span>
+<span class="nc" id="L97">        return false;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

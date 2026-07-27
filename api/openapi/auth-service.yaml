@@ -1,0 +1,363 @@
+openapi: 3.0.3
+info:
+  title: BookPlus Auth Service API
+  version: 1.0.0
+  description: >-
+    Contrato REST del auth-service de BookPlus (registro, login, refresh,
+    recuperación de contraseña y segundo factor TOTP). Este documento es la
+    FUENTE DE VERDAD del API (enfoque contract-first): el lint de Spectral lo
+    valida en el CI y de él pueden generarse stubs de cliente/servidor.
+  contact:
+    name: BookPlus Platform
+    url: https://github.com/bookplus-org/bookplus
+  license:
+    name: Proprietary
+    url: https://bookplus.example/license
+
+servers:
+  - url: http://localhost:8080
+    description: Gateway local
+  - url: https://api.bookplus.example
+    description: Producción
+
+tags:
+  - name: Authentication
+    description: Alta, inicio de sesión y gestión de tokens
+  - name: Password
+    description: Recuperación y restablecimiento de contraseña
+  - name: MFA
+    description: Segundo factor (TOTP)
+
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Authentication]
+      operationId: register
+      summary: Registra un nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Usuario registrado; devuelve tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      summary: Inicia sesión con usuario/email y contraseña
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sesión iniciada; devuelve tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      operationId: refreshToken
+      summary: Renueva el access token con un refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Nuevos tokens emitidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      summary: Cierra la sesión actual (revoca el refresh token)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Sesión cerrada
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Password]
+      operationId: forgotPassword
+      summary: Solicita un correo de recuperación de contraseña
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Si el email existe, se envía un enlace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageApiResponse'
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Password]
+      operationId: resetPassword
+      summary: Restablece la contraseña con un token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Contraseña actualizada
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/auth/mfa/enroll:
+    post:
+      tags: [MFA]
+      operationId: enrollMfa
+      summary: Genera un secreto TOTP y la URI otpauth para el QR
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Secreto y URI de enrolamiento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MfaEnrollApiResponse'
+
+  /api/v1/auth/mfa/verify:
+    post:
+      tags: [MFA]
+      operationId: verifyMfa
+      summary: Verifica un código TOTP de 6 dígitos
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaVerifyRequest'
+      responses:
+        '200':
+          description: Resultado de la verificación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MfaVerifyApiResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token JWT emitido por el auth-service
+
+  responses:
+    BadRequest:
+      description: Petición inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Credenciales inválidas o token no válido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    RegisterRequest:
+      type: object
+      description: Datos de alta de un usuario
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          example: alice
+        email:
+          type: string
+          format: email
+          example: alice@bookplus.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+
+    LoginRequest:
+      type: object
+      description: Credenciales de inicio de sesión
+      required: [usernameOrEmail, password]
+      properties:
+        usernameOrEmail:
+          type: string
+          example: alice
+        password:
+          type: string
+          format: password
+
+    RefreshTokenRequest:
+      type: object
+      description: Solicitud de renovación de tokens
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    ForgotPasswordRequest:
+      type: object
+      description: Solicitud de recuperación de contraseña
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      description: Restablecimiento con token
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+
+    AuthResponse:
+      type: object
+      description: Tokens y datos básicos del usuario autenticado
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          description: Segundos de validez del access token
+        userId:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        emailVerified:
+          type: boolean
+
+    MfaVerifyRequest:
+      type: object
+      description: Código TOTP a verificar contra un secreto
+      required: [secret, code]
+      properties:
+        secret:
+          type: string
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+
+    MfaEnrollData:
+      type: object
+      description: Secreto TOTP y URI otpauth para el QR
+      properties:
+        secret:
+          type: string
+        otpauthUri:
+          type: string
+          format: uri
+
+    MfaVerifyData:
+      type: object
+      properties:
+        valid:
+          type: boolean
+
+    ApiResponseBase:
+      type: object
+      description: Envoltura común de las respuestas REST
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    AuthApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AuthResponse'
+
+    MessageApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+
+    MfaEnrollApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MfaEnrollData'
+
+    MfaVerifyApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MfaVerifyData'
+
+    ErrorResponse:
+      type: object
+      description: Cuerpo de error estándar
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/book-plus-admin-bff/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-api-gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-auth-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-cart-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-catalog-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-inventory-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-notification-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-order-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-payment-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/book-plus-report-service/src/main/java" charset="UTF-8" />
+  </component>
+</project>

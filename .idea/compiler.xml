@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="book-plus-payment-service" />
+        <module name="book-plus-order-service" />
+        <module name="book-plus-report-service" />
+        <module name="book-plus-auth-service" />
+        <module name="book-plus-cart-service" />
+        <module name="book-plus-catalog-service" />
+        <module name="book-plus-api-gateway" />
+        <module name="book-plus-admin-bff" />
+        <module name="book-plus-inventory-service" />
+        <module name="book-plus-notification-service" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="book-plus-admin-bff" options="-parameters" />
+      <module name="book-plus-api-gateway" options="-parameters" />
+      <module name="book-plus-auth-service" options="-parameters" />
+      <module name="book-plus-cart-service" options="-parameters" />
+      <module name="book-plus-catalog-service" options="-parameters" />
+      <module name="book-plus-inventory-service" options="-parameters --enable-preview" />
+      <module name="book-plus-notification-service" options="-parameters" />
+      <module name="book-plus-order-service" options="-parameters" />
+      <module name="book-plus-payment-service" options="-parameters" />
+      <module name="book-plus-report-service" options="-parameters" />
+    </option>
+  </component>
+</project>

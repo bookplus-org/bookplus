@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FavoritePersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.adapter.out.persistence</a> &gt; <span class="el_source">FavoritePersistenceAdapter.java</span></div><h1>FavoritePersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.adapter.out.persistence;
+
+import com.bookplus.catalog.adapter.out.persistence.entity.UserFavoriteEntity;
+import com.bookplus.catalog.adapter.out.persistence.repository.UserFavoriteJpaRepository;
+import com.bookplus.catalog.domain.port.out.FavoritePort;
+import com.bookplus.catalog.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+/** Implementa {@link FavoritePort} sobre JPA (tabla user_favorites, clave user_id + book_id). */
+@PersistenceAdapter
+@RequiredArgsConstructor
+public class FavoritePersistenceAdapter implements FavoritePort {
+
+    private final UserFavoriteJpaRepository repository;
+
+    @Override
+    public List&lt;String&gt; findBookIdsByUser(String userId) {
+<span class="nc" id="L22">        return repository.findByUserIdOrderByCreatedAtDesc(userId).stream()</span>
+<span class="nc" id="L23">                .map(f -&gt; f.getBookId().toString())</span>
+<span class="nc" id="L24">                .toList();</span>
+    }
+
+    @Override
+    public boolean exists(String userId, String bookId) {
+<span class="nc" id="L29">        return repository.existsByUserIdAndBookId(userId, UUID.fromString(bookId));</span>
+    }
+
+    @Override
+    public void add(String userId, String bookId) {
+<span class="nc" id="L34">        repository.save(UserFavoriteEntity.builder()</span>
+<span class="nc" id="L35">                .userId(userId)</span>
+<span class="nc" id="L36">                .bookId(UUID.fromString(bookId))</span>
+<span class="nc" id="L37">                .createdAt(Instant.now())</span>
+<span class="nc" id="L38">                .build());</span>
+<span class="nc" id="L39">    }</span>
+
+    @Override
+    public void remove(String userId, String bookId) {
+<span class="nc" id="L43">        repository.deleteByUserIdAndBookId(userId, UUID.fromString(bookId));</span>
+<span class="nc" id="L44">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -26,7 +26,10 @@ def call(Map cfg = [:]) {
 
         parameters {
             booleanParam(name: 'RUN_SONAR',   defaultValue: true, description: 'Análisis + Quality Gate de SonarCloud')
-            booleanParam(name: 'PUSH_IMAGES', defaultValue: true, description: 'Construir y publicar imágenes en GHCR')
+            // Por defecto NO se publican imágenes desde Jenkins: de eso se encarga GitHub Actions
+            // (su GITHUB_TOKEN sí puede crear paquetes de organización; una GitHub App no).
+            // Jenkins valida (build/test/sonar/package). Márcalo solo si pusheas a paquetes ya creados.
+            booleanParam(name: 'PUSH_IMAGES', defaultValue: false, description: 'Publicar imágenes en GHCR (normalmente lo hace GitHub Actions)')
             choice(name: 'DEPLOY_ENV', choices: ['none', 'staging', 'production'], description: 'Entorno de despliegue')
         }
 
@@ -94,6 +97,10 @@ def call(Map cfg = [:]) {
                 when { expression { params.PUSH_IMAGES } }
                 agent any
                 steps {
+                    // Best-effort: la publicación "oficial" la hace GitHub Actions. Si el push
+                    // desde Jenkins falla (p. ej. la GitHub App no puede CREAR paquetes de org),
+                    // se marca la etapa como inestable pero el build NO se rompe.
+                    warnError('Publicación de imágenes desde Jenkins omitida/fallida (la realiza GitHub Actions)') {
                     unstash 'source'
                     unstash 'jars'    // JAR ya construidos en Package (no se recompila)
                     withCredentials([usernamePassword(credentialsId: ghcrCreds, usernameVariable: 'U', passwordVariable: 'P')]) {
@@ -119,6 +126,7 @@ def call(Map cfg = [:]) {
                             }
                         }
                     }
+                    } // warnError
                 }
             }
 
@@ -126,10 +134,14 @@ def call(Map cfg = [:]) {
                 when { expression { params.PUSH_IMAGES } }
                 agent any
                 steps {
-                    script {
-                        parallel services.collectEntries { s -> ["trivy:${s}", {
-                            sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 0 ${registry}/${s}:${env.SHORT_SHA}"
-                        }] }
+                    // Best-effort: un timeout/lentitud del scanner no debe romper el build.
+                    // Caché de la BD de Trivy entre escaneos + timeout amplio para descargas lentas.
+                    warnError('Escaneo Trivy omitido/incompleto (no bloquea el build)') {
+                        script {
+                            parallel services.collectEntries { s -> ["trivy:${s}", {
+                                sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ aquasec/trivy:latest image --timeout 30m --severity HIGH,CRITICAL --exit-code 0 ${registry}/${s}:${env.SHORT_SHA} || true"
+                            }] }
+                        }
                     }
                 }
             }

@@ -24,6 +24,21 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "order-not-found", "Order Not Found", ex.getMessage());
     }
 
+    @ExceptionHandler(CouponNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleCouponNotFound(CouponNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, "coupon-not-found", "Coupon Not Found", ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateCouponException.class)
+    public ResponseEntity<ProblemDetail> handleDuplicateCoupon(DuplicateCouponException ex) {
+        return build(HttpStatus.CONFLICT, "coupon-duplicate", "Duplicate Coupon", ex.getMessage());
+    }
+
+    @ExceptionHandler(CouponValidationException.class)
+    public ResponseEntity<ProblemDetail> handleCouponValidation(CouponValidationException ex) {
+        return build(HttpStatus.BAD_REQUEST, "coupon-invalid", "Invalid Coupon", ex.getMessage());
+    }
+
     @ExceptionHandler({OrderNotCancellableException.class, InvalidOrderTransitionException.class})
     public ResponseEntity<ProblemDetail> handleDomainConflict(DomainException ex) {
         return build(HttpStatus.CONFLICT, "order-conflict", "Order State Conflict", ex.getMessage());

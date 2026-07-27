@@ -1,7 +1,8 @@
 package com.bookplus.order.adapter.in.web;
 
-import com.bookplus.order.adapter.out.persistence.entity.CouponEntity;
-import com.bookplus.order.adapter.out.persistence.repository.CouponJpaRepository;
+import com.bookplus.order.domain.model.Coupon;
+import com.bookplus.order.domain.port.in.ManageCouponUseCase;
+import com.bookplus.order.domain.port.in.ManageCouponUseCase.CreateCouponCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,16 +13,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 
 /**
  * Gestión de cupones para el admin.
  * Ruta gateway: /api/v1/orders/** (reaprovecha el route del order-service).
+ *
+ * Este controlador es un adaptador de entrada "delgado": solo traduce HTTP ⇄ comandos y
+ * delega toda la lógica (validación, duplicados, persistencia) en {@link ManageCouponUseCase}.
  */
 @RestController
 @RequestMapping("/api/v1/orders/admin/coupons")
@@ -31,14 +33,12 @@ import java.util.List;
 @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN')")
 public class AdminCouponController {
 
-    private final CouponJpaRepository repository;
+    private final ManageCouponUseCase manageCouponUseCase;
 
     @GetMapping
     @Operation(summary = "List all coupons")
     public List<CouponResponse> list() {
-        return repository.findAll().stream()
-                .sorted(Comparator.comparing(CouponEntity::getCreatedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
+        return manageCouponUseCase.listAll().stream()
                 .map(CouponResponse::from)
                 .toList();
     }
@@ -46,50 +46,21 @@ public class AdminCouponController {
     @PostMapping
     @Operation(summary = "Create (or replace) a coupon")
     public ResponseEntity<CouponResponse> create(@RequestBody CreateCouponRequest req) {
-        String code = req.code() == null ? "" : req.code().trim().toUpperCase();
-        if (code.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El código es obligatorio");
-        }
-        if (repository.existsById(code)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un cupón con ese código");
-        }
-        String type = "FIXED".equalsIgnoreCase(req.discountType()) ? "FIXED" : "PERCENT";
-        if (req.discountValue() == null || req.discountValue().signum() <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El descuento debe ser mayor a 0");
-        }
-        if ("PERCENT".equals(type) && req.discountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El porcentaje no puede superar 100");
-        }
-
-        CouponEntity saved = repository.save(CouponEntity.builder()
-                .code(code)
-                .discountType(type)
-                .discountValue(req.discountValue())
-                .minAmount(req.minAmount())
-                .expiresAt(req.expiresAt())
-                .active(true)
-                .createdAt(Instant.now())
-                .build());
-        return ResponseEntity.status(HttpStatus.CREATED).body(CouponResponse.from(saved));
+        Coupon created = manageCouponUseCase.create(new CreateCouponCommand(
+                req.code(), req.discountType(), req.discountValue(), req.minAmount(), req.expiresAt()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CouponResponse.from(created));
     }
 
     @PatchMapping("/{code}/active")
     @Operation(summary = "Enable or disable a coupon")
     public CouponResponse setActive(@PathVariable String code, @RequestParam boolean value) {
-        CouponEntity c = repository.findById(code.trim().toUpperCase())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cupón no encontrado"));
-        c.setActive(value);
-        return CouponResponse.from(repository.save(c));
+        return CouponResponse.from(manageCouponUseCase.setActive(code, value));
     }
 
     @DeleteMapping("/{code}")
     @Operation(summary = "Delete a coupon")
     public ResponseEntity<Void> delete(@PathVariable String code) {
-        String id = code.trim().toUpperCase();
-        if (!repository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cupón no encontrado");
-        }
-        repository.deleteById(id);
+        manageCouponUseCase.delete(code);
         return ResponseEntity.noContent().build();
     }
 
@@ -112,10 +83,10 @@ public class AdminCouponController {
             Instant expiresAt,
             Instant createdAt
     ) {
-        static CouponResponse from(CouponEntity c) {
+        static CouponResponse from(Coupon c) {
             return new CouponResponse(
-                    c.getCode(), c.getDiscountType(), c.getDiscountValue(),
-                    c.getMinAmount(), c.isActive(), c.getExpiresAt(), c.getCreatedAt());
+                    c.code(), c.discountType(), c.discountValue(),
+                    c.minAmount(), c.active(), c.expiresAt(), c.createdAt());
         }
     }
 }

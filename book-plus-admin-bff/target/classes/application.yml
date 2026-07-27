@@ -1,0 +1,95 @@
+server:
+  port: 8089
+  shutdown: graceful
+
+spring:
+  application:
+    name: admin-bff
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ""
+
+# ── Downstream service URLs ────────────────────────────────────────────
+services:
+  catalog-url:       ${CATALOG_SERVICE_URL:http://localhost:8082}
+  inventory-url:     ${INVENTORY_SERVICE_URL:http://localhost:8083}
+  order-url:         ${ORDER_SERVICE_URL:http://localhost:8085}
+  payment-url:       ${PAYMENT_SERVICE_URL:http://localhost:8086}
+  notification-url:  ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
+  report-url:        ${REPORT_SERVICE_URL:http://localhost:8088}
+  auth-url:          ${AUTH_SERVICE_URL:http://localhost:8081}
+
+# ── Admin BFF specific ─────────────────────────────────────────────────
+admin-bff:
+  jwt:
+    public-key-base64: ${ADMIN_BFF_JWT_PUBLIC_KEY_BASE64}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,retries
+  endpoint:
+    health:
+      show-details: when_authorized
+  health:
+    circuitbreakers:
+      enabled: true
+
+# ── Resilience4j ───────────────────────────────────────────────────────
+resilience4j:
+
+  # Circuit Breaker — shared defaults, applied to all downstream services
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10              # evaluate last 10 calls
+        minimumNumberOfCalls: 5            # need at least 5 calls before tripping
+        failureRateThreshold: 50           # trip if ≥50% fail
+        waitDurationInOpenState: 30s       # stay OPEN for 30s, then go HALF_OPEN
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.reactive.function.client.WebClientResponseException$ServiceUnavailable
+          - org.springframework.web.reactive.function.client.WebClientResponseException$GatewayTimeout
+    instances:
+      catalog:    { baseConfig: default }
+      inventory:  { baseConfig: default }
+      orders:     { baseConfig: default }
+      payments:   { baseConfig: default }
+      reports:    { baseConfig: default }
+
+  # Retry — up to 3 attempts with exponential backoff
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 200ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2.0
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException$NotFound
+          - org.springframework.web.reactive.function.client.WebClientResponseException$Unauthorized
+          - org.springframework.web.reactive.function.client.WebClientResponseException$Forbidden
+    instances:
+      catalog:    { baseConfig: default }
+      inventory:  { baseConfig: default }
+      orders:     { baseConfig: default }
+      payments:   { baseConfig: default }
+      reports:    { baseConfig: default }
+
+logging:
+  level:
+    com.bookplus.adminbff: INFO
+    org.springframework.security: WARN
+    org.springframework.web.reactive.function.client: WARN
+    io.github.resilience4j: INFO

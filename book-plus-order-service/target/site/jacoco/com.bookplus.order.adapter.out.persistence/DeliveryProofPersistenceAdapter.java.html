@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DeliveryProofPersistenceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.adapter.out.persistence</a> &gt; <span class="el_source">DeliveryProofPersistenceAdapter.java</span></div><h1>DeliveryProofPersistenceAdapter.java</h1><pre class="source lang-java linenums">package com.bookplus.order.adapter.out.persistence;
+
+import com.bookplus.order.adapter.out.persistence.entity.DeliveryProofEntity;
+import com.bookplus.order.adapter.out.persistence.repository.DeliveryProofJpaRepository;
+import com.bookplus.order.domain.model.DeliveryProof;
+import com.bookplus.order.domain.port.out.DeliveryProofPort;
+import com.bookplus.order.shared.annotation.PersistenceAdapter;
+import lombok.RequiredArgsConstructor;
+
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+/** Implementa {@link DeliveryProofPort} sobre JPA, mapeando entre {@link DeliveryProof} y la entidad. */
+@PersistenceAdapter
+@RequiredArgsConstructor
+public class DeliveryProofPersistenceAdapter implements DeliveryProofPort {
+
+    private final DeliveryProofJpaRepository repository;
+
+    @Override
+    public void save(DeliveryProof p) {
+<span class="nc" id="L23">        repository.save(DeliveryProofEntity.builder()</span>
+<span class="nc" id="L24">                .orderId(UUID.fromString(p.orderId()))</span>
+<span class="nc" id="L25">                .photo(p.photo())</span>
+<span class="nc" id="L26">                .photoContentType(p.photoContentType())</span>
+<span class="nc" id="L27">                .signature(p.signature())</span>
+<span class="nc" id="L28">                .signatureContentType(p.signatureContentType())</span>
+<span class="nc" id="L29">                .receivedBy(p.receivedBy())</span>
+<span class="nc" id="L30">                .deliveredBy(p.deliveredBy())</span>
+<span class="nc bnc" id="L31" title="All 2 branches missed.">                .createdAt(p.createdAt() != null ? p.createdAt() : Instant.now())</span>
+<span class="nc" id="L32">                .build());</span>
+<span class="nc" id="L33">    }</span>
+
+    @Override
+    public Optional&lt;DeliveryProof&gt; findByOrderId(String orderId) {
+<span class="nc" id="L37">        return repository.findById(UUID.fromString(orderId)).map(DeliveryProofPersistenceAdapter::toDomain);</span>
+    }
+
+    private static DeliveryProof toDomain(DeliveryProofEntity e) {
+<span class="nc" id="L41">        return new DeliveryProof(</span>
+<span class="nc" id="L42">                e.getOrderId().toString(),</span>
+<span class="nc" id="L43">                e.getPhoto(), e.getPhotoContentType(),</span>
+<span class="nc" id="L44">                e.getSignature(), e.getSignatureContentType(),</span>
+<span class="nc" id="L45">                e.getReceivedBy(), e.getDeliveredBy(),</span>
+<span class="nc" id="L46">                e.getCreatedAt());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

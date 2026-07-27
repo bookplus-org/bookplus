@@ -1,10 +1,11 @@
 package com.bookplus.catalog.adapter.in.web.preview;
 
-import com.bookplus.catalog.adapter.out.persistence.entity.BookPreviewEntity;
+import com.bookplus.catalog.domain.port.in.BookPreviewUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,45 +17,47 @@ import java.util.UUID;
  * Endpoints del visor de libro:
  *   - público:  GET /api/v1/books/{id}/preview.pdf  → muestra (primeras N páginas)
  *   - admin:    POST /api/v1/admin/books/{id}/preview (multipart "file") → sube PDF
+ *
+ * Controlador delgado: HTTP/multipart aquí, el recorte y la persistencia en {@link BookPreviewUseCase}.
  */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Book Preview", description = "PDF sample viewer")
 public class BookPreviewController {
 
-    private final PdfPreviewService previewService;
+    private final BookPreviewUseCase bookPreviewUseCase;
 
     // ── Público: servir la muestra ─────────────────────────────────────────
     @GetMapping("/api/v1/books/{id}/preview.pdf")
     @Operation(summary = "Get the book's PDF sample (first pages only). 204 if none.")
     public ResponseEntity<byte[]> getPreview(@PathVariable UUID id) {
-        // 204 (no toast on the client) when the book has no uploaded sample.
-        return previewService.getPreview(id)
+        return bookPreviewUseCase.getPreview(id.toString())
+                .filter(p -> p.previewPdf() != null)
                 .map(p -> ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)
                         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"preview.pdf\"")
-                        .header("X-Preview-Pages", String.valueOf(p.getPageCount()))
+                        .header("X-Preview-Pages", String.valueOf(p.pageCount()))
                         .header("X-Total-Pages",
-                                p.getSourcePages() == null ? "" : String.valueOf(p.getSourcePages()))
+                                p.sourcePages() == null ? "" : String.valueOf(p.sourcePages()))
                         .cacheControl(CacheControl.noCache())
-                        .body(p.getPreviewPdf()))
+                        .body(p.previewPdf()))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     // ── Admin: ver el PDF completo ─────────────────────────────────────────
     @GetMapping("/api/v1/admin/books/{id}/full.pdf")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('EDITOR','ADMIN','SUPERADMIN')")
+    @PreAuthorize("hasAnyRole('EDITOR','ADMIN','SUPERADMIN')")
     @Operation(summary = "Admin-only: get the full uploaded PDF. 204 if none.")
     public ResponseEntity<byte[]> getFull(@PathVariable UUID id) {
-        return previewService.getPreview(id)
-                .filter(p -> p.getFullPdf() != null)
+        return bookPreviewUseCase.getPreview(id.toString())
+                .filter(p -> p.fullPdf() != null)
                 .map(p -> ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)
                         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"book.pdf\"")
                         .header("X-Total-Pages",
-                                p.getFullPages() == null ? "" : String.valueOf(p.getFullPages()))
+                                p.fullPages() == null ? "" : String.valueOf(p.fullPages()))
                         .cacheControl(CacheControl.noCache())
-                        .body(p.getFullPdf()))
+                        .body(p.fullPdf()))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
@@ -74,7 +77,7 @@ public class BookPreviewController {
             throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Debe ser un PDF");
         }
         try {
-            int pages = previewService.storePreview(id, file.getBytes());
+            int pages = bookPreviewUseCase.storePreview(id.toString(), file.getBytes());
             return ResponseEntity.ok(Map.of("bookId", id, "previewPages", pages));
         } catch (java.io.IOException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se pudo leer el archivo");

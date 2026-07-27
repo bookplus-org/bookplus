@@ -1,0 +1,12 @@
+# Reglas de linter de contrato OpenAPI (Spectral). Parten del ruleset oficial
+# "oas" (OpenAPI) y añaden/ajustan convenciones del proyecto BookPlus.
+extends: ["spectral:oas"]
+
+rules:
+  # Convenciones que consideramos obligatorias en BookPlus:
+  operation-operationId: error        # cada operación debe tener operationId único
+  operation-tags: error               # cada operación agrupada por tag
+  info-contact: error                 # el API debe declarar contacto
+  info-description: error             # y descripción
+  operation-description: warn         # recomendado, no bloqueante
+  oas3-api-servers: error             # deben declararse servidores

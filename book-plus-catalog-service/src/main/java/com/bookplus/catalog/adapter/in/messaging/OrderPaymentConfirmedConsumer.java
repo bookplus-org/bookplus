@@ -1,33 +1,28 @@
 package com.bookplus.catalog.adapter.in.messaging;
 
-import com.bookplus.catalog.adapter.out.persistence.entity.UserPurchaseEntity;
-import com.bookplus.catalog.adapter.out.persistence.repository.UserPurchaseJpaRepository;
+import com.bookplus.catalog.domain.port.in.PurchaseAccessUseCase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
- * Proyecta las compras confirmadas en la tabla user_purchases para dar acceso
- * al PDF completo (biblioteca del usuario). Idempotente: inserta solo si falta.
+ * Proyecta las compras confirmadas para dar acceso al PDF completo (biblioteca del usuario).
+ * Solo parsea el evento Kafka; la lógica de concesión vive en {@link PurchaseAccessUseCase}.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class OrderPaymentConfirmedConsumer {
 
-    private final UserPurchaseJpaRepository purchaseRepo;
+    private final PurchaseAccessUseCase purchaseAccessUseCase;
 
     @KafkaListener(topics = "order.payment.confirmed", groupId = "catalog-service",
                    containerFactory = "kafkaListenerContainerFactory")
-    @Transactional
     public void onPaymentConfirmed(Map<String, Object> payload) {
         String userId = asString(payload.get("userId"));
         if (userId == null) {
@@ -45,12 +40,7 @@ public class OrderPaymentConfirmedConsumer {
                 continue;
             }
             try {
-                UUID id = UUID.fromString(bookId);
-                if (!purchaseRepo.existsByUserIdAndBookId(userId, id)) {
-                    purchaseRepo.save(UserPurchaseEntity.builder()
-                            .userId(userId).bookId(id).purchasedAt(Instant.now()).build());
-                    log.info("Registered purchase: user={} book={}", userId, bookId);
-                }
+                purchaseAccessUseCase.grantAccess(userId, bookId);
             } catch (Exception ex) {
                 log.warn("Could not register purchase user={} book={}: {}", userId, bookId, ex.getMessage());
             }

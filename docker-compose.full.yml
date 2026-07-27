@@ -87,6 +87,25 @@ services:
       - ./vault/seed.sh:/seed/seed.sh:ro
     restart: "no"
 
+  # Configura el motor de secretos DINÁMICOS de BD (credenciales temporales).
+  # Espera a que auth-postgres esté sano para poder validar la conexión.
+  vault-db-init:
+    image: hashicorp/vault:1.17
+    container_name: bookplus-vault-db-init
+    networks: [bookplus-net]
+    depends_on:
+      vault:
+        condition: service_healthy
+      auth-postgres:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN:-bookplus-root}
+    entrypoint: ["/bin/sh", "/seed/dynamic-db.sh"]
+    volumes:
+      - ./vault/dynamic-db.sh:/seed/dynamic-db.sh:ro
+    restart: "no"
+
   gateway-redis:
     image: redis:7.2-alpine
     container_name: bookplus-gateway-redis
@@ -350,6 +369,8 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLE_RATE:-1.0}
+      INVENTORY_GRPC_HOST: inventory-service   # order consulta stock por gRPC
+      INVENTORY_GRPC_PORT: 9090
     depends_on:
       order-postgres: { condition: service_healthy }
       kafka:          { condition: service_healthy }

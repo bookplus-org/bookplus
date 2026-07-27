@@ -44,6 +44,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(pd);
     }
 
+    // ── 400 Bad Request — PDF inválido ──────────────────────────────────────
+
+    @ExceptionHandler(InvalidPdfException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidPdf(InvalidPdfException ex, WebRequest request) {
+        ProblemDetail pd = buildProblem(HttpStatus.BAD_REQUEST, "invalid-pdf",
+                ex.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(pd);
+    }
+
+    // ── 403 Forbidden — sin acceso a la compra ──────────────────────────────
+
+    @ExceptionHandler(PurchaseAccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> handlePurchaseAccess(PurchaseAccessDeniedException ex, WebRequest request) {
+        ProblemDetail pd = buildProblem(HttpStatus.FORBIDDEN, "purchase-access-denied",
+                ex.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(pd);
+    }
+
     // ── 422 Unprocessable Entity — general domain violations ────────────────
 
     @ExceptionHandler(DomainException.class)

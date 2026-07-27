@@ -32,7 +32,7 @@ class CouponServiceEvaluateTest {
     void setUp() { service = new CouponService(couponPort); }
 
     private Coupon coupon(String type, BigDecimal value, BigDecimal minAmount, boolean active, Instant expiresAt) {
-        return new Coupon("SAVE10", type, value, minAmount, active, expiresAt);
+        return new Coupon("SAVE10", type, value, minAmount, active, expiresAt, Instant.now());
     }
 
     @Test

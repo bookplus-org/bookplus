@@ -1,0 +1,29 @@
+name: OpenAPI Contract
+
+# Gobernanza de API contract-first: valida los contratos OpenAPI (fuente de
+# verdad en api/openapi/*.yaml) con Spectral en cada cambio. Si el contrato
+# rompe una regla (falta operationId, tag, contacto, etc.), el pipeline falla.
+
+on:
+  push:
+    branches: [main]
+    paths: ["api/openapi/**", ".spectral.yaml", ".github/workflows/openapi.yml"]
+  pull_request:
+    paths: ["api/openapi/**", ".spectral.yaml", ".github/workflows/openapi.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint de contratos OpenAPI (Spectral)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar Spectral
+        run: npm install -g @stoplight/spectral-cli@6
+      - name: Lint del contrato
+        run: spectral lint "api/openapi/*.yaml" --ruleset .spectral.yaml --fail-severity=error

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ManageCouponUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-order-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.order.domain.port.in</a> &gt; <span class="el_source">ManageCouponUseCase.java</span></div><h1>ManageCouponUseCase.java</h1><pre class="source lang-java linenums">package com.bookplus.order.domain.port.in;
+
+import com.bookplus.order.domain.model.Coupon;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Caso de uso de gestión de cupones (administración).
+ * Contiene las reglas de negocio (normalización de código, validación de descuentos,
+ * duplicados) para que el controlador solo traduzca HTTP.
+ */
+public interface ManageCouponUseCase {
+
+    /** Todos los cupones, ordenados del más reciente al más antiguo. */
+    List&lt;Coupon&gt; listAll();
+
+    /** Crea un cupón nuevo. Lanza DuplicateCouponException / CouponValidationException. */
+    Coupon create(CreateCouponCommand command);
+
+    /** Activa o desactiva un cupón. Lanza CouponNotFoundException si no existe. */
+    Coupon setActive(String code, boolean active);
+
+    /** Elimina un cupón. Lanza CouponNotFoundException si no existe. */
+    void delete(String code);
+
+<span class="nc" id="L28">    record CreateCouponCommand(</span>
+            String     code,
+            String     discountType,   // PERCENT | FIXED
+            BigDecimal discountValue,
+            BigDecimal minAmount,
+            Instant    expiresAt
+    ) {}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

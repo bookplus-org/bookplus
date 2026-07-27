@@ -15,11 +15,17 @@ public record Coupon(
         BigDecimal discountValue,
         BigDecimal minAmount,
         boolean    active,
-        Instant    expiresAt
+        Instant    expiresAt,
+        Instant    createdAt
 ) {
     public boolean isPercent() { return "PERCENT".equalsIgnoreCase(discountType); }
 
     public boolean isExpired(Instant now) {
         return expiresAt != null && expiresAt.isBefore(now);
+    }
+
+    /** Copia inmutable con el estado activo cambiado (preserva el resto, incl. createdAt). */
+    public Coupon withActive(boolean newActive) {
+        return new Coupon(code, discountType, discountValue, minAmount, newActive, expiresAt, createdAt);
     }
 }

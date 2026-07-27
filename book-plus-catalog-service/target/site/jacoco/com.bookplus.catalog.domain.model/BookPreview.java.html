@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookPreview.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">book-plus-catalog-service</a> &gt; <a href="index.source.html" class="el_package">com.bookplus.catalog.domain.model</a> &gt; <span class="el_source">BookPreview.java</span></div><h1>BookPreview.java</h1><pre class="source lang-java linenums">package com.bookplus.catalog.domain.model;
+
+import java.time.Instant;
+
+/**
+ * Muestra en PDF de un libro (primeras páginas) más el PDF completo (para consulta admin
+ * y descarga de la biblioteca). Vista de dominio: el mapeo BYTEA vive en el adaptador.
+ */
+<span class="nc" id="L9">public record BookPreview(</span>
+        String  bookId,
+        byte[]  previewPdf,
+        int     pageCount,
+        Integer sourcePages,
+        byte[]  fullPdf,
+        Integer fullPages,
+        Instant updatedAt
+) {
+<span class="nc bnc" id="L18" title="All 4 branches missed.">    public boolean hasPreview() { return previewPdf != null &amp;&amp; previewPdf.length &gt; 0; }</span>
+<span class="nc bnc" id="L19" title="All 4 branches missed.">    public boolean hasFullPdf() { return fullPdf != null &amp;&amp; fullPdf.length &gt; 0; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -131,6 +131,12 @@ public class Book {
                 this.author, this.categoryId, this.price));
     }
 
+    /** Fija la URL de la portada (apunta al endpoint que sirve la imagen del libro). */
+    public void changeCoverImageUrl(String imageUrl) {
+        this.imageUrl  = imageUrl;
+        this.updatedAt = Instant.now();
+    }
+
     public void deactivate() {
         if (!this.active) throw new DomainException("Book is already inactive: " + isbn);
         this.active    = false;
