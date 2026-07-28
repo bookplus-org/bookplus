@@ -93,7 +93,7 @@ services:
     environment:
       POSTGRES_DB: auth_db
       POSTGRES_USER: auth_user
-      POSTGRES_PASSWORD: auth_pass
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-auth_pass}
     volumes:
       - auth-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -112,7 +112,7 @@ services:
       DB_PORT: 5432
       DB_NAME: auth_db
       DB_USER: auth_user
-      DB_PASS: auth_pass
+      DB_PASS: ${AUTH_DB_PASSWORD:-auth_pass}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REDIS_HOST: gateway-redis
       REDIS_PORT: 6379
@@ -149,7 +149,7 @@ services:
     environment:
       POSTGRES_DB: catalog_db
       POSTGRES_USER: catalog_user
-      POSTGRES_PASSWORD: catalog_pass
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-catalog_pass}
     volumes:
       - catalog-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -193,7 +193,7 @@ services:
       SERVER_PORT: 8082
       CATALOG_DB_URL: jdbc:postgresql://catalog-postgres:5432/catalog_db
       CATALOG_DB_USER: catalog_user
-      CATALOG_DB_PASS: catalog_pass
+      CATALOG_DB_PASS: ${CATALOG_DB_PASSWORD:-catalog_pass}
       CATALOG_REDIS_HOST: catalog-redis
       CATALOG_REDIS_PORT: 6379
       REDIS_HOST: catalog-redis
@@ -229,7 +229,7 @@ services:
     environment:
       POSTGRES_DB: inventory_db
       POSTGRES_USER: inventory_user
-      POSTGRES_PASSWORD: inventory_pass
+      POSTGRES_PASSWORD: ${INVENTORY_DB_PASSWORD:-inventory_pass}
     volumes:
       - inventory-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -246,7 +246,7 @@ services:
       SERVER_PORT: 8083
       INVENTORY_DB_URL: jdbc:postgresql://inventory-postgres:5432/inventory_db?stringtype=unspecified
       INVENTORY_DB_USER: inventory_user
-      INVENTORY_DB_PASS: inventory_pass
+      INVENTORY_DB_PASS: ${INVENTORY_DB_PASSWORD:-inventory_pass}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       INVENTORY_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       ZIPKIN_URL: http://zipkin:9411
@@ -307,7 +307,7 @@ services:
     environment:
       POSTGRES_DB: order_db
       POSTGRES_USER: order_user
-      POSTGRES_PASSWORD: order_pass
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-order_pass}
     volumes:
       - order-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -324,7 +324,7 @@ services:
       SERVER_PORT: 8085
       ORDER_DB_URL: jdbc:postgresql://order-postgres:5432/order_db?stringtype=unspecified
       ORDER_DB_USER: order_user
-      ORDER_DB_PASS: order_pass
+      ORDER_DB_PASS: ${ORDER_DB_PASSWORD:-order_pass}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       ORDER_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
@@ -351,7 +351,7 @@ services:
     environment:
       POSTGRES_DB: payment_db
       POSTGRES_USER: payment_user
-      POSTGRES_PASSWORD: payment_pass
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:-payment_pass}
     volumes:
       - payment-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -368,7 +368,7 @@ services:
       SERVER_PORT: 8086
       PAYMENT_DB_URL: jdbc:postgresql://payment-postgres:5432/payment_db?stringtype=unspecified
       PAYMENT_DB_USER: payment_user
-      PAYMENT_DB_PASS: payment_pass
+      PAYMENT_DB_PASS: ${PAYMENT_DB_PASSWORD:-payment_pass}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       PAYMENT_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
@@ -395,7 +395,7 @@ services:
     environment:
       POSTGRES_DB: notification_db
       POSTGRES_USER: notification_user
-      POSTGRES_PASSWORD: notification_pass
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_pass}
     volumes:
       - notification-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -412,7 +412,7 @@ services:
       SERVER_PORT: 8087
       NOTIFICATION_DB_URL: jdbc:postgresql://notification-postgres:5432/notification_db?stringtype=unspecified
       NOTIFICATION_DB_USER: notification_user
-      NOTIFICATION_DB_PASS: notification_pass
+      NOTIFICATION_DB_PASS: ${NOTIFICATION_DB_PASSWORD:-notification_pass}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NOTIFICATION_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       ZIPKIN_URL: http://zipkin:9411
@@ -502,7 +502,7 @@ services:
     environment:
       POSTGRES_DB: report_db
       POSTGRES_USER: report_user
-      POSTGRES_PASSWORD: report_pass
+      POSTGRES_PASSWORD: ${REPORT_DB_PASSWORD:-report_pass}
     volumes:
       - report-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -519,7 +519,7 @@ services:
       SERVER_PORT: 8088
       REPORT_DB_URL: jdbc:postgresql://report-postgres:5432/report_db
       REPORT_DB_USER: report_user
-      REPORT_DB_PASS: report_pass
+      REPORT_DB_PASS: ${REPORT_DB_PASSWORD:-report_pass}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       REPORT_JWT_PUBLIC_KEY_BASE64: ${BOOKPLUS_JWT_PUBLIC_KEY_BASE64}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
