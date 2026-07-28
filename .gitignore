@@ -1,2 +1,52 @@
-# nada que ignorar de momento; placeholder por convención
+# ── Secretos — NUNCA subir al repositorio ─────────────────────────────────
+# Variables de entorno reales (usa .env.example como plantilla).
+.env
+.env.*
+!.env.example
+!.env.jenkins.example
+!.env.sample
+
+# Claves privadas y certificados.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_ed25519
+id_ecdsa
+
+# GitHub App / JWT / firmas.
+jenkins/casc/github-app.pem
+**/github-app.pem
+*-private-key*.pem
+
+# Credenciales de Terraform / nube.
+*.tfvars
+!*.tfvars.example
+.terraform/
+*.tfstate
+*.tfstate.*
+**/.oci/
+oci_api_key.pem
+
+# ── Artefactos de build ───────────────────────────────────────────────────
+target/
+build/
+*.class
+
+# Node / Angular
+node_modules/
+book-plus-frontend/dist/
+book-plus-frontend/.angular/
+npm-debug.log*
+
+# ── IDE / SO ──────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
 .DS_Store
+Thumbs.db
+
+# Archivos temporales de Office (locks tipo ~$archivo.docx)
+~$*
