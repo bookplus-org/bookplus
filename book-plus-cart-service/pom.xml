@@ -133,6 +133,14 @@
             <version>2.2.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- Pact — verificación del PROVEEDOR: valida que el evento real cart.checked-out
+             que emite este servicio cumple el contrato generado por el consumidor (order). -->
+        <dependency>
+            <groupId>au.com.dius.pact.provider</groupId>
+            <artifactId>junit5</artifactId>
+            <version>4.6.14</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
